@@ -1,4 +1,4 @@
-# Fedora Immutable Custom
+# Workstation OS Image
 
 Personal Fedora bootc derivative containing host-integrated packages that must
 survive image updates and switches.
@@ -20,8 +20,8 @@ at build time. Docker creates `/run/docker.sock` when its service starts.
 GitHub Actions builds daily and after relevant changes, publishing:
 
 ```text
-ghcr.io/marcortola/fedora-immutable-custom:latest
-ghcr.io/marcortola/fedora-immutable-custom:<commit-sha>
+ghcr.io/marcortola/workstation-os-image:latest
+ghcr.io/marcortola/workstation-os-image:<commit-sha>
 ```
 
 After the first successful workflow run, ensure the GHCR package is public.
@@ -31,8 +31,8 @@ After the first successful workflow run, ensure the GHCR package is public.
 Inspect the image before switching, then stage it:
 
 ```bash
-skopeo inspect docker://ghcr.io/marcortola/fedora-immutable-custom:latest
-sudo bootc switch ghcr.io/marcortola/fedora-immutable-custom:latest
+skopeo inspect docker://ghcr.io/marcortola/workstation-os-image:latest
+sudo bootc switch ghcr.io/marcortola/workstation-os-image:latest
 bootc status --verbose
 systemctl reboot
 ```
