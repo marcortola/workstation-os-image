@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+status=0
+
+"$repo_root/scripts/audit-deployment" || status=$?
+printf '\n'
+"$repo_root/scripts/audit-packages" || status=$?
+printf '\n'
+"$repo_root/scripts/audit-dotfiles" "$@" || {
+    dotfile_status=$?
+    (( dotfile_status > status )) && status=$dotfile_status
+}
+
+exit "$status"
