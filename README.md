@@ -66,7 +66,7 @@ local terminal/GUI edits ──> audit + interactive capture ──> Git branch/
 | Zirconium | Niri/DMS scaffolding and desktop integration | Continues moving with the base image |
 | This image | RPMs, daemons, sockets, privileged helpers and factory defaults | Replaced transactionally by bootc |
 | Chezmoi seeds | Portable Fish, Foot, Zellij, Niri and application defaults | Create missing files; preserve later edits |
-| DMS overlay | Explicitly captured, portable GUI preferences | Merges onto the current DMS schema without replacing new defaults |
+| DMS overlay | Explicitly captured, portable GUI preferences | Seeds a new account once; later UI edits win unless explicitly restored |
 | Persistent home | Secrets, projects, histories, device state and application databases | Never stored in the image or Git |
 
 The image extends Zirconium's existing chezmoi source. It does not introduce a
@@ -131,7 +131,7 @@ to those current defaults:
 ```bash
 wjust dms-capture   # Tab selects portable values to add or update
 wjust dms-remove    # Tab selects tracked overrides to stop applying
-wjust dms-apply     # merge the tracked overlay into the current account
+wjust dms-apply     # explicitly restore the tracked overlay
 wjust audit
 ```
 
@@ -140,6 +140,13 @@ The tracked overlay is
 merge by top-level key; bar settings merge by bar ID and field so future DMS
 fields survive. Paths use portable tokens, and device pins, monitor layouts,
 histories and similar state are excluded from the interactive picker.
+Custom bars are captured as complete portable records; built-in bars remain
+field-selectable. The first graphical login seeds this overlay after DMS has
+migrated its schema. Later UI changes persist across login and reboot.
+
+The UI remains the live editor. Run `dms-capture` after a reviewed change to
+make it a default for reconstructed workstations. The image never writes live
+DMS changes back into Git automatically.
 
 `audit-diff` may still show the full generated DMS file differing from
 Zirconium's sparse seed. The actionable result is the later “Captured DMS
@@ -185,8 +192,8 @@ systemctl reboot
 ```
 
 After graphical login, first-login services clone this repository, restore the
-Brewfile/Flatpaks, install Toolbox and fonts, and apply the DMS preference
-overlay. Check convergence with:
+Brewfile/Flatpaks, install Toolbox and fonts, and seed the DMS preference
+overlay once. Check convergence with:
 
 ```bash
 wjust audit
@@ -248,10 +255,9 @@ state markers blindly:
 journalctl --user -u workstation-bootstrap.service -b
 journalctl --user -u workstation-microsoft-fonts.service -b
 journalctl --user -u workstation-dms-settings.service -b
-systemctl --user start workstation-dms-settings.service
+wjust dms-apply  # only when intentionally restoring captured DMS defaults
 ```
 
-Create-only chezmoi targets intentionally preserve existing user files. To
-adopt a changed seed on an existing account, review that specific file and
-update it deliberately; the DMS overlay is the exception and reapplies only its
-explicitly tracked keys.
+Create-only chezmoi targets and the one-time DMS preference seed intentionally
+preserve later user edits. To adopt a changed default on an existing account,
+review and apply it deliberately.

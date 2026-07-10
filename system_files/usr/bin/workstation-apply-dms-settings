@@ -3,8 +3,36 @@ set -euo pipefail
 
 overlay=${WORKSTATION_DMS_SETTINGS_OVERLAY:-/usr/share/workstation-os-image/dms-settings.json}
 target=${DMS_SETTINGS_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/DankMaterialShell/settings.json}
+state_home=${XDG_STATE_HOME:-$HOME/.local/state}
+marker=${DMS_SETTINGS_INITIALIZED_MARKER:-$state_home/workstation-os-image/dms-settings-initialized}
+bootstrap_marker=${WORKSTATION_BOOTSTRAP_MARKER:-$state_home/workstation-os-image/bootstrap-complete}
+settings_data=${DMS_SETTINGS_DATA:-/usr/share/quickshell/dms/Common/SettingsData.qml}
+mode=force
 
-[[ -r $overlay ]] || exit 0
+(( $# <= 1 )) || {
+    echo "Usage: workstation-apply-dms-settings [--force|--initialize]" >&2
+    exit 2
+}
+
+case ${1:-} in
+    ""|--force) ;;
+    --initialize) mode=initialize ;;
+    *)
+        echo "Usage: workstation-apply-dms-settings [--force|--initialize]" >&2
+        exit 2
+        ;;
+esac
+
+if [[ $mode == initialize && -e $marker ]]; then
+    echo "DMS preference defaults were already initialized."
+    exit 0
+fi
+
+[[ -r $overlay ]] || {
+    [[ $mode == force ]] && exit 0
+    echo "DMS preference overlay is missing: $overlay" >&2
+    exit 1
+}
 [[ -r $target ]] || {
     echo "Waiting for Zirconium to create $target" >&2
     exit 1
@@ -16,6 +44,42 @@ for file in "$overlay" "$target"; do
         exit 2
     }
 done
+
+if [[ $mode == initialize ]]; then
+    expected_version=${DMS_SETTINGS_CONFIG_VERSION:-}
+    if [[ -z $expected_version && -r $settings_data ]]; then
+        expected_version="$(sed -nE \
+            's/^[[:space:]]*readonly property int settingsConfigVersion:[[:space:]]*([0-9]+).*/\1/p' \
+            "$settings_data")"
+    fi
+    [[ $expected_version =~ ^[0-9]+$ ]] || {
+        echo "Unable to determine the installed DMS settings schema version." >&2
+        exit 1
+    }
+    current_version="$(/usr/bin/jq -r '.configVersion // 0' "$target")"
+    [[ $current_version == "$expected_version" ]] || {
+        echo "Waiting for DMS to migrate settings.json to schema $expected_version." >&2
+        exit 1
+    }
+fi
+
+mark_initialized() {
+    local marker_dir temporary_marker
+    marker_dir="$(dirname "$marker")"
+    mkdir -p "$marker_dir"
+    temporary_marker="$(mktemp "$marker_dir/.dms-settings-initialized.XXXXXX")"
+    printf 'initialized\n' > "$temporary_marker"
+    mv -f "$temporary_marker" "$marker"
+}
+
+# Existing installations already received the old login-time overlay. Adopt
+# their current UI state during this lifecycle migration instead of applying
+# the overlay one final time and potentially discarding another UI edit.
+if [[ $mode == initialize && -e $bootstrap_marker ]]; then
+    mark_initialized
+    echo "Adopted existing DMS preferences without changing them."
+    exit 0
+fi
 
 workdir="$(dirname "$target")"
 temporary="$(mktemp "$workdir/.settings.json.XXXXXX")"
@@ -44,6 +108,7 @@ trap 'rm -f "$temporary"' EXIT
 ' "$target" "$overlay" > "$temporary"
 
 if cmp -s "$temporary" "$target"; then
+    [[ $mode == initialize ]] && mark_initialized
     echo "DMS preference overlay already applied."
     exit 0
 fi
@@ -51,4 +116,5 @@ fi
 chmod --reference="$target" "$temporary"
 mv -f "$temporary" "$target"
 trap - EXIT
+[[ $mode == initialize ]] && mark_initialized
 echo "Applied DMS preference overlay."

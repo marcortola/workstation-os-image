@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+overlay=${DMS_SETTINGS_OVERLAY:-$repo_root/system_files/usr/share/workstation-os-image/dms-settings.json}
+
+[[ -r $overlay ]] || {
+    echo "DMS settings overlay is missing: $overlay" >&2
+    exit 2
+}
+
+workdir="$(mktemp -d)"
+trap 'rm -rf -- "$workdir"' EXIT
+"$repo_root/scripts/dms-settings-defaults" > "$workdir/defaults.json"
+
+jq -e 'type == "object" and (has("configVersion") | not)' "$overlay" >/dev/null
+jq -e --slurpfile defaults "$workdir/defaults.json" '
+    keys | all(. as $key | $defaults[0] | has($key))
+' "$overlay" >/dev/null
+jq -e --slurpfile defaults "$workdir/defaults.json" '
+    def valid_widgets:
+      type == "array" and all(
+        type == "string"
+        or (type == "object"
+          and (.id | type == "string" and length > 0)
+          and ((.enabled // true) | type == "boolean")
+          and (keys | all(. == "id" or . == "enabled")))
+      );
+    (.barConfigs // []) as $bars
+    | ($defaults[0].barConfigs[0]) as $template
+    | ["shadowDirection", "shadowDirectionMode"] as $extra_fields
+    | ($bars | type == "array")
+      and ($bars | all(.id
+        | type == "string"
+          and test("^[A-Za-z0-9_-]+$")
+          and length > 0))
+      and (($bars | map(.id) | unique | length) == ($bars | length))
+      and ($bars | all(
+        . as $bar
+        | ($defaults[0].barConfigs | map(select(.id == $bar.id)) | first) as $default
+        | ($bar | to_entries | all(. as $entry
+            | if $entry.key == "id" then true
+            elif ($template | has($entry.key)) then
+              ($entry.value | type) == ($template[$entry.key] | type)
+            elif ($extra_fields | index($entry.key)) != null then
+              ($entry.value | type) == "string"
+            else false
+            end
+          ))
+          and (if $default != null then true
+            else ($bar
+              | has("name") and (.name | type == "string" and length > 0)
+              and has("enabled") and (.enabled | type == "boolean")
+              and has("position")
+              and (.position | type == "number" and floor == . and . >= 0 and . <= 3)
+              and has("leftWidgets") and (.leftWidgets | valid_widgets)
+              and has("centerWidgets") and (.centerWidgets | valid_widgets)
+              and has("rightWidgets") and (.rightWidgets | valid_widgets)
+              and (.screenPreferences // ["all"] | type == "array")
+              and (.showOnLastDisplay // true | type == "boolean"))
+            end)
+          and (($bar | has("position") | not)
+            or ($bar.position
+              | type == "number" and floor == . and . >= 0 and . <= 3))
+          and (($bar | has("screenPreferences") | not)
+            or $bar.screenPreferences == ["all"])
+          and (($bar | has("showOnLastDisplay") | not)
+            or $bar.showOnLastDisplay == true)
+          and (["leftWidgets", "centerWidgets", "rightWidgets"] | all(
+            . as $field
+            | ($bar | has($field) | not) or ($bar[$field] | valid_widgets)))
+      ))
+' "$overlay" >/dev/null
+
+jq -e '
+    if has("builtInPluginSettings") then
+      .builtInPluginSettings as $plugins
+      | ($plugins | type == "object")
+        and ($plugins | keys | all(
+          . == "dms_clipboard_search" or . == "dms_settings_search"))
+        and ($plugins | to_entries | all(
+          (.value | type == "object")
+          and (.value | keys | all(. == "trigger"))
+          and (.value.trigger | type == "string" and length > 0)))
+    else true end
+' "$overlay" >/dev/null

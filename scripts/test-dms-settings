@@ -1,0 +1,219 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+apply="$repo_root/system_files/usr/bin/workstation-apply-dms-settings"
+export DMS_SETTINGS_CONFIG_VERSION=${DMS_SETTINGS_CONFIG_VERSION:-12}
+workdir="$(mktemp -d)"
+trap 'rm -rf -- "$workdir"' EXIT
+
+overlay="$workdir/overlay.json"
+target="$workdir/settings.json"
+marker="$workdir/state/dms-settings-initialized"
+bootstrap_marker="$workdir/state/bootstrap-complete"
+
+write_live_fixture() {
+    local destination=$1
+    jq -n '{
+        configVersion: 12,
+        cornerRadius: 99,
+        customThemeFile: "/tmp/ui-theme.json",
+        barConfigs: [{
+            id: "default",
+            leftWidgets: ["ui-left"],
+            rightWidgets: ["ui-right"],
+            futureField: "preserve-me"
+        }],
+        desktopWidgetInstances: [{
+            id: "dw_test",
+            widgetType: "desktopClock",
+            positions: {"eDP-1": {x: 50, y: 60}}
+        }],
+        displayProfiles: {portable_test: {name: "UI profile"}}
+    }' > "$destination"
+}
+
+jq -n '{
+    cornerRadius: 12,
+    customThemeFile: "${HOME}/.config/DankMaterialShell/theme.json",
+    barConfigs: [{id: "default", rightWidgets: ["repo-right"]}]
+}' > "$overlay"
+
+run_apply() {
+    DMS_SETTINGS_FILE="$target" \
+    WORKSTATION_DMS_SETTINGS_OVERLAY="$overlay" \
+    DMS_SETTINGS_INITIALIZED_MARKER="$marker" \
+    WORKSTATION_BOOTSTRAP_MARKER="$bootstrap_marker" \
+        "$apply" "$@" >/dev/null
+}
+
+# A force restore owns only captured keys and fields.
+write_live_fixture "$target"
+run_apply --force
+jq -e --arg home "$HOME" '
+    .configVersion == 12
+    and .cornerRadius == 12
+    and .customThemeFile == ($home + "/.config/DankMaterialShell/theme.json")
+    and .barConfigs[0].leftWidgets == ["ui-left"]
+    and .barConfigs[0].rightWidgets == ["repo-right"]
+    and .barConfigs[0].futureField == "preserve-me"
+    and .desktopWidgetInstances[0].id == "dw_test"
+    and .displayProfiles.portable_test.name == "UI profile"
+' "$target" >/dev/null
+
+# Fresh provisioning applies once. Later UI changes survive initialization,
+# while an explicit force restore still restores captured defaults.
+rm -f "$marker" "$bootstrap_marker"
+write_live_fixture "$target"
+run_apply --initialize
+[[ -f $marker ]]
+jq '.cornerRadius = 77 | .barConfigs[0].rightWidgets = ["ui-after-init"]' \
+    "$target" > "$workdir/changed.json"
+mv -f "$workdir/changed.json" "$target"
+run_apply --initialize
+jq -e '
+    .cornerRadius == 77
+    and .barConfigs[0].rightWidgets == ["ui-after-init"]
+' "$target" >/dev/null
+run_apply --force
+jq -e '
+    .cornerRadius == 12
+    and .barConfigs[0].rightWidgets == ["repo-right"]
+' "$target" >/dev/null
+
+# During migration, an already-bootstrapped account is adopted without a final
+# overlay write that could discard another UI change.
+rm -f "$marker"
+mkdir -p "$(dirname "$bootstrap_marker")"
+touch "$bootstrap_marker"
+write_live_fixture "$target"
+before="$(sha256sum "$target")"
+run_apply --initialize
+[[ -f $marker && $(sha256sum "$target") == "$before" ]]
+
+# Invalid input must fail without marking initialization complete.
+rm -f "$marker" "$bootstrap_marker"
+printf 'not json\n' > "$target"
+if run_apply --initialize 2>/dev/null; then
+    echo "Invalid DMS settings unexpectedly initialized." >&2
+    exit 1
+fi
+[[ ! -e $marker ]]
+
+# Initialization waits until DMS has migrated the Zirconium seed to the
+# installed schema and never marks an old file as initialized.
+rm -f "$marker" "$bootstrap_marker"
+write_live_fixture "$target"
+jq '.configVersion = 1' "$target" > "$workdir/old-schema.json"
+mv -f "$workdir/old-schema.json" "$target"
+if run_apply --initialize 2>/dev/null; then
+    echo "Unmigrated DMS settings unexpectedly initialized." >&2
+    exit 1
+fi
+[[ ! -e $marker ]]
+jq '.configVersion = 12' "$target" > "$workdir/migrated.json"
+mv -f "$workdir/migrated.json" "$target"
+run_apply --initialize
+[[ -e $marker ]]
+
+# Opaque plugin state and monitor-bound values are never offered for generic
+# capture. A custom bar is offered as one portable composite, not sparse fields.
+write_live_fixture "$target"
+jq '.builtInPluginSettings = {
+        dankNotepadModule: {
+            currentFilePath: "/home/test/private-note.md",
+            sourceContent: "do not capture"
+        }
+    }
+    | .frameScreenPreferences = ["eDP-1"]
+    | .barConfigs += [{
+        id: "bar123",
+        name: "Second Bar",
+        enabled: true,
+        position: 1,
+        leftWidgets: ["launcherButton"],
+        centerWidgets: ["clock"],
+        rightWidgets: ["battery"],
+        screenPreferences: ["eDP-1"],
+        showOnLastDisplay: false
+    }]' "$target" > "$workdir/capture-live.json"
+mv -f "$workdir/capture-live.json" "$target"
+printf '{}\n' > "$workdir/empty-overlay.json"
+capture_list="$(
+    DMS_SETTINGS_FILE="$target" \
+    DMS_SETTINGS_OVERLAY="$workdir/empty-overlay.json" \
+        "$repo_root/scripts/capture-dms-settings" --list
+)"
+grep -Eq '^barConfigs\.bar123[[:space:]]' <<< "$capture_list"
+if grep -Eq '^barConfigs\.bar123\.' <<< "$capture_list" \
+    || grep -q 'builtInPluginSettings' <<< "$capture_list" \
+    || grep -q 'frameScreenPreferences' <<< "$capture_list"; then
+    echo "Unsafe or sparse DMS settings unexpectedly appeared in capture." >&2
+    exit 1
+fi
+
+mkdir -p "$workdir/bin"
+# This writes a literal test double whose variables expand when it runs.
+# shellcheck disable=SC2016
+printf '%s\n' \
+    '#!/usr/bin/env bash' \
+    'awk -F '\''\t'\'' -v key="$SELECT_DMS_KEY" '\''$1 == key {print; exit}'\''' \
+    > "$workdir/bin/fzf"
+chmod +x "$workdir/bin/fzf"
+SELECT_DMS_KEY=barConfigs.bar123 \
+PATH="$workdir/bin:$PATH" \
+DMS_SETTINGS_FILE="$target" \
+DMS_SETTINGS_OVERLAY="$workdir/empty-overlay.json" \
+    "$repo_root/scripts/capture-dms-settings" >/dev/null
+jq -e '
+    (.barConfigs | length) == 1
+    and .barConfigs[0].id == "bar123"
+    and .barConfigs[0].screenPreferences == ["all"]
+    and .barConfigs[0].showOnLastDisplay == true
+    and (has("builtInPluginSettings") | not)
+' "$workdir/empty-overlay.json" >/dev/null
+
+# Full custom bars are valid overlays; sparse custom bars are rejected because
+# appending one to a fresh DMS account would create an unusable bar record.
+jq '{barConfigs: [.barConfigs[] | select(.id == "bar123")
+    | . + {screenPreferences: ["all"], showOnLastDisplay: true}]}' \
+    "$target" > "$workdir/custom-bar-overlay.json"
+DMS_SETTINGS_OVERLAY="$workdir/custom-bar-overlay.json" \
+    "$repo_root/scripts/validate-dms-overlay"
+jq -n '{barConfigs: [{id: "bar123", rightWidgets: ["battery"]}]}' \
+    > "$workdir/sparse-bar-overlay.json"
+if DMS_SETTINGS_OVERLAY="$workdir/sparse-bar-overlay.json" \
+    "$repo_root/scripts/validate-dms-overlay" 2>/dev/null; then
+    echo "Sparse custom DMS bar unexpectedly passed validation." >&2
+    exit 1
+fi
+
+jq -n '{builtInPluginSettings: {
+    dankNotepadModule: {
+        currentFilePath: "/home/test/private-note.md",
+        sourceContent: "do not commit"
+    }
+}}' > "$workdir/unsafe-plugin-overlay.json"
+if DMS_SETTINGS_OVERLAY="$workdir/unsafe-plugin-overlay.json" \
+    "$repo_root/scripts/validate-dms-overlay" 2>/dev/null; then
+    echo "Unsafe built-in plugin state unexpectedly passed validation." >&2
+    exit 1
+fi
+
+jq '.barConfigs[0].id = "bar.with.dot"' "$workdir/custom-bar-overlay.json" \
+    > "$workdir/invalid-bar-id.json"
+if DMS_SETTINGS_OVERLAY="$workdir/invalid-bar-id.json" \
+    "$repo_root/scripts/validate-dms-overlay" 2>/dev/null; then
+    echo "Unsupported custom DMS bar ID unexpectedly passed validation." >&2
+    exit 1
+fi
+
+jq '.barConfigs[0].rightWidgets = [{id: "clock", secret: "value"}]' \
+    "$workdir/custom-bar-overlay.json" > "$workdir/invalid-widget.json"
+if DMS_SETTINGS_OVERLAY="$workdir/invalid-widget.json" \
+    "$repo_root/scripts/validate-dms-overlay" 2>/dev/null; then
+    echo "Invalid DMS bar widget unexpectedly passed validation." >&2
+    exit 1
+fi
+
+echo "DMS settings lifecycle tests passed."

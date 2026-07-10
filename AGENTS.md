@@ -43,6 +43,8 @@ files. `CLAUDE.md` imports this file for Claude Code.
 - Never hardcode a username or `/home/marc` in image defaults. Use chezmoi
   templates such as `{{ .chezmoi.homeDir }}`.
 - Personal defaults use chezmoi `create_` entries so existing user edits win.
+- DMS settings are UI-owned after their one-time preference seed. Promote
+  reviewed UI changes with `just dms-capture`; restore with `just dms-apply`.
 - Extend Zirconium's existing chezmoi source and services; do not add another
   dotfile updater.
 - Docker remains rootful and available without `sudo` through dynamic local
@@ -76,7 +78,7 @@ files. `CLAUDE.md` imports this file for Claude Code.
 - `just capture`: sync, validate, and show the resulting Git status/diff.
 - `just dms-capture`: interactively promote portable live DMS preferences.
 - `just dms-remove`: interactively stop tracking selected DMS preferences.
-- `just dms-apply`: merge the tracked preference overlay into the live account.
+- `just dms-apply`: explicitly restore the tracked overlay into the live account.
 - `just validate`: run repository and effective workstation checks.
 - `just build`: build the complete bootc image locally with Podman.
 
