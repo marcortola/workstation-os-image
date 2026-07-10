@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/fedora-immutable-custom
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/workstation-os-image
   BASE_IMAGE: ${{ vars.BASE_IMAGE || 'ghcr.io/zirconium-dev/zirconium:latest' }}
 
 jobs:
@@ -33,7 +33,7 @@ jobs:
         id: build
         uses: redhat-actions/buildah-build@v2
         with:
-          image: fedora-immutable-custom
+          image: workstation-os-image
           tags: latest ${{ github.sha }}
           containerfiles: ./Containerfile
           build-args: |

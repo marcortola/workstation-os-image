@@ -1,7 +1,7 @@
 ARG BASE_IMAGE=ghcr.io/zirconium-dev/zirconium:latest
 FROM ${BASE_IMAGE}
 
-LABEL org.opencontainers.image.source="https://github.com/marcortola/fedora-immutable-custom"
+LABEL org.opencontainers.image.source="https://github.com/marcortola/workstation-os-image"
 LABEL org.opencontainers.image.description="Personal Fedora bootc image with host-integrated tools"
 
 RUN dnf -y config-manager addrepo \
