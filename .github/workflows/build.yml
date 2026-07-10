@@ -1,0 +1,55 @@
+name: Build bootc image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - Containerfile
+      - .github/workflows/build.yml
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: bootc-image
+  cancel-in-progress: true
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/fedora-immutable-custom
+  BASE_IMAGE: ${{ vars.BASE_IMAGE || 'ghcr.io/zirconium-dev/zirconium:latest' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build image
+        id: build
+        uses: redhat-actions/buildah-build@v2
+        with:
+          image: fedora-immutable-custom
+          tags: latest ${{ github.sha }}
+          containerfiles: ./Containerfile
+          build-args: |
+            BASE_IMAGE=${{ env.BASE_IMAGE }}
+          layers: false
+
+      - name: Log in to GHCR
+        uses: redhat-actions/podman-login@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push image
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ steps.build.outputs.image }}
+          tags: ${{ steps.build.outputs.tags }}
+          registry: ghcr.io/${{ github.repository_owner }}
