@@ -124,23 +124,7 @@ plugins {
     status-bar location="zellij:status-bar"
 }
 
-theme "quiet-tokyo-night"
-
-themes {
-    quiet-tokyo-night {
-        fg 169 177 214
-        bg 26 27 38
-        black 21 22 30
-        red 180 90 105
-        green 120 150 90
-        yellow 170 135 80
-        blue 122 162 247
-        magenta 130 105 160
-        cyan 90 140 155
-        white 192 202 245
-        orange 170 110 75
-    }
-}
+theme "tokyo-night-dark"
 
 default_mode "normal"
 default_shell "/usr/bin/fish"
