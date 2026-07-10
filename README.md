@@ -20,12 +20,35 @@ ghcr.io/marcortola/workstation-os-image:latest
 - Fish, Foot, pane-focused Zellij, Starship, Neovim and Tokyo Night defaults.
 - OpenCode (`oc` and `Mod+Shift+O`), Caps Lock as Ctrl, and
   `gpt-4o-transcribe` dictation on `Mod+Shift+V`.
+- Screen recording via `wf-recorder` on `Mod+Shift+R`.
 - `dev` to select a repository and change the current shell into it;
   `Mod+Shift+P` opens the same picker in a new Foot terminal.
 - Brewfile and Flatpak restoration, JetBrains Toolbox, personal fonts and the
   accepted Microsoft-font installer.
+- Private video codecs (RPM Fusion), RAR extraction, `pandoc`, `mkcert`,
+  Insync and FileZilla.
+- System tuning: inotify watch limits for JetBrains/node file watchers,
+  journald caps, and zstd-compressed zram sized to half of RAM.
 - Audits for image/package drift, portable personal configuration, upstream
   Niri/DMS changes and captured DMS preferences.
+
+## Development environments
+
+Language runtimes (Node.js/npm, Python, PHP/Composer, Java/Maven/Gradle,
+Terraform, etc.) are **not** installed globally on the host. This keeps the
+image lean and avoids version conflicts between projects.
+
+Use [devcontainers](https://containers.dev/) for project-scoped runtimes:
+
+```bash
+devcontainer up --workspace-folder .     # build and start the container
+devcontainer exec --workspace-folder . <command>
+```
+
+The `devcontainer` CLI (installed via Homebrew) uses Docker, which is already
+configured rootful and passwordless. Each project pins its own runtime versions
+in a `.devcontainer/devcontainer.json`. This is the same workflow used by VS
+Code Dev Containers and GitHub Codespaces.
 
 ## Architecture
 

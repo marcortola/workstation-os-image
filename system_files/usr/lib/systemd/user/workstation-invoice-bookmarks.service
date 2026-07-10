@@ -1,0 +1,6 @@
+[Unit]
+Description=Point the invoices GTK bookmark at the current year/month
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/workstation-update-invoice-bookmarks

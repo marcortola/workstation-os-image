@@ -1,0 +1,30 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IntelliJ / JetBrains
+.idea/
+*.iws
+
+# Linux
+._*
+.directory
+.Trash-*
+.fuse_hidden*
+.nfs*
+*.pid
+*.seed
+*.pid.lock
+
+# Windows
+Thumbs.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# VS Code
+.vscode/
+
+# Editor swap files
+*.swp

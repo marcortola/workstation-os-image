@@ -18,4 +18,7 @@ binds {
     Mod+Shift+V hotkey-overlay-title="Start/stop dictation" {
         spawn "{{ .chezmoi.homeDir }}/.local/bin/workstation-dictate";
     }
+    Mod+Shift+R hotkey-overlay-title="Start/stop screen recording" {
+        spawn "/usr/libexec/workstation-screenrecord";
+    }
 }
