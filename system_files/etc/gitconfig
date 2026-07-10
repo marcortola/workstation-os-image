@@ -1,0 +1,32 @@
+[alias]
+    st = status
+    ci = commit
+    co = checkout
+    br = branch
+    unstage = reset HEAD --
+    last = log -1 HEAD
+[user]
+    name = marcortola
+    email = 15958009+marcortola@users.noreply.github.com
+[init]
+    defaultBranch = main
+[pull]
+    rebase = true
+[core]
+    autocrlf = input
+    excludesfile = /etc/gitignore
+[diff]
+    algorithm = histogram
+    colorMoved = zebra
+    mnemonicPrefix = true
+[commit]
+    verbose = true
+[push]
+    autoSetupRemote = true
+[rerere]
+    enabled = true
+    autoupdate = true
+[branch]
+    sort = -committerdate
+[column]
+    ui = auto

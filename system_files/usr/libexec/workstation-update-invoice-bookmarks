@@ -1,0 +1,7 @@
+#!/bin/sh
+# Rewrite YYYY/M-shaped paths in the GTK bookmarks file so the invoices
+# bookmark always points at the current year/month folder.
+set -eu
+bookmarks="${XDG_CONFIG_HOME:-$HOME/.config}/gtk-3.0/bookmarks"
+[ -f "$bookmarks" ] || exit 0
+sed -E -i "s#[0-9]{4}/[0-9]{1,2}#$(date +%Y)/$(date +%-m)#g" "$bookmarks"
