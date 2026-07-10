@@ -6,11 +6,13 @@ on:
     paths:
       - Containerfile
       - system_files/**
+      - scripts/**
       - .github/workflows/build.yml
   pull_request:
     paths:
       - Containerfile
       - system_files/**
+      - scripts/**
       - .github/workflows/build.yml
   schedule:
     - cron: "17 4 * * *"

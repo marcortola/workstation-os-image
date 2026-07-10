@@ -1,9 +1,8 @@
 # Configuration boundaries
 
-The image owns configuration that must be present before a user session starts
-or that integrates with the host operating system. User preferences remain in
-the user's dotfiles because `/var/home` persists independently of bootc image
-deployments.
+The image owns host integration and carries reproducible, create-only personal
+defaults. Zirconium still owns its managed desktop files, and `/var/home`
+persists independently of bootc deployments.
 
 ## Image-owned
 
@@ -16,9 +15,11 @@ deployments.
 - Microsoft font installer prerequisites and download helper
 - Dynamic Docker-group membership for interactive local workstation users
 - First-login Microsoft font installation with standing EULA acceptance
-- Read-only drift auditing for Zirconium-managed Niri and DMS configuration
+- Create-only personal defaults inside Zirconium's existing chezmoi source
+- First-login restoration of user fonts, Homebrew packages, Flatpaks from the
+  Brewfile, and JetBrains Toolbox
 
-## User-owned
+## Created once, then user-owned
 
 - Homebrew and the Brewfile
 - Fish initialization and utility functions
@@ -26,16 +27,23 @@ deployments.
 - User-local fonts and Fontconfig preferences
 - Partial Niri customization in `~/.config/niri/local.kdl`
 
-These files belong in a dotfiles repository and can be restored after an OS
-install without rebuilding or republishing the bootable image.
+These defaults are embedded using chezmoi `create_` entries. They reproduce a
+new workstation but do not overwrite an existing target, so local edits remain
+authoritative. `scripts/sync-dotfiles` updates the image's seed copies after
+the local changes have been reviewed.
+
+Zirconium-owned Niri scaffolding, DMS-generated fragments/preferences, GTK
+settings, and other upstream-managed targets are deliberately not copied. The
+personal Niri seed is only `local.kdl`, which Zirconium's managed `config.kdl`
+already includes.
 
 ## Deliberately excluded
 
 - Usernames, passwords, tokens, SSH keys, and registry credentials
-- Microsoft font binaries; the image ships only an opt-in helper that downloads
+- Microsoft font binaries; the image ships only a helper that downloads
   them from their original distributors into persistent user storage
-- Files under `/var/home`, because image updates do not replace existing user
-  home directories
+- Secrets, application databases, caches, histories, IDE projects/settings,
+  and mutable DMS runtime state
 
-Redistributable open fonts and system-wide Fontconfig defaults may be added to
-the image later if they are made machine-independent and version-pinned.
+Font binaries remain in persistent user storage and are refreshed explicitly,
+not replaced during every bootc update.

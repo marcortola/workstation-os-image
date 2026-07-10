@@ -1,0 +1,66 @@
+# Clone of cat(1) with syntax highlighting and Git integration
+brew "bat"
+# Reference implementation for the Development Containers specification
+brew "devcontainer"
+# Load and unload environment variables depending on the current directory
+brew "direnv"
+# Linux utility to get information on filesystems, like df but better
+brew "dysk"
+# Modern, maintained replacement for ls
+brew "eza"
+# Simple, fast and user-friendly alternative to find
+brew "fd"
+# GitHub command-line tool
+brew "gh"
+# Open-source GitLab command-line tool
+brew "glab"
+# User-friendly cURL replacement (command-line HTTP client)
+brew "httpie"
+# Lightweight and flexible command-line JSON processor
+brew "jq"
+# Lazier way to manage everything docker
+brew "lazydocker"
+# Simple terminal UI for git commands
+brew "lazygit"
+# Incremental parsing library
+brew "tree-sitter"
+# Ambitious Vim-fork focused on extensibility and agility
+brew "neovim"
+# Search tool like grep and The Silver Searcher
+brew "ripgrep"
+# Static analysis and lint tool, for (ba)sh scripts
+brew "shellcheck"
+# Cross-shell prompt
+brew "starship"
+# Very fast implementation of tldr in Rust
+brew "tealdeer"
+# Terminal multiplexer
+brew "tmux"
+# Command-line interface to the freedesktop.org trashcan
+brew "trash-cli"
+# Executes a program periodically, showing output fullscreen
+brew "watch"
+# Process YAML, JSON, XML, CSV and properties documents from the CLI
+brew "yq"
+# Terminal workspace and multiplexer
+brew "zellij"
+# Smarter directory navigation
+brew "zoxide"
+# Terminal-based AI coding assistant
+cask "claude-code"
+# OpenAI's coding agent that runs in your terminal
+cask "codex"
+flatpak "com.getpostman.Postman"
+flatpak "com.github.tchx84.Flatseal"
+flatpak "com.google.Chrome"
+flatpak "com.onepassword.OnePassword"
+flatpak "com.spotify.Client"
+flatpak "io.github.flattool.Ignition"
+flatpak "io.github.kolunmi.Bazaar"
+flatpak "io.typora.Typora"
+flatpak "md.obsidian.Obsidian"
+flatpak "net.ankiweb.Anki"
+flatpak "org.gimp.GIMP"
+flatpak "org.gnome.Loupe"
+flatpak "org.gnome.TextEditor", remote: "fedora", url: "oci+https://registry.fedoraproject.org"
+flatpak "org.libreoffice.LibreOffice"

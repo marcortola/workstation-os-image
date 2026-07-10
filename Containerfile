@@ -6,7 +6,8 @@ LABEL org.opencontainers.image.description="Personal Fedora bootc image with hos
 
 COPY system_files/ /
 
-RUN dnf -y config-manager addrepo \
+RUN /usr/libexec/workstation-patch-zdots && \
+    dnf -y config-manager addrepo \
       --from-repofile=https://download.docker.com/linux/fedora/docker-ce.repo && \
     dnf -y install \
       cabextract \
@@ -19,15 +20,18 @@ RUN dnf -y config-manager addrepo \
       fish \
       fontconfig \
       keyd \
-      shadow-utils && \
+      shadow-utils \
+      unzip && \
     dnf clean all && \
     dockerd --validate \
       --config-file=/usr/share/factory/etc/docker/daemon.json && \
     keyd check /usr/share/factory/etc/keyd/default.conf && \
     systemd-analyze verify \
       /usr/lib/systemd/system/workstation-docker-users.service \
+      /usr/lib/systemd/user/workstation-bootstrap.service \
       /usr/lib/systemd/user/workstation-microsoft-fonts.service && \
     systemctl preset containerd.service docker.service keyd.service \
       workstation-docker-users.service && \
-    systemctl --global preset workstation-microsoft-fonts.service && \
+    systemctl --global preset workstation-bootstrap.service \
+      workstation-microsoft-fonts.service && \
     bootc container lint
