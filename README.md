@@ -223,9 +223,12 @@ Fish explicitly starts Zellij for interactive terminals, initializes Starship,
 Homebrew, direnv, fzf and Zoxide, and uses `/usr/bin/fish` throughout the
 Foot/Zellij chain. Zellij is intentionally pane-only: it has no tab bar or pane
 frames, and retains a subdued, mode-aware help bar at the bottom for pane and
-scroll controls. Foot, Zellij, fzf, btop, Lazygit, Lazydocker and Neovim use the
-Tokyo Night palette. Dynamic templates derive the home directory from chezmoi
-rather than hardcoding a username.
+scroll controls. Mouse selections use a high-contrast Tokyo Night blue and are
+copied to the system clipboard automatically. `Alt+E` opens the focused pane's
+full scrollback in Neovim for selecting text beyond the visible viewport. Foot,
+Zellij, fzf, btop, Lazygit, Lazydocker and Neovim use the Tokyo Night palette.
+Dynamic templates derive the home directory from chezmoi rather than
+hardcoding a username.
 
 `oc` runs OpenCode. `dev` opens a project picker over Git repositories below
 `~/projects`; use Tab to select more than one and Enter to open each selection
