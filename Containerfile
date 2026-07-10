@@ -22,7 +22,6 @@ RUN /usr/libexec/workstation-patch-zdots && \
       docker-ce-cli \
       docker-compose-plugin \
       ffmpeg \
-      fira-sans-fonts \
       fish \
       fontconfig \
       gstreamer1-plugins-ugly \
