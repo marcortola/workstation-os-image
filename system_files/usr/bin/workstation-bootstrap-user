@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+state_home="${XDG_STATE_HOME:-$HOME/.local/state}"
+brew=/home/linuxbrew/.linuxbrew/bin/brew
+jq=/home/linuxbrew/.linuxbrew/bin/jq
+brewfile="$HOME/dotfiles/Brewfile"
+marker="$state_home/workstation-os-image/bootstrap-complete"
+
+mkdir -p "$(dirname "$marker")" "$HOME/.local/bin" "$HOME/.local/opt"
+
+if [[ ! -x $brew ]]; then
+    NONINTERACTIVE=1 /bin/bash -c \
+        "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+fi
+
+[[ -f $brewfile ]] || {
+    echo "Waiting for Zirconium to create $brewfile" >&2
+    exit 1
+}
+
+"$brew" bundle install --file "$brewfile"
+
+# JetBrains does not publish a Linux Homebrew cask. Install Toolbox entirely
+# below the home directory from its official release API.
+toolbox_url="$(curl -fsSL \
+    'https://data.services.jetbrains.com/products/releases?code=TBA&latest=true&type=release' \
+    | "$jq" -r '.TBA[0].downloads.linux.link')"
+
+workdir="$(mktemp -d)"
+trap 'rm -rf -- "$workdir"' EXIT
+curl -fL --retry 3 "$toolbox_url" -o "$workdir/jetbrains-toolbox.tar.gz"
+tar -xzf "$workdir/jetbrains-toolbox.tar.gz" -C "$HOME/.local/opt"
+toolbox_bin="$(find "$HOME/.local/opt" -path '*/bin/jetbrains-toolbox' \
+    -type f | sort | tail -n 1)"
+[[ -n $toolbox_bin ]]
+ln -sfn "$toolbox_bin" "$HOME/.local/bin/jetbrains-toolbox"
+
+touch "$marker"
+echo "Workstation user bootstrap complete."

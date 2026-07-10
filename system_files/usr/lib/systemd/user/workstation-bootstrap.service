@@ -1,0 +1,13 @@
+[Unit]
+Description=Restore workstation user tools
+Documentation=https://github.com/marcortola/workstation-os-image
+Wants=network-online.target
+After=network-online.target chezmoi-init.service chezmoi-update.service
+ConditionPathExists=!%h/.local/state/workstation-os-image/bootstrap-complete
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/workstation-bootstrap-user
+
+[Install]
+WantedBy=default.target

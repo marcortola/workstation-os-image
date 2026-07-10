@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+foot=/usr/share/zirconium/zdots/dot_config/foot/foot.ini.tmpl
+include='include={{.chezmoi.homeDir}}/.config/foot/workstation.ini'
+
+grep -Fqx "$include" "$foot" && exit 0
+grep -Fq 'include={{.chezmoi.homeDir}}/.config/foot/dank-colors.ini' "$foot"
+
+# Extend the current upstream template instead of replacing it. The include is
+# last so personal settings win while future Zirconium template updates remain.
+printf '\n[main]\n%s\n' "$include" >> "$foot"

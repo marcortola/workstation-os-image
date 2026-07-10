@@ -1,0 +1,12 @@
+// Personal workstation shortcuts. Zirconium continues to own config.kdl.
+binds {
+    Mod+Shift+G hotkey-overlay-title="Lazygit" {
+        spawn "foot" "--working-directory={{ .chezmoi.homeDir }}" "--title=Lazygit" "--app-id=lazygit" "/home/linuxbrew/.linuxbrew/bin/lazygit";
+    }
+    Mod+Shift+D hotkey-overlay-title="Lazydocker" {
+        spawn "foot" "--working-directory={{ .chezmoi.homeDir }}" "--title=Lazydocker" "--app-id=lazydocker" "/home/linuxbrew/.linuxbrew/bin/lazydocker";
+    }
+    Mod+Shift+T hotkey-overlay-title="Activity (btop)" {
+        spawn "foot" "--working-directory={{ .chezmoi.homeDir }}" "--title=Activity" "--app-id=btop" "/usr/bin/btop";
+    }
+}

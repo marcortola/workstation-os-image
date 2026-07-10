@@ -8,11 +8,30 @@ if [[ ${1:-} != "--accept-microsoft-eula" ]]; then
     exit 2
 fi
 
-target="${XDG_DATA_HOME:-$HOME/.local/share}/fonts/Microsoft"
+font_root="${XDG_DATA_HOME:-$HOME/.local/share}/fonts"
+target="$font_root/Microsoft"
+marker="$font_root/.workstation-fonts-installed"
 workdir="$(mktemp -d)"
 trap 'rm -rf -- "$workdir"' EXIT
 
-mkdir -p "$target" "$workdir/rpm" "$workdir/ppviewer"
+mkdir -p "$target" "$font_root/CaskaydiaMono" \
+    "$font_root/iAWriterMono" "$font_root/FontAwesome" \
+    "$workdir/rpm" "$workdir/ppviewer"
+
+# Redistributable user fonts used by terminal and desktop applications.
+curl -fL --retry 3 -o "$workdir/CascadiaMono.tar.xz" \
+    https://github.com/ryanoasis/nerd-fonts/releases/latest/download/CascadiaMono.tar.xz
+tar -xJf "$workdir/CascadiaMono.tar.xz" -C "$font_root/CaskaydiaMono"
+
+curl -fL --retry 3 -o "$workdir/ia-fonts.zip" \
+    https://github.com/iaolo/iA-Fonts/archive/refs/heads/master.zip
+unzip -j -o "$workdir/ia-fonts.zip" '*/iA Writer Mono/Static/*.ttf' \
+    -d "$font_root/iAWriterMono"
+
+curl -fL --retry 3 -o "$workdir/font-awesome.zip" \
+    https://github.com/FortAwesome/Font-Awesome/archive/refs/heads/6.x.zip
+unzip -j -o "$workdir/font-awesome.zip" '*/otfs/*.otf' \
+    -d "$font_root/FontAwesome"
 
 curl -fL --retry 3 \
     -o "$workdir/msttcore-fonts-installer.rpm" \
@@ -39,5 +58,6 @@ cabextract -q -d "$workdir/ppviewer" -F ppviewer.cab \
 cabextract -q --lowercase -F cambria.ttc -d "$target" \
     "$workdir/ppviewer/ppviewer.cab"
 
-fc-cache -f "$target"
-echo "Microsoft fonts installed in $target"
+fc-cache -f "$font_root"
+touch "$marker"
+echo "Workstation fonts installed in $font_root"
