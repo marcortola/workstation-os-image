@@ -1,51 +1,99 @@
 # Workstation OS Image
 
-Personal Fedora bootc derivative containing host-integrated packages that must
-survive image updates and switches.
+This repository is the reproducible definition of a personal Fedora bootc
+workstation. It layers host-integrated software onto Zirconium, seeds personal
+configuration without taking ownership away from the user, and restores
+user-space tools on first login.
 
-It is also the reproducible definition of the owner's workstation: Zirconium
-remains responsible for its evolving desktop defaults, while this repository
-adds create-only personal defaults and first-login restoration.
-
-The build accepts `BASE_IMAGE`, but the current desktop integration requires a
-Zirconium-compatible base that provides `/usr/share/zirconium/zdots` and its
-chezmoi user services. Supporting an unrelated bootc base requires a deliberate
-adapter for those contracts; the generic repository name leaves room for that
-future migration.
-
-## Included host packages
-
-- Fish
-- keyd
-- Docker Engine, CLI, Buildx, Compose, and containerd
-- First-login open and Microsoft font installer prerequisites and helper
-- Create-only Fish, Foot, Zellij, Niri, Starship, Neovim, TUI, Fontconfig, and
-  Brewfile defaults layered into Zirconium's own chezmoi source
-- First-login Homebrew/Brewfile and JetBrains Toolbox restoration
-
-The image enables `containerd.service`, `docker.service`, and `keyd.service`
-through image-owned systemd presets. Docker log rotation and the Copilot-key
-mapping live under `/usr/share/factory/etc` and are linked into `/etc` by
-systemd-tmpfiles, following Zirconium's factory-default convention. Docker
-creates `/run/docker.sock` when its service starts. See
-[configuration boundaries](docs/configuration-boundaries.md) for what belongs
-in this image versus user dotfiles. The complete, versioned recreation and
-recovery runbook is [immutable workstation setup](docs/immutable-workstation-setup.md).
-
-## Published image
-
-GitHub Actions builds daily and after relevant changes, publishing:
+Published images:
 
 ```text
 ghcr.io/marcortola/workstation-os-image:latest
 ghcr.io/marcortola/workstation-os-image:<commit-sha>
 ```
 
-After the first successful workflow run, ensure the GHCR package is public.
+## Configuration model
 
-## Switch a fresh workstation
+Each kind of state has one owner and update path:
 
-Inspect the image before switching, then stage it:
+| Layer | Owns | Update behavior |
+| --- | --- | --- |
+| Zirconium | Niri/DMS scaffolding, GTK and other desktop defaults | Continues to update through Zirconium's existing chezmoi services |
+| This bootc image | RPM packages, system services and factory defaults | Replaced transactionally by `bootc upgrade` |
+| Personal seeds | Fish, Foot, Zellij, Niri `local.kdl`, Starship, Neovim, TUI, Fontconfig and Brewfile defaults | Chezmoi `create_` entries create missing files once and preserve later edits |
+| First-login provisioning | Homebrew packages, Flatpaks, JetBrains Toolbox and user fonts | Idempotent user services run until their success markers exist |
+| Persistent user state | Secrets, projects, histories, application databases and DMS runtime state | Deliberately stays outside the image and repository |
+
+The image extends `/usr/share/zirconium/zdots`; it does not install a second
+chezmoi updater. Existing files under `/var/home` remain authoritative across
+image switches and upgrades.
+
+## Included workstation behavior
+
+The image installs and configures:
+
+- Fish.
+- Docker Engine, CLI, Buildx, Compose and containerd.
+- keyd with the Copilot-key chord mapped to Right Ctrl.
+- Docker log rotation using five 10 MiB `json-file` logs per container.
+- Dynamic membership in the root-equivalent `docker` group for interactive
+  local users whose homes are under `/home` or `/var/home`.
+- First-login open and Microsoft font installation.
+- First-login Homebrew/Brewfile restoration and JetBrains Toolbox installation.
+- Personal create-only defaults for Fish, Fontconfig, Foot, Starship, Zellij,
+  Niri, Neovim, btop, Lazygit and Lazydocker.
+
+`containerd.service`, `docker.service` and `keyd.service` are enabled through
+systemd presets. Docker and keyd configuration is shipped under
+`/usr/share/factory/etc` and linked into `/etc` by systemd-tmpfiles, following
+Zirconium's factory-default convention. Docker is intentionally rootful and
+usable without typing `sudo` after login.
+
+The user package manifest is embedded as `~/dotfiles/Brewfile`. Zirconium
+already supplies btop, chezmoi, Git, fzf and Just, so the Brewfile does not
+duplicate them.
+
+## Repository layout
+
+```text
+Containerfile                         Image packages, validation and presets
+.github/workflows/build.yml           Daily, PR and main image builds
+system_files/usr/share/factory/etc    Docker and keyd factory defaults
+system_files/usr/share/zirconium      Create-only personal chezmoi entries
+system_files/usr/lib/systemd          System and user services/presets
+system_files/usr/bin                  First-login provisioning helpers
+scripts/audit-dotfiles                Local Zirconium drift report
+scripts/sync-dotfiles                 Refresh personal seeds from this account
+scripts/validate                      Repeatable local repository validation
+```
+
+The repository contains defaults and automation, not credentials. Never commit
+passwords, tokens, SSH keys, registry credentials, application databases,
+caches, histories or mutable DMS state. Microsoft font binaries are also not
+redistributed; the image downloads them from their original distributors under
+the owner's standing EULA acceptance.
+
+## Build and publication
+
+GitHub Actions builds pull requests without publishing. Merges to `main` and
+the daily scheduled workflow publish `latest` and an immutable commit tag.
+Before deployment, compare the two when an exact revision matters:
+
+```bash
+skopeo inspect docker://ghcr.io/marcortola/workstation-os-image:latest
+skopeo inspect docker://ghcr.io/marcortola/workstation-os-image:<commit-sha>
+```
+
+The build accepts `BASE_IMAGE`, but the current integration requires a
+Zirconium-compatible base that provides `/usr/share/zirconium/zdots` and its
+chezmoi user services. An unrelated bootc base needs an adapter for those
+contracts before changing the repository variable.
+
+## Install or update
+
+### Fresh workstation
+
+Switch a bootc-based machine once, inspect the staged deployment, and reboot:
 
 ```bash
 skopeo inspect docker://ghcr.io/marcortola/workstation-os-image:latest
@@ -54,15 +102,51 @@ sudo bootc status --verbose
 systemctl reboot
 ```
 
-If the machine already tracks this image, stage routine updates with `sudo
-bootc upgrade` instead of switching again. Before rebooting, confirm that
-`bootc status` reports the intended digest under `staged`.
+Confirm that `bootc status` shows the expected image and digest under `staged`
+before rebooting.
 
-After reboot and graphical login, verify host integration:
+### Existing workstation
+
+Once the machine tracks this image, routine OS updates are:
+
+```bash
+sudo bootc upgrade
+sudo bootc status --verbose
+systemctl reboot
+```
+
+Do not use rpm-ostree package layering for software already declared by the
+image. The deployment remains A/B and the previous image is available for
+rollback.
+
+## What happens on first login
+
+Zirconium applies its combined chezmoi source before the graphical session.
+Personal entries use `create_`, so missing files are seeded while existing
+files are left unchanged.
+
+Two enabled user services then provision persistent user state:
+
+- `workstation-bootstrap.service` installs Homebrew when absent, applies
+  `~/dotfiles/Brewfile`, installs its Flatpaks, and installs JetBrains Toolbox
+  below `~/.local`.
+- `workstation-microsoft-fonts.service` installs Caskaydia Mono Nerd Font,
+  iA Writer Mono, Font Awesome, Microsoft core/Vista fonts and Cambria below
+  `~/.local/share/fonts`.
+
+Both are `oneshot` services. They normally become inactive after completing;
+`Result=success` and their marker files are the useful status checks. A failed
+or interrupted run is retried at a later login because its marker is absent.
+
+## Post-reboot verification
+
+Run these after graphical login. The first group verifies the image and host
+services:
 
 ```bash
 rpm -q containerd.io docker-buildx-plugin docker-ce docker-ce-cli \
   docker-compose-plugin fish keyd
+test -x /usr/bin/fish
 systemctl is-enabled containerd.service docker.service keyd.service
 systemctl is-active containerd.service docker.service keyd.service
 systemctl show workstation-docker-users.service --property=Result
@@ -73,7 +157,7 @@ docker run --rm hello-world
 sudo keyd check /etc/keyd/default.conf
 ```
 
-Then verify the create-only defaults and first-login provisioning:
+The second group verifies user defaults and provisioning:
 
 ```bash
 systemctl --user is-enabled workstation-bootstrap.service \
@@ -91,76 +175,137 @@ foot --check-config -c ~/.config/foot/foot.ini
 niri validate -c ~/.config/niri/config.kdl
 ```
 
-The provisioning services are `oneshot` units, so they normally become
-inactive after completion; `Result=success` and the marker files are the useful
-checks. If either result is not successful, inspect its user journal before
-retrying it.
-
-Docker is rootful. Before graphical login, the image adds interactive local
-users with homes under `/home` or `/var/home` to the root-equivalent `docker`
-group. This avoids hardcoded usernames and allows Docker commands without
-`sudo` after login:
-
-Microsoft font binaries are not redistributed in this public image. An enabled
-user service records the workstation owner's standing EULA acceptance by
-invoking the installer with `--accept-microsoft-eula` on first login. It
-downloads the fonts from their original distributors into the persistent user
-font directory. To run it immediately or retry it:
+First-login downloads can take time. If a marker is missing, inspect the user
+journal before retrying:
 
 ```bash
+journalctl --user -u workstation-bootstrap.service --no-pager
+journalctl --user -u workstation-microsoft-fonts.service --no-pager
+systemctl --user start workstation-bootstrap.service
 systemctl --user start workstation-microsoft-fonts.service
 ```
 
-## Zirconium and personal dotfiles
+## Personal configuration and Zirconium updates
 
-Zirconium continues to own and update its Niri/DMS defaults. Put partial Niri
-customizations only in `~/.config/niri/local.kdl` or `/etc/niri/local.kdl`.
-Personal files in `system_files/usr/share/zirconium/zdots` use chezmoi's
-`create_` attribute, so Zirconium creates them when absent and never overwrites
-later user edits. The image does not ship a competing chezmoi service.
+Zirconium remains responsible for its evolving defaults. In particular:
 
-From a checked-out repository on the workstation, audit installed upstream
-drift and validate the effective Niri configuration with:
+- `~/.config/niri/config.kdl`, `dms.kdl` and DMS-generated fragments remain
+  upstream-managed.
+- Personal Niri bindings live only in `~/.config/niri/local.kdl`, which the
+  upstream configuration already includes.
+- DMS preferences and generated colors are runtime state. Drift is reported
+  but they are not copied into the image.
+- The upstream Foot template remains managed and is extended with a final
+  include of create-only `~/.config/foot/workstation.ini`.
+- User edits to a create-only target are never overwritten by image updates.
+
+The seeded Niri shortcuts are:
+
+| Shortcut | Action |
+| --- | --- |
+| `Mod+Shift+G` | Lazygit in Foot |
+| `Mod+Shift+D` | Lazydocker in Foot |
+| `Mod+Shift+T` | btop in Foot |
+
+Fish explicitly starts Zellij for interactive terminals, initializes Starship,
+Homebrew, direnv, fzf and Zoxide, and uses `/usr/bin/fish` throughout the
+Foot/Zellij chain. Foot, Zellij, fzf, btop, Lazygit, Lazydocker and Neovim use
+the Tokyo Night palette. Dynamic templates derive the home directory from
+chezmoi rather than hardcoding a username.
+
+## Updating tracked defaults
+
+Make configuration changes locally first, then update the image seed:
 
 ```bash
+cd ~/projects/personal/workstation-os-image
+brew bundle dump --file ~/dotfiles/Brewfile --force
 scripts/audit-dotfiles
+scripts/sync-dotfiles
+scripts/validate
+git diff
 ```
 
-Use `scripts/audit-dotfiles --strict` when DMS-generated preferences should
-also fail the audit. After reviewing drift and deliberate local changes, run
-`scripts/sync-dotfiles` to refresh the create-only files committed here.
-Run `scripts/validate` before committing to check the manifest copy, shell and
-Fish syntax, effective Niri/Foot configuration, and the combined chezmoi target
-map.
+`scripts/audit-dotfiles` treats changes to Zirconium's structural Niri files as
+errors and reports DMS-generated preferences separately. Add `--strict` to make
+informational DMS drift fail as well.
 
-On a new account, Zirconium applies the combined source. An enabled user
-service then installs Homebrew if needed, applies `~/dotfiles/Brewfile`, and
-installs JetBrains Toolbox below `~/.local`. Existing accounts are not reset;
-remove the relevant target deliberately if a new image default should be
-created again.
+`scripts/sync-dotfiles` copies the reviewed Fish, Zellij, Neovim, TUI,
+Fontconfig and Brewfile configuration into create-only source entries. Niri,
+Starship and Foot stay reviewed templates because they contain dynamic paths or
+compose with upstream files. It intentionally excludes Fish variables,
+credentials, caches, backups and runtime state.
 
-## Updates and rollback
+`scripts/validate` checks shell and Fish syntax, the Brewfile copy, effective
+Niri and Foot configuration, upstream drift, and the merged Zirconium/personal
+chezmoi target map. Pull requests and local container builds then validate the
+complete image.
 
-The scheduled workflow rebuilds against the current base-image tag. Apply a
-published update transactionally:
+Because create-only targets preserve existing files, changing a seed affects
+new accounts and targets that do not yet exist. To adopt a revised seed on an
+existing account, review the diff and deliberately update or remove that one
+target before running Zirconium's chezmoi update.
+
+## Fonts and appearance
+
+The intended defaults are:
+
+- Terminal and monospace: FiraCode Nerd Font Mono, 12 pt.
+- Sans serif: Noto Sans, 11 pt.
+- Serif: Noto Serif.
+- Emoji: Noto Color Emoji.
+
+The image-provided first-login service adds the extra user fonts documented
+above and refreshes Fontconfig. Verify resolution with `fc-match`, for example:
 
 ```bash
-sudo bootc upgrade --download-only
-bootc status --verbose
-sudo bootc upgrade --from-downloaded --apply
+fc-match monospace
+fc-match sans-serif
+fc-match serif
+fc-match emoji
+fc-match Arial
+fc-match Calibri
+fc-match Cambria
+fc-match 'CaskaydiaMono Nerd Font Mono'
+fc-match 'iA Writer Mono S'
+fc-match 'Font Awesome 6 Free'
 ```
 
-Rollback remains available through:
+## User updates and recovery
+
+The OS follows the bootc flow above. Update user packages and desktop
+applications independently:
+
+```bash
+brew update
+brew upgrade
+brew bundle install --file ~/dotfiles/Brewfile
+flatpak update
+```
+
+Inspect deployments before recovery work:
+
+```bash
+sudo bootc status --verbose
+rpm-ostree status -v
+ostree admin status
+```
+
+Roll back the bootc deployment with:
 
 ```bash
 sudo bootc rollback
 systemctl reboot
 ```
 
-## Changing the Fedora derivative
+If Zirconium's system Flatpak provisioning failed, inspect it before repairing:
 
-Set the GitHub repository variable `BASE_IMAGE` only to another image that
-provides the Zirconium dotfile contracts described above. For an unrelated
-bootc base, first replace the zdots patch and chezmoi activation integration,
-then trigger the workflow manually and inspect the result before using `bootc
-switch`. Routine updates should continue to use `bootc upgrade`.
+```bash
+systemctl status flatpak-preinstall.service --no-pager
+journalctl -b -u flatpak-preinstall.service --no-pager
+flatpak remotes --system --show-details
+```
+
+Do not remove `/var/lib/zirconium/preinstall-finished` unless diagnosing a
+confirmed incomplete preinstall. Avoid deleting deployments or package layers
+until `bootc status` and `ostree admin status` identify a known-good rollback.
