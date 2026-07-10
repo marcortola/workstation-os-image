@@ -18,6 +18,8 @@ brew "glab"
 brew "httpie"
 # Lightweight and flexible command-line JSON processor
 brew "jq"
+# Open-source AI coding agent for the terminal
+brew "anomalyco/tap/opencode"
 # Lazier way to manage everything docker
 brew "lazydocker"
 # Simple terminal UI for git commands

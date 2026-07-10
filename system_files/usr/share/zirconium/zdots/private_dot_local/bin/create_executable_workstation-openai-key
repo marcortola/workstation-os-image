@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/openai"
+key_file="$config_dir/api-key"
+
+read -r -s -p "OpenAI API key: " api_key
+printf '\n'
+[[ -n $api_key ]] || {
+    echo "The key cannot be empty." >&2
+    exit 1
+}
+
+install -d -m 0700 "$config_dir"
+umask 077
+temporary="$(mktemp "$config_dir/.api-key.XXXXXX")"
+trap 'rm -f "$temporary"' EXIT
+printf '%s\n' "$api_key" > "$temporary"
+mv -f "$temporary" "$key_file"
+trap - EXIT
+echo "Stored the API key in $key_file with user-only permissions."

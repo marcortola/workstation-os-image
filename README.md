@@ -42,6 +42,9 @@ The image installs and configures:
 - First-login Homebrew/Brewfile restoration and JetBrains Toolbox installation.
 - Personal create-only defaults for Fish, Fontconfig, Foot, Starship, Zellij,
   Niri, Neovim, btop, Lazygit and Lazydocker.
+- OpenCode with terminal and Niri launchers.
+- Push-to-talk transcription through `gpt-4o-transcribe`.
+- An fzf project picker that can open multiple repositories in Foot.
 
 `containerd.service`, `docker.service` and `keyd.service` are enabled through
 systemd presets. Docker and keyd configuration is shipped under
@@ -213,12 +216,26 @@ The seeded Niri shortcuts are:
 | `Mod+Shift+G` | Lazygit in Foot |
 | `Mod+Shift+D` | Lazydocker in Foot |
 | `Mod+Shift+T` | btop in Foot |
+| `Mod+Shift+O` | OpenCode in Foot |
+| `Mod+Shift+V` | Start/stop dictation and type the transcript |
 
 Fish explicitly starts Zellij for interactive terminals, initializes Starship,
 Homebrew, direnv, fzf and Zoxide, and uses `/usr/bin/fish` throughout the
-Foot/Zellij chain. Foot, Zellij, fzf, btop, Lazygit, Lazydocker and Neovim use
-the Tokyo Night palette. Dynamic templates derive the home directory from
-chezmoi rather than hardcoding a username.
+Foot/Zellij chain. Zellij is intentionally pane-only: it has no tab bar or pane
+frames, and retains a subdued, mode-aware help bar at the bottom for pane and
+scroll controls. Foot, Zellij, fzf, btop, Lazygit, Lazydocker and Neovim use the
+Tokyo Night palette. Dynamic templates derive the home directory from chezmoi
+rather than hardcoding a username.
+
+`oc` runs OpenCode. `dev` opens a project picker over Git repositories below
+`~/projects`; use Tab to select more than one and Enter to open each selection
+in its own terminal.
+
+Dictation records a private temporary WAV on the first `Mod+Shift+V`, then
+uploads it to OpenAI and types the returned text on the second press. Configure
+the required secret once with `workstation-openai-key`. The key, recording and
+transcript are not stored in Git or the image; the transcript is also copied to
+the clipboard as a fallback.
 
 ## Updating tracked defaults
 
@@ -247,11 +264,16 @@ For any durable terminal, GUI, Claude, or Codex change:
 4. Capture, review, and validate the result:
 
 ```bash
-cd ~/projects/personal/workstation-os-image
-just audit
-just capture
+wjust audit
+wjust capture
 git diff
 ```
+
+The Fish `wjust` alias runs this repository's recipes from any directory.
+Plain `just` remains project-local and uses the nearest `justfile`, so it keeps
+working normally in other repositories. From another shell, use
+`just --justfile ~/projects/personal/workstation-os-image/justfile
+--working-directory ~/projects/personal/workstation-os-image <recipe>`.
 
 `just audit` reports the booted image, accidental rpm-ostree mutations,
 undeclared Homebrew/Flatpak installs, uncaptured personal changes, removed

@@ -35,3 +35,8 @@ alias dlog="docker compose logs -f --tail=100"
 
 # Container UI
 alias dtop="lazydocker"
+
+# Coding agents and projects
+alias oc="opencode"
+alias dev="~/.local/bin/workstation-dev"
+alias wjust='just --justfile "$HOME/projects/personal/workstation-os-image/justfile" --working-directory "$HOME/projects/personal/workstation-os-image"'
