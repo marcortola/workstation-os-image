@@ -12,6 +12,9 @@ binds {
     Mod+Shift+O hotkey-overlay-title="OpenCode" {
         spawn "foot" "--working-directory={{ .chezmoi.homeDir }}" "--title=OpenCode" "--app-id=opencode" "/home/linuxbrew/.linuxbrew/bin/opencode";
     }
+    Mod+Shift+P hotkey-overlay-title="Projects" {
+        spawn "foot" "--working-directory={{ .chezmoi.homeDir }}" "--title=Projects" "--app-id=dev-terminal" "{{ .chezmoi.homeDir }}/.local/bin/workstation-dev" "--shell";
+    }
     Mod+Shift+V hotkey-overlay-title="Start/stop dictation" {
         spawn "{{ .chezmoi.homeDir }}/.local/bin/workstation-dictate";
     }
