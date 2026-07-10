@@ -74,6 +74,20 @@ font directory. To run it immediately or retry it:
 systemctl --user start workstation-microsoft-fonts.service
 ```
 
+## Zirconium configuration drift
+
+Zirconium continues to own and update its Niri/DMS defaults. Put partial Niri
+customizations only in `~/.config/niri/local.kdl` or `/etc/niri/local.kdl`.
+Audit managed scaffolding, informational DMS preference differences, local
+overrides, and the effective Niri configuration with:
+
+```bash
+workstation-config-drift
+```
+
+Use `workstation-config-drift --strict` when DMS preference differences should
+also produce a nonzero exit status.
+
 ## Updates and rollback
 
 The scheduled workflow rebuilds against the current base-image tag. Apply a

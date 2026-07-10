@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+source_dir=/usr/share/zirconium/zdots
+config_file="${XDG_CONFIG_HOME:-$HOME/.config}/zirconium/chezmoi/chezmoi.toml"
+strict=false
+status=0
+
+if [[ ${1:-} == "--strict" ]]; then
+    strict=true
+elif [[ $# -gt 0 ]]; then
+    echo "Usage: workstation-config-drift [--strict]" >&2
+    exit 2
+fi
+
+for command in chezmoi niri; do
+    if ! command -v "$command" >/dev/null; then
+        echo "Missing required command: $command" >&2
+        exit 2
+    fi
+done
+
+if [[ ! -d $source_dir || ! -f $config_file ]]; then
+    echo "Zirconium chezmoi source or configuration is missing." >&2
+    exit 2
+fi
+
+show_diff() {
+    local label=$1
+    local severity=$2
+    local output
+    shift 2
+
+    if ! output="$(chezmoi diff --no-pager --color=false \
+        -S "$source_dir" --config "$config_file" "$@" 2>&1)"; then
+        printf '\n%s comparison failed:\n%s\n' "$label" "$output" >&2
+        status=2
+        return
+    fi
+
+    if [[ -n $output ]]; then
+        printf '\n%s differs from the current Zirconium defaults:\n%s\n' \
+            "$label" "$output"
+        if [[ $severity == critical || $strict == true ]]; then
+            status=1
+        fi
+    else
+        printf '%s matches the current Zirconium defaults.\n' "$label"
+    fi
+}
+
+show_diff "Managed Niri scaffolding" critical \
+    "$HOME/.config/niri/config.kdl" \
+    "$HOME/.config/niri/dms.kdl"
+
+# DMS generates these included fragments. Report changes without treating them
+# as structural drift unless --strict is requested.
+show_diff "DMS-generated Niri fragments" informational \
+    "$HOME/.config/niri/dms/binds.kdl" \
+    "$HOME/.config/niri/dms/colors.kdl"
+
+# DMS writes user preferences at runtime. Report those differences separately;
+# they are informational unless --strict is requested.
+show_diff "DMS user preferences" informational \
+    "$HOME/.config/DankMaterialShell/settings.json" \
+    "$HOME/.config/DankMaterialShell/clsettings.json"
+
+printf '\nIntentional Niri overrides:\n'
+override_found=false
+for override in /etc/niri/local.kdl "$HOME/.config/niri/local.kdl"; do
+    if [[ -f $override ]]; then
+        override_found=true
+        printf '  %s  %s\n' "$(sha256sum "$override" | cut -d' ' -f1)" "$override"
+    fi
+done
+if [[ $override_found == false ]]; then
+    echo "  none"
+fi
+
+printf '\nEffective Niri validation:\n'
+if niri validate -c "$HOME/.config/niri/config.kdl"; then
+    echo "Niri configuration is valid."
+else
+    status=1
+fi
+
+exit "$status"

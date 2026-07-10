@@ -16,6 +16,7 @@ deployments.
 - Microsoft font installer prerequisites and download helper
 - Dynamic Docker-group membership for interactive local workstation users
 - First-login Microsoft font installation with standing EULA acceptance
+- Read-only drift auditing for Zirconium-managed Niri and DMS configuration
 
 ## User-owned
 
@@ -23,6 +24,7 @@ deployments.
 - Fish initialization and utility functions
 - Starship, Foot, Zellij, Niri, Neovim, DMS, Lazygit, and Lazydocker settings
 - User-local fonts and Fontconfig preferences
+- Partial Niri customization in `~/.config/niri/local.kdl`
 
 These files belong in a dotfiles repository and can be restored after an OS
 install without rebuilding or republishing the bootable image.
