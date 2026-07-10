@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+expected_image=ghcr.io/marcortola/workstation-os-image:
+
+echo "Atomic deployment drift:"
+if ! command -v rpm-ostree >/dev/null || ! command -v jq >/dev/null; then
+    echo "  unavailable outside an rpm-ostree host"
+    exit 0
+fi
+
+if ! deployment_json="$(rpm-ostree status --json 2>/dev/null)"; then
+    echo "  unavailable without access to the host system bus"
+    exit 0
+fi
+
+if ! booted="$(jq -cer '.deployments[] | select(.booted == true)' \
+    <<< "$deployment_json")"; then
+    echo "  no booted deployment found" >&2
+    exit 1
+fi
+
+status=0
+image="$(jq -r '.["container-image-reference"] // "non-container deployment"' \
+    <<< "$booted")"
+printf '  %-18s %s\n' "booted-image" "$image"
+
+if [[ $image != *"$expected_image"* ]]; then
+    echo "  unexpected image origin; this workstation is not tracking this repository" >&2
+    status=1
+fi
+
+unlocked="$(jq -r '.unlocked // "none"' <<< "$booted")"
+if [[ $unlocked != none ]]; then
+    printf '  %-18s %s\n' "unlocked" "$unlocked" >&2
+    status=1
+fi
+
+mapfile -t mutations < <(jq -r '
+    [
+      (.["requested-packages"] // [])[],
+      (.["requested-local-packages"] // [])[],
+      (.["requested-base-removals"] // [])[],
+      (.["requested-base-local-replacements"] // [])[],
+      (.["requested-local-fileoverride-packages"] // [])[]
+    ] | unique[]' <<< "$booted")
+
+if (( ${#mutations[@]} > 0 )); then
+    for package in "${mutations[@]}"; do
+        printf '  %-18s %s\n' "rpm-ostree-layer" "$package" >&2
+    done
+    status=1
+else
+    echo "  no package layers, removals, replacements, or unlocked state"
+fi
+
+exit "$status"

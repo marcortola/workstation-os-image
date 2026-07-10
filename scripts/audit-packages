@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+brewfile="$HOME/dotfiles/Brewfile"
+image_formulae="$repo_root/config/image-provided-brew-formulae"
+tmp="$(mktemp -d)"
+trap 'rm -rf -- "$tmp"' EXIT
+status=0
+
+brew bundle dump --file "$tmp/installed.Brewfile" --force >/dev/null
+
+for kind in formula cask flatpak; do
+    brew bundle list "--$kind" --file "$brewfile" | sort -u > "$tmp/declared.$kind"
+    brew bundle list "--$kind" --file "$tmp/installed.Brewfile" | \
+        sort -u > "$tmp/installed.$kind"
+done
+
+sort -u "$image_formulae" | sed '/^#/d; /^$/d' > "$tmp/image-formulae"
+comm -23 "$tmp/installed.formula" "$tmp/declared.formula" > "$tmp/extra.formula"
+comm -12 "$tmp/extra.formula" "$tmp/image-formulae" > "$tmp/shadowed.formula"
+comm -23 "$tmp/extra.formula" "$tmp/image-formulae" > "$tmp/unknown.formula"
+
+echo "Package manifest drift:"
+if [[ -s $tmp/shadowed.formula ]]; then
+    while IFS= read -r package; do
+        printf '  %-18s %s\n' "image-shadow" "brew:$package"
+    done < "$tmp/shadowed.formula"
+fi
+
+for kind in formula cask flatpak; do
+    extra="$tmp/unknown.$kind"
+    [[ $kind == formula ]] || \
+        comm -23 "$tmp/installed.$kind" "$tmp/declared.$kind" > "$extra"
+    if [[ -s $extra ]]; then
+        while IFS= read -r package; do
+            printf '  %-18s %s\n' "undeclared" "$kind:$package"
+        done < "$extra"
+        status=1
+    fi
+done
+
+if (( status == 0 )); then
+    echo "  no undeclared Homebrew formulae, casks, or Flatpaks"
+fi
+
+brew bundle check --file "$brewfile" >/dev/null || status=1
+exit "$status"

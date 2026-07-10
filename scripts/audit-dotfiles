@@ -1,17 +1,23 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source_dir=/usr/share/zirconium/zdots
 config_file="${XDG_CONFIG_HOME:-$HOME/.config}/zirconium/chezmoi/chezmoi.toml"
 strict=false
+show_details=false
 status=0
 
-if [[ ${1:-} == "--strict" ]]; then
-    strict=true
-elif [[ $# -gt 0 ]]; then
-    echo "Usage: scripts/audit-dotfiles [--strict]" >&2
-    exit 2
-fi
+for argument in "$@"; do
+    case "$argument" in
+        --strict) strict=true ;;
+        --diff) show_details=true ;;
+        *)
+            echo "Usage: scripts/audit-dotfiles [--strict] [--diff]" >&2
+            exit 2
+            ;;
+    esac
+done
 
 for command in chezmoi niri; do
     command -v "$command" >/dev/null || {
@@ -25,6 +31,17 @@ done
     exit 2
 }
 
+"$repo_root/scripts/audit-personal-config" || {
+    personal_status=$?
+    if (( personal_status == 2 )); then
+        status=2
+    else
+        status=1
+    fi
+}
+
+printf '\nZirconium-managed configuration drift:\n'
+
 show_diff() {
     local label=$1 severity=$2 output
     shift 2
@@ -35,8 +52,12 @@ show_diff() {
         return
     fi
     if [[ -n $output ]]; then
-        printf '\n%s differs from the installed Zirconium defaults:\n%s\n' \
-            "$label" "$output"
+        printf '%s differs from the installed Zirconium defaults.\n' "$label"
+        if [[ $show_details == true ]]; then
+            printf '%s\n' "$output"
+        else
+            echo "  Run 'just audit-diff' for the complete diff."
+        fi
         [[ $severity == critical || $strict == true ]] && status=1
     else
         printf '%s matches the installed Zirconium defaults.\n' "$label"

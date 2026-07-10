@@ -6,8 +6,17 @@ brew=/home/linuxbrew/.linuxbrew/bin/brew
 jq=/home/linuxbrew/.linuxbrew/bin/jq
 brewfile="$HOME/dotfiles/Brewfile"
 marker="$state_home/workstation-os-image/bootstrap-complete"
+repo="$HOME/projects/personal/workstation-os-image"
 
-mkdir -p "$(dirname "$marker")" "$HOME/.local/bin" "$HOME/.local/opt"
+mkdir -p "$(dirname "$marker")" "$HOME/.local/bin" "$HOME/.local/opt" \
+    "$(dirname "$repo")"
+
+if [[ ! -e $repo ]]; then
+    git clone https://github.com/marcortola/workstation-os-image.git "$repo"
+elif [[ ! -d $repo/.git ]]; then
+    echo "$repo exists but is not a Git checkout." >&2
+    exit 1
+fi
 
 if [[ ! -x $brew ]]; then
     NONINTERACTIVE=1 /bin/bash -c \

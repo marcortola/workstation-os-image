@@ -2,6 +2,10 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/lib/dotfiles.sh
+source "$repo_root/scripts/lib/dotfiles.sh"
+
+manifest="$repo_root/config/dotfiles.manifest"
 dest="$repo_root/system_files/usr/share/zirconium/zdots"
 
 copy_default() {
@@ -9,31 +13,30 @@ copy_default() {
     install -D -m 0644 "$source" "$dest/$target"
 }
 
-copy_default "$HOME/.config/fish/config.fish" dot_config/fish/create_config.fish
-for source in "$HOME"/.config/fish/conf.d/*.fish; do
-    copy_default "$source" "dot_config/fish/conf.d/create_${source##*/}"
-done
-for source in "$HOME"/.config/fish/functions/*.fish; do
-    copy_default "$source" "dot_config/fish/functions/create_${source##*/}"
-done
+while IFS='|' read -r kind live_path source_path pattern; do
+    [[ -z $kind || $kind == \#* ]] && continue
+    case "$kind" in
+        copy)
+            copy_default "$HOME/$live_path" "$source_path"
+            ;;
+        directory|tree)
+            live_dir="$HOME/$live_path"
+            max_depth=()
+            [[ $kind == directory ]] && max_depth=(-maxdepth 1)
+            while IFS= read -r -d '' source; do
+                relative=${source#"$live_dir/"}
+                target="$(workstation_seed_path "$dest" "$source_path" "$relative")"
+                install -D -m 0644 "$source" "$target"
+            done < <(find "$live_dir" "${max_depth[@]}" -type f \
+                -name "$pattern" -print0 | sort -z)
+            ;;
+        template)
+            ;;
+        *)
+            echo "Unknown manifest kind: $kind" >&2
+            exit 2
+            ;;
+    esac
+done < "$manifest"
 
-copy_default "$HOME/.config/foot/tokyo-night.ini" dot_config/foot/create_tokyo-night.ini
-copy_default "$HOME/.config/zellij/config.kdl" dot_config/zellij/create_config.kdl
-copy_default "$HOME/.config/lazygit/config.yml" dot_config/lazygit/create_config.yml
-copy_default "$HOME/.config/lazydocker/config.yml" dot_config/lazydocker/create_config.yml
-copy_default "$HOME/.config/btop/btop.conf" dot_config/btop/create_btop.conf
-copy_default "$HOME/.config/fontconfig/fonts.conf" dot_config/fontconfig/create_fonts.conf
-copy_default "$HOME/dotfiles/Brewfile" dotfiles/create_Brewfile
-
-copy_default "$HOME/.config/nvim/init.lua" dot_config/nvim/create_init.lua
-copy_default "$HOME/.config/nvim/lazy-lock.json" dot_config/nvim/create_lazy-lock.json
-copy_default "$HOME/.config/nvim/lazyvim.json" dot_config/nvim/create_lazyvim.json
-copy_default "$HOME/.config/nvim/stylua.toml" dot_config/nvim/create_stylua.toml
-while IFS= read -r -d '' source; do
-    relative=${source#"$HOME/.config/nvim/lua/"}
-    copy_default "$source" "dot_config/nvim/lua/${relative%/*}/create_${relative##*/}"
-done < <(find "$HOME/.config/nvim/lua" -type f -print0)
-
-# These two files require machine-independent home paths, so keep them as
-# reviewed templates rather than overwriting them with literal local paths.
-echo "Synced create-only defaults. Review the Niri, Starship, and Foot templates separately."
+echo "Synced manifest-listed create-only defaults. Reviewed templates were left unchanged."

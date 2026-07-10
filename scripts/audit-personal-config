@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/lib/dotfiles.sh
+source "$repo_root/scripts/lib/dotfiles.sh"
+
+manifest="$repo_root/config/dotfiles.manifest"
+source_root="$repo_root/system_files/usr/share/zirconium/zdots"
+config_file="${XDG_CONFIG_HOME:-$HOME/.config}/zirconium/chezmoi/chezmoi.toml"
+status=0
+tmp="$(mktemp -d)"
+trap 'rm -rf -- "$tmp"' EXIT
+
+report_difference() {
+    local state=$1 path=$2
+    printf '  %-18s %s\n' "$state" "$path"
+    status=1
+}
+
+compare_file() {
+    local live=$1 seed=$2 display=$3
+    if [[ ! -f $live ]]; then
+        report_difference "missing-live" "$display"
+    elif [[ ! -f $seed ]]; then
+        report_difference "uncaptured" "$display"
+    elif ! cmp -s "$live" "$seed"; then
+        report_difference "modified" "$display"
+    fi
+}
+
+echo "Personal configuration drift:"
+while IFS='|' read -r kind live_path source_path pattern; do
+    [[ -z $kind || $kind == \#* ]] && continue
+    case "$kind" in
+        copy)
+            compare_file "$HOME/$live_path" "$source_root/$source_path" "$live_path"
+            ;;
+        template)
+            rendered="$tmp/${source_path//\//_}"
+            chezmoi execute-template --config "$config_file" \
+                < "$source_root/$source_path" > "$rendered"
+            compare_file "$HOME/$live_path" "$rendered" "$live_path"
+            ;;
+        directory|tree)
+            live_dir="$HOME/$live_path"
+            seed_dir="$source_root/$source_path"
+            max_depth=()
+            [[ $kind == directory ]] && max_depth=(-maxdepth 1)
+
+            if [[ ! -d $live_dir ]]; then
+                report_difference "missing-live" "$live_path/"
+                continue
+            fi
+
+            while IFS= read -r -d '' live; do
+                relative=${live#"$live_dir/"}
+                seed="$(workstation_seed_path "$source_root" "$source_path" "$relative")"
+                compare_file "$live" "$seed" "$live_path/$relative"
+            done < <(find "$live_dir" "${max_depth[@]}" -type f \
+                -name "$pattern" -print0 | sort -z)
+
+            if [[ -d $seed_dir ]]; then
+                while IFS= read -r -d '' seed; do
+                    relative=${seed#"$seed_dir/"}
+                    live_relative="$(workstation_live_relative "$relative")"
+                    [[ -f $live_dir/$live_relative ]] || \
+                        report_difference "removed-live" "$live_path/$live_relative"
+                done < <(find "$seed_dir" "${max_depth[@]}" -type f \
+                    -name 'create_*' -print0 | sort -z)
+            fi
+            ;;
+        *)
+            echo "Unknown manifest kind: $kind" >&2
+            exit 2
+            ;;
+    esac
+done < "$manifest"
+
+if (( status == 0 )); then
+    echo "  all manifest-listed files match their repository seeds"
+fi
+exit "$status"
