@@ -43,37 +43,63 @@ ghcr.io/marcortola/workstation-os-image:<commit-sha>
 
 After the first successful workflow run, ensure the GHCR package is public.
 
-## Switch this workstation
+## Switch a fresh workstation
 
 Inspect the image before switching, then stage it:
 
 ```bash
 skopeo inspect docker://ghcr.io/marcortola/workstation-os-image:latest
 sudo bootc switch ghcr.io/marcortola/workstation-os-image:latest
-bootc status --verbose
+sudo bootc status --verbose
 systemctl reboot
 ```
 
-After reboot:
+If the machine already tracks this image, stage routine updates with `sudo
+bootc upgrade` instead of switching again. Before rebooting, confirm that
+`bootc status` reports the intended digest under `staged`.
+
+After reboot and graphical login, verify host integration:
 
 ```bash
 rpm -q containerd.io docker-buildx-plugin docker-ce docker-ce-cli \
   docker-compose-plugin fish keyd
 systemctl is-enabled containerd.service docker.service keyd.service
 systemctl is-active containerd.service docker.service keyd.service
+systemctl show workstation-docker-users.service --property=Result
 test -S /run/docker.sock
+id -nG | tr ' ' '\n' | grep -Fx docker
 docker info --format '{{.LoggingDriver}}'
+docker run --rm hello-world
 sudo keyd check /etc/keyd/default.conf
 ```
+
+Then verify the create-only defaults and first-login provisioning:
+
+```bash
+systemctl --user is-enabled workstation-bootstrap.service \
+  workstation-microsoft-fonts.service
+systemctl --user show workstation-bootstrap.service \
+  workstation-microsoft-fonts.service --property=Result
+test -f ~/.local/state/workstation-os-image/bootstrap-complete
+test -f ~/.local/share/fonts/.workstation-fonts-installed
+test -x /home/linuxbrew/.linuxbrew/bin/brew
+test -L ~/.local/bin/jetbrains-toolbox
+test -f ~/.config/foot/workstation.ini
+chezmoi managed -S /usr/share/zirconium/zdots | \
+  grep -E '^(\.config/niri/local\.kdl|dotfiles/Brewfile)$'
+foot --check-config -c ~/.config/foot/foot.ini
+niri validate -c ~/.config/niri/config.kdl
+```
+
+The provisioning services are `oneshot` units, so they normally become
+inactive after completion; `Result=success` and the marker files are the useful
+checks. If either result is not successful, inspect its user journal before
+retrying it.
 
 Docker is rootful. Before graphical login, the image adds interactive local
 users with homes under `/home` or `/var/home` to the root-equivalent `docker`
 group. This avoids hardcoded usernames and allows Docker commands without
 `sudo` after login:
-
-```bash
-docker run --rm hello-world
-```
 
 Microsoft font binaries are not redistributed in this public image. An enabled
 user service records the workstation owner's standing EULA acceptance by

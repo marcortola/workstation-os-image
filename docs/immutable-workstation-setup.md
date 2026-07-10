@@ -62,8 +62,8 @@ ghcr.io/marcortola/workstation-os-image:latest
 
 The image contains Fish, keyd, Docker Engine, containerd, Buildx, and Compose.
 It enables their systemd services and provides `/etc/docker/daemon.json` and
-`/etc/keyd/default.conf`. Switch to it once; routine updates then use
-`bootc upgrade` rather than rpm-ostree package layering:
+`/etc/keyd/default.conf`. On a fresh machine, switch to it once; routine updates
+then use `bootc upgrade` rather than rpm-ostree package layering:
 
 ```bash
 skopeo inspect docker://ghcr.io/marcortola/workstation-os-image:latest
@@ -71,6 +71,10 @@ sudo bootc switch ghcr.io/marcortola/workstation-os-image:latest
 sudo bootc status --verbose
 systemctl reboot
 ```
+
+On an already-tracking workstation, use `sudo bootc upgrade` instead. Before
+rebooting, verify that `sudo bootc status --verbose` reports the intended image
+digest under `staged`.
 
 Docker remains rootful. Before graphical login, the workstation image adds
 interactive local users with homes under `/home` or `/var/home` to the
@@ -81,8 +85,9 @@ hardcoding a username.
 docker run --rm hello-world
 ```
 
-Verify that the deployment contains the requested packages, that Foot's
-configured shell exists, and that the services and Docker socket are ready:
+After reboot and graphical login, verify that the deployment contains the
+requested packages and that host services, Docker access, user provisioning,
+and effective desktop configuration are ready:
 
 ```bash
 rpm -q containerd.io docker-buildx-plugin docker-ce docker-ce-cli \
@@ -90,9 +95,30 @@ rpm -q containerd.io docker-buildx-plugin docker-ce docker-ce-cli \
 test -x /usr/bin/fish
 systemctl is-enabled containerd.service docker.service keyd.service
 systemctl is-active containerd.service docker.service keyd.service
+systemctl show workstation-docker-users.service --property=Result
 test -S /run/docker.sock
-sudo docker run --rm hello-world
+id -nG | tr ' ' '\n' | grep -Fx docker
+docker run --rm hello-world
+sudo keyd check /etc/keyd/default.conf
+
+systemctl --user is-enabled workstation-bootstrap.service \
+  workstation-microsoft-fonts.service
+systemctl --user show workstation-bootstrap.service \
+  workstation-microsoft-fonts.service --property=Result
+test -f ~/.local/state/workstation-os-image/bootstrap-complete
+test -f ~/.local/share/fonts/.workstation-fonts-installed
+test -x /home/linuxbrew/.linuxbrew/bin/brew
+test -L ~/.local/bin/jetbrains-toolbox
+test -f ~/.config/foot/workstation.ini
+chezmoi managed -S /usr/share/zirconium/zdots | \
+  grep -E '^(\.config/niri/local\.kdl|dotfiles/Brewfile)$'
+foot --check-config -c ~/.config/foot/foot.ini
+niri validate -c ~/.config/niri/config.kdl
 ```
+
+The user provisioning services are `oneshot` units and normally become
+inactive after completion. Check for `Result=success` and the marker files; if
+either failed, inspect its user journal before retrying it.
 
 Docker's image-provided `json-file` policy bounds logs so long-running
 containers cannot consume the host filesystem:
