@@ -29,9 +29,11 @@ RUN /usr/libexec/workstation-patch-zdots && \
     systemd-analyze verify \
       /usr/lib/systemd/system/workstation-docker-users.service \
       /usr/lib/systemd/user/workstation-bootstrap.service \
+      /usr/lib/systemd/user/workstation-dms-settings.service \
       /usr/lib/systemd/user/workstation-microsoft-fonts.service && \
     systemctl preset containerd.service docker.service keyd.service \
       workstation-docker-users.service && \
     systemctl --global preset workstation-bootstrap.service \
+      workstation-dms-settings.service \
       workstation-microsoft-fonts.service && \
     bootc container lint

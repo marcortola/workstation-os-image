@@ -11,6 +11,19 @@ audit:
 audit-diff:
     ./scripts/audit-workstation --diff
 
+# Review portable DMS deviations and capture selected values.
+dms-capture:
+    ./scripts/capture-dms-settings
+
+# Stop tracking selected DMS preference overrides.
+dms-remove:
+    ./scripts/capture-dms-settings --remove
+
+# Merge the tracked DMS preference overlay into this account.
+dms-apply:
+    WORKSTATION_DMS_SETTINGS_OVERLAY="$PWD/system_files/usr/share/workstation-os-image/dms-settings.json" \
+        ./system_files/usr/bin/workstation-apply-dms-settings
+
 # Refresh create-only seeds from manifest-listed live files.
 sync:
     ./scripts/sync-dotfiles

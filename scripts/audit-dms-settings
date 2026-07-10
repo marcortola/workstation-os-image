@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+live=${DMS_SETTINGS_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/DankMaterialShell/settings.json}
+overlay=${DMS_SETTINGS_OVERLAY:-$repo_root/system_files/usr/share/workstation-os-image/dms-settings.json}
+status=0
+
+[[ -r $live && -r $overlay ]] || {
+    echo "DMS live settings or captured overlay is missing." >&2
+    exit 2
+}
+
+workdir="$(mktemp -d)"
+trap 'rm -rf -- "$workdir"' EXIT
+install -m 0600 "$live" "$workdir/settings.json"
+DMS_SETTINGS_FILE="$workdir/settings.json" \
+WORKSTATION_DMS_SETTINGS_OVERLAY="$overlay" \
+    "$repo_root/system_files/usr/bin/workstation-apply-dms-settings" >/dev/null
+/usr/bin/jq -S . "$live" > "$workdir/live.json"
+
+if ! cmp -s "$workdir/settings.json" "$workdir/live.json"; then
+    echo "Captured DMS preferences differ from the live settings."
+    echo "  Run 'just dms-apply' to restore the tracked defaults."
+    status=1
+else
+    echo "Captured DMS preferences match the live settings."
+fi
+
+mapfile -t candidates < <("$repo_root/scripts/capture-dms-settings" --list)
+uncaptured=()
+for line in "${candidates[@]}"; do
+    [[ $line == *'[new]'* ]] && uncaptured+=("$line")
+done
+if (( ${#uncaptured[@]} > 0 )); then
+    printf 'Portable DMS deviations are not captured (%d).\n' "${#uncaptured[@]}"
+    echo "  Run 'just dms-capture' to review them interactively."
+    status=1
+else
+    echo "No uncaptured portable DMS deviations."
+fi
+
+exit "$status"

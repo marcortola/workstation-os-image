@@ -1,0 +1,11 @@
+[Unit]
+Description=Apply captured workstation DMS preferences
+Documentation=https://github.com/marcortola/workstation-os-image
+After=chezmoi-init.service chezmoi-update.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/workstation-apply-dms-settings
+
+[Install]
+WantedBy=default.target

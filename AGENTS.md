@@ -29,7 +29,8 @@ files. `CLAUDE.md` imports this file for Claude Code.
 - Put deterministic user preferences in the dotfile manifest and create-only
   chezmoi source.
 - Keep Zirconium-owned Niri/DMS/GTK scaffolding upstream-managed. Niri personal
-  changes belong only in `local.kdl`; never capture DMS-generated state.
+  changes belong only in `local.kdl`. Promote portable GUI preferences with
+  `just dms-capture`; never capture the complete DMS settings/runtime state.
 - Keep secrets, tokens, SSH keys, browser profiles, histories, caches,
   application databases, backups, and device-specific runtime state out of
   Git.
@@ -56,13 +57,15 @@ files. `CLAUDE.md` imports this file for Claude Code.
 1. Inspect `git status` and preserve unrelated work.
 2. Make the live terminal or GUI change and determine its ownership class.
 3. For a new personal file, add one entry to `config/dotfiles.manifest`.
-4. Run `just audit` to see accidental deployment layers, undeclared packages,
+4. For a DMS GUI preference, run `just dms-capture` and select only the
+   portable values that should become workstation defaults.
+5. Run `just audit` to see accidental deployment layers, undeclared packages,
    uncaptured personal state, and upstream Zirconium drift.
-5. Run `just sync` to refresh generated create-only seeds.
-6. Review `git diff` for credentials, machine-specific paths, generated noise,
+6. Run `just sync` to refresh generated create-only seeds.
+7. Review `git diff` for credentials, machine-specific paths, generated noise,
    and unintended package additions.
-7. Run `just validate`. For image changes, also run `just build`.
-8. Use a branch and pull request for durable changes. Never leave a requested
+8. Run `just validate`. For image changes, also run `just build`.
+9. Use a branch and pull request for durable changes. Never leave a requested
    permanent workstation change only on the live machine.
 
 ## Commands
@@ -71,6 +74,9 @@ files. `CLAUDE.md` imports this file for Claude Code.
   drift.
 - `just sync`: copy manifest-listed live files into create-only image seeds.
 - `just capture`: sync, validate, and show the resulting Git status/diff.
+- `just dms-capture`: interactively promote portable live DMS preferences.
+- `just dms-remove`: interactively stop tracking selected DMS preferences.
+- `just dms-apply`: merge the tracked preference overlay into the live account.
 - `just validate`: run repository and effective workstation checks.
 - `just build`: build the complete bootc image locally with Podman.
 

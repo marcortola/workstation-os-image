@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+overlay=${WORKSTATION_DMS_SETTINGS_OVERLAY:-/usr/share/workstation-os-image/dms-settings.json}
+target=${DMS_SETTINGS_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/DankMaterialShell/settings.json}
+
+[[ -r $overlay ]] || exit 0
+[[ -r $target ]] || {
+    echo "Waiting for Zirconium to create $target" >&2
+    exit 1
+}
+
+for file in "$overlay" "$target"; do
+    /usr/bin/jq -e 'type == "object"' "$file" >/dev/null || {
+        echo "Invalid DMS settings object: $file" >&2
+        exit 2
+    }
+done
+
+workdir="$(dirname "$target")"
+temporary="$(mktemp "$workdir/.settings.json.XXXXXX")"
+trap 'rm -f "$temporary"' EXIT
+
+/usr/bin/jq -S -s --arg home "$HOME" '
+    .[0] as $current
+    | (.[1] | walk(
+        if type == "string" then gsub("\\$\\{HOME\\}"; $home) else . end
+      )) as $overlay
+    | ($overlay | del(.barConfigs)) as $simple
+    | $current * $simple
+    | if ($overlay | has("barConfigs")) then
+        .barConfigs = (
+          ($current.barConfigs // []) as $bars
+          | ($bars | map(.id)) as $ids
+          | ($bars | map(
+              . as $bar
+              | reduce $overlay.barConfigs[] as $override
+                  ($bar; if .id == $override.id then . * $override else . end)
+            ))
+            + [$overlay.barConfigs[] | select(.id as $id | $ids | index($id) | not)]
+        )
+      else . end
+    | .configVersion = $current.configVersion
+' "$target" "$overlay" > "$temporary"
+
+if cmp -s "$temporary" "$target"; then
+    echo "DMS preference overlay already applied."
+    exit 0
+fi
+
+chmod --reference="$target" "$temporary"
+mv -f "$temporary" "$target"
+trap - EXIT
+echo "Applied DMS preference overlay."

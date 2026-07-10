@@ -1,0 +1,31 @@
+# DMS settings that are runtime, device-specific, sensitive, or path-bound.
+# Keep one exact top-level SettingsSpec key per line.
+activeDisplayProfile
+audioInputDevicePins
+audioOutputDevicePins
+barConfigs
+bluetoothDevicePins
+brightnessDevicePins
+browserUsageHistory
+connectedFrameBarStyleBackups
+customThemeFile
+desktopClockCustomColor
+desktopWidgetGroups
+desktopWidgetInstances
+desktopWidgetPositions
+desktopWidgetGridSettings
+displayProfiles
+enabledGpuPciIds
+filePickerUsageHistory
+greeterSyncBaseline
+greeterWallpaperPath
+hyprlandOutputSettings
+lastAppliedIconTheme
+lockScreenVideoPath
+lockScreenWallpaperPath
+niriOutputSettings
+screenPreferences
+selectedGpuIndex
+showOnLastDisplay
+systemMonitorCustomColor
+wifiNetworkPins
