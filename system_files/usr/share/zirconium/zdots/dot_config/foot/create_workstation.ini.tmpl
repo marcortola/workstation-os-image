@@ -1,0 +1,19 @@
+term=xterm-256color
+title=foot
+locked-title=yes
+app-id=foot
+
+font=FiraCode Nerd Font Mono:size=12
+font-bold=FiraCode Nerd Font Mono:size=12
+font-italic=FiraCode Nerd Font Mono:size=12
+font-bold-italic=FiraCode Nerd Font Mono:size=12
+
+[cursor]
+style=block
+
+[main]
+shell=/usr/bin/fish
+include={{ .chezmoi.homeDir }}/.config/foot/tokyo-night.ini
+
+[colors-dark]
+alpha=0.95

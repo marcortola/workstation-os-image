@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+
+git diff --check
+
+mapfile -t shell_files < <(
+    find scripts system_files/usr/bin system_files/usr/libexec \
+        -maxdepth 1 -type f -print | sort
+)
+bash -n "${shell_files[@]}"
+shellcheck "${shell_files[@]}"
+
+fish --no-execute \
+    system_files/usr/share/zirconium/zdots/dot_config/fish/create_config.fish \
+    system_files/usr/share/zirconium/zdots/dot_config/fish/conf.d/*.fish \
+    system_files/usr/share/zirconium/zdots/dot_config/fish/functions/*.fish
+
+cmp "$HOME/dotfiles/Brewfile" \
+    system_files/usr/share/zirconium/zdots/dotfiles/create_Brewfile
+brew bundle check --file "$HOME/dotfiles/Brewfile"
+
+scripts/audit-dotfiles
+foot --check-config -c "$HOME/.config/foot/foot.ini"
+
+tmp="$(mktemp -d)"
+trap 'rm -rf -- "$tmp"' EXIT
+cp -a /usr/share/zirconium/zdots/. "$tmp/"
+cp -a system_files/usr/share/zirconium/zdots/. "$tmp/"
+chezmoi managed -S "$tmp" > "$tmp/managed"
+
+for target in \
+    .config/foot/foot.ini \
+    .config/foot/workstation.ini \
+    .config/niri/config.kdl \
+    .config/niri/local.kdl \
+    dotfiles/Brewfile; do
+    grep -Fqx "$target" "$tmp/managed"
+done
+
+echo "Repository and local workstation validation passed."

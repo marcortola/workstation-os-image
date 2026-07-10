@@ -3,15 +3,25 @@
 Personal Fedora bootc derivative containing host-integrated packages that must
 survive image updates and switches.
 
-The default base is Zirconium, but the build accepts a different bootc base
-through the repository variable `BASE_IMAGE`.
+It is also the reproducible definition of the owner's workstation: Zirconium
+remains responsible for its evolving desktop defaults, while this repository
+adds create-only personal defaults and first-login restoration.
+
+The build accepts `BASE_IMAGE`, but the current desktop integration requires a
+Zirconium-compatible base that provides `/usr/share/zirconium/zdots` and its
+chezmoi user services. Supporting an unrelated bootc base requires a deliberate
+adapter for those contracts; the generic repository name leaves room for that
+future migration.
 
 ## Included host packages
 
 - Fish
 - keyd
 - Docker Engine, CLI, Buildx, Compose, and containerd
-- Microsoft font installer prerequisites and an opt-in installation helper
+- First-login open and Microsoft font installer prerequisites and helper
+- Create-only Fish, Foot, Zellij, Niri, Starship, Neovim, TUI, Fontconfig, and
+  Brewfile defaults layered into Zirconium's own chezmoi source
+- First-login Homebrew/Brewfile and JetBrains Toolbox restoration
 
 The image enables `containerd.service`, `docker.service`, and `keyd.service`
 through image-owned systemd presets. Docker log rotation and the Copilot-key
@@ -19,7 +29,8 @@ mapping live under `/usr/share/factory/etc` and are linked into `/etc` by
 systemd-tmpfiles, following Zirconium's factory-default convention. Docker
 creates `/run/docker.sock` when its service starts. See
 [configuration boundaries](docs/configuration-boundaries.md) for what belongs
-in this image versus user dotfiles.
+in this image versus user dotfiles. The complete, versioned recreation and
+recovery runbook is [immutable workstation setup](docs/immutable-workstation-setup.md).
 
 ## Published image
 
@@ -74,6 +85,34 @@ font directory. To run it immediately or retry it:
 systemctl --user start workstation-microsoft-fonts.service
 ```
 
+## Zirconium and personal dotfiles
+
+Zirconium continues to own and update its Niri/DMS defaults. Put partial Niri
+customizations only in `~/.config/niri/local.kdl` or `/etc/niri/local.kdl`.
+Personal files in `system_files/usr/share/zirconium/zdots` use chezmoi's
+`create_` attribute, so Zirconium creates them when absent and never overwrites
+later user edits. The image does not ship a competing chezmoi service.
+
+From a checked-out repository on the workstation, audit installed upstream
+drift and validate the effective Niri configuration with:
+
+```bash
+scripts/audit-dotfiles
+```
+
+Use `scripts/audit-dotfiles --strict` when DMS-generated preferences should
+also fail the audit. After reviewing drift and deliberate local changes, run
+`scripts/sync-dotfiles` to refresh the create-only files committed here.
+Run `scripts/validate` before committing to check the manifest copy, shell and
+Fish syntax, effective Niri/Foot configuration, and the combined chezmoi target
+map.
+
+On a new account, Zirconium applies the combined source. An enabled user
+service then installs Homebrew if needed, applies `~/dotfiles/Brewfile`, and
+installs JetBrains Toolbox below `~/.local`. Existing accounts are not reset;
+remove the relevant target deliberately if a new image default should be
+created again.
+
 ## Updates and rollback
 
 The scheduled workflow rebuilds against the current base-image tag. Apply a
@@ -94,7 +133,8 @@ systemctl reboot
 
 ## Changing the Fedora derivative
 
-Set the GitHub repository variable `BASE_IMAGE` to another compatible bootc
-image, trigger the workflow manually, inspect the result, and use `bootc
-switch` for the deliberate migration. Routine updates should continue to use
-`bootc upgrade`.
+Set the GitHub repository variable `BASE_IMAGE` only to another image that
+provides the Zirconium dotfile contracts described above. For an unrelated
+bootc base, first replace the zdots patch and chezmoi activation integration,
+then trigger the workflow manually and inspect the result before using `bootc
+switch`. Routine updates should continue to use `bootc upgrade`.
