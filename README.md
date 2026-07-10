@@ -11,9 +11,15 @@ through the repository variable `BASE_IMAGE`.
 - Fish
 - keyd
 - Docker Engine, CLI, Buildx, Compose, and containerd
+- Microsoft font installer prerequisites and an opt-in installation helper
 
 The image enables `containerd.service`, `docker.service`, and `keyd.service`
-at build time. Docker creates `/run/docker.sock` when its service starts.
+through image-owned systemd presets. Docker log rotation and the Copilot-key
+mapping live under `/usr/share/factory/etc` and are linked into `/etc` by
+systemd-tmpfiles, following Zirconium's factory-default convention. Docker
+creates `/run/docker.sock` when its service starts. See
+[configuration boundaries](docs/configuration-boundaries.md) for what belongs
+in this image versus user dotfiles.
 
 ## Published image
 
@@ -45,13 +51,27 @@ rpm -q containerd.io docker-buildx-plugin docker-ce docker-ce-cli \
 systemctl is-enabled containerd.service docker.service keyd.service
 systemctl is-active containerd.service docker.service keyd.service
 test -S /run/docker.sock
+docker info --format '{{.LoggingDriver}}'
+sudo keyd check /etc/keyd/default.conf
 ```
 
-To use Docker without `sudo`, add the user to the `docker` group and then log
-out and back in. This membership grants root-equivalent privileges.
+Docker is rootful. Before graphical login, the image adds interactive local
+users with homes under `/home` or `/var/home` to the root-equivalent `docker`
+group. This avoids hardcoded usernames and allows Docker commands without
+`sudo` after login:
 
 ```bash
-sudo usermod -aG docker "$USER"
+docker run --rm hello-world
+```
+
+Microsoft font binaries are not redistributed in this public image. An enabled
+user service records the workstation owner's standing EULA acceptance by
+invoking the installer with `--accept-microsoft-eula` on first login. It
+downloads the fonts from their original distributors into the persistent user
+font directory. To run it immediately or retry it:
+
+```bash
+systemctl --user start workstation-microsoft-fonts.service
 ```
 
 ## Updates and rollback

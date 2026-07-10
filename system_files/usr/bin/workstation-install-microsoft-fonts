@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ ${1:-} != "--accept-microsoft-eula" ]]; then
+    echo "This downloads and installs Microsoft fonts from their original distributors."
+    echo "Using the fonts signifies acceptance of the applicable Microsoft EULAs."
+    echo "Re-run with --accept-microsoft-eula to continue."
+    exit 2
+fi
+
+target="${XDG_DATA_HOME:-$HOME/.local/share}/fonts/Microsoft"
+workdir="$(mktemp -d)"
+trap 'rm -rf -- "$workdir"' EXIT
+
+mkdir -p "$target" "$workdir/rpm" "$workdir/ppviewer"
+
+curl -fL --retry 3 \
+    -o "$workdir/msttcore-fonts-installer.rpm" \
+    https://downloads.sourceforge.net/project/mscorefonts2/rpms/msttcore-fonts-installer-2.6-1.noarch.rpm
+
+(
+    cd "$workdir/rpm"
+    rpm2cpio "$workdir/msttcore-fonts-installer.rpm" | cpio -idm --quiet
+)
+
+"$workdir/rpm/usr/lib/msttcore-fonts-installer/refresh-msttcore-fonts.sh" \
+    -F "$target" \
+    -S "$workdir/rpm/usr/lib/msttcore-fonts-installer/cabfiles.sha256sums" \
+    -I "$target/installed-list.txt" \
+    -L "$target"
+
+# Regular Cambria is stored as a TTC collection and is skipped by the helper's
+# TTF-only filter, so extract it from Microsoft's PowerPoint Viewer package.
+curl -fL --retry 3 \
+    -o "$workdir/PowerPointViewer.exe" \
+    https://downloads.sourceforge.net/project/mscorefonts2/cabs/PowerPointViewer.exe
+cabextract -q -d "$workdir/ppviewer" -F ppviewer.cab \
+    "$workdir/PowerPointViewer.exe"
+cabextract -q --lowercase -F cambria.ttc -d "$target" \
+    "$workdir/ppviewer/ppviewer.cab"
+
+fc-cache -f "$target"
+echo "Microsoft fonts installed in $target"
