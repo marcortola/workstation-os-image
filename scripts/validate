@@ -7,22 +7,23 @@ cd "$repo_root"
 git diff --check
 
 mapfile -t shell_files < <(
-    find scripts system_files/usr/bin system_files/usr/libexec \
-        -maxdepth 1 -type f -print | sort
+    find scripts system_files/usr/bin system_files/usr/libexec -type f \
+        \( -perm /111 -o -name '*.sh' \) -print | sort
 )
 bash -n "${shell_files[@]}"
 shellcheck "${shell_files[@]}"
+just --fmt --check
+just --list >/dev/null
+[[ $(< CLAUDE.md) == '@AGENTS.md' ]]
+(( $(wc -l < AGENTS.md) <= 200 ))
 
 fish --no-execute \
     system_files/usr/share/zirconium/zdots/dot_config/fish/create_config.fish \
     system_files/usr/share/zirconium/zdots/dot_config/fish/conf.d/*.fish \
     system_files/usr/share/zirconium/zdots/dot_config/fish/functions/*.fish
 
-cmp "$HOME/dotfiles/Brewfile" \
-    system_files/usr/share/zirconium/zdots/dotfiles/create_Brewfile
-brew bundle check --file "$HOME/dotfiles/Brewfile"
-
-scripts/audit-dotfiles
+scripts/validate-manifest
+scripts/audit-workstation
 foot --check-config -c "$HOME/.config/foot/foot.ini"
 
 tmp="$(mktemp -d)"

@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/lib/dotfiles.sh
+source "$repo_root/scripts/lib/dotfiles.sh"
+
+manifest="$repo_root/config/dotfiles.manifest"
+source_root="$repo_root/system_files/usr/share/zirconium/zdots"
+tmp="$(mktemp -d)"
+trap 'rm -rf -- "$tmp"' EXIT
+
+while IFS='|' read -r kind live_path source_path pattern; do
+    [[ -z $kind || $kind == \#* ]] && continue
+    case "$kind" in
+        copy|template)
+            printf '%s\n' "$source_path"
+            ;;
+        directory|tree)
+            live_dir="$HOME/$live_path"
+            max_depth=()
+            [[ $kind == directory ]] && max_depth=(-maxdepth 1)
+            if [[ ! -d $live_dir ]]; then
+                echo "Manifest directory is missing locally: $live_path" >&2
+                exit 1
+            fi
+            while IFS= read -r -d '' live; do
+                relative=${live#"$live_dir/"}
+                workstation_seed_path "" "$source_path" "$relative" | cut -c2-
+            done < <(find "$live_dir" "${max_depth[@]}" -type f \
+                -name "$pattern" -print0 | sort -z)
+            ;;
+        *)
+            echo "Unknown manifest kind: $kind" >&2
+            exit 2
+            ;;
+    esac
+done < "$manifest" | sort > "$tmp/expected"
+
+find "$source_root" -type f -printf '%P\n' | sort > "$tmp/actual"
+
+if ! diff -u --label manifest-expected --label repository-seeds \
+    "$tmp/expected" "$tmp/actual"; then
+    echo "Dotfile manifest and repository seeds differ." >&2
+    exit 1
+fi
+
+duplicate_live="$(awk -F'|' '!/^#/ && NF {print $2}' "$manifest" | sort | uniq -d)"
+duplicate_source="$(awk -F'|' '!/^#/ && NF {print $3}' "$manifest" | sort | uniq -d)"
+[[ -z $duplicate_live && -z $duplicate_source ]] || {
+    printf 'Duplicate manifest live paths:\n%s\n' "$duplicate_live" >&2
+    printf 'Duplicate manifest source paths:\n%s\n' "$duplicate_source" >&2
+    exit 1
+}
+
+echo "Dotfile manifest covers every personal seed exactly once."

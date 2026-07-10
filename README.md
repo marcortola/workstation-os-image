@@ -58,11 +58,16 @@ duplicate them.
 ```text
 Containerfile                         Image packages, validation and presets
 .github/workflows/build.yml           Daily, PR and main image builds
+AGENTS.md / CLAUDE.md                 Canonical cross-agent repository guidance
+config/dotfiles.manifest              Single personal configuration inventory
+config/image-provided-brew-formulae   Known image/Homebrew package shadows
+justfile                              Human and agent command interface
 system_files/usr/share/factory/etc    Docker and keyd factory defaults
 system_files/usr/share/zirconium      Create-only personal chezmoi entries
 system_files/usr/lib/systemd          System and user services/presets
 system_files/usr/bin                  First-login provisioning helpers
 scripts/audit-dotfiles                Local Zirconium drift report
+scripts/audit-deployment              Booted image and rpm-ostree layer report
 scripts/sync-dotfiles                 Refresh personal seeds from this account
 scripts/validate                      Repeatable local repository validation
 ```
@@ -129,7 +134,8 @@ Two enabled user services then provision persistent user state:
 
 - `workstation-bootstrap.service` installs Homebrew when absent, applies
   `~/dotfiles/Brewfile`, installs its Flatpaks, and installs JetBrains Toolbox
-  below `~/.local`.
+  below `~/.local`. On a fresh account it also clones this repository into
+  `~/projects/personal/workstation-os-image` when that path is absent.
 - `workstation-microsoft-fonts.service` installs Caskaydia Mono Nerd Font,
   iA Writer Mono, Font Awesome, Microsoft core/Vista fonts and Cambria below
   `~/.local/share/fonts`.
@@ -168,6 +174,7 @@ test -f ~/.local/state/workstation-os-image/bootstrap-complete
 test -f ~/.local/share/fonts/.workstation-fonts-installed
 test -x /home/linuxbrew/.linuxbrew/bin/brew
 test -L ~/.local/bin/jetbrains-toolbox
+test -d ~/projects/personal/workstation-os-image/.git
 test -f ~/.config/foot/workstation.ini
 chezmoi managed -S /usr/share/zirconium/zdots | \
   grep -E '^(\.config/niri/local\.kdl|dotfiles/Brewfile)$'
@@ -215,31 +222,55 @@ chezmoi rather than hardcoding a username.
 
 ## Updating tracked defaults
 
-Make configuration changes locally first, then update the image seed:
+`AGENTS.md` is the canonical instruction file for coding agents. Codex loads it
+directly; the repository's `CLAUDE.md` imports it, following Claude Code's
+recommended compatibility pattern. Create-only global pointers under
+`~/.codex` and `~/.claude` direct agents back to this repository even when they
+are launched elsewhere. `CLAUDE.local.md` remains available for uncommitted
+machine-specific notes.
+
+`config/dotfiles.manifest` is the only capture inventory. Add one entry there
+when adopting another portable configuration file; both synchronization and
+validation consume it. This prevents a file from being copied by one script
+but silently ignored by another.
+
+For any durable terminal, GUI, Claude, or Codex change:
+
+1. Make the change locally and decide whether it belongs to the OS image, the
+   Brewfile, a portable personal seed, Zirconium, or deliberately untracked
+   runtime state.
+2. Add new packages explicitly to the Containerfile or Brewfile. Do not accept
+   an unreviewed `brew bundle dump`, because it can reintroduce image-provided
+   formulae.
+3. Add a portable GUI/config file to the manifest only after checking it for
+   credentials, device IDs, histories, caches, and database state.
+4. Capture, review, and validate the result:
 
 ```bash
 cd ~/projects/personal/workstation-os-image
-brew bundle dump --file ~/dotfiles/Brewfile --force
-scripts/audit-dotfiles
-scripts/sync-dotfiles
-scripts/validate
+just audit
+just capture
 git diff
 ```
 
-`scripts/audit-dotfiles` treats changes to Zirconium's structural Niri files as
-errors and reports DMS-generated preferences separately. Add `--strict` to make
-informational DMS drift fail as well.
+`just audit` reports the booted image, accidental rpm-ostree mutations,
+undeclared Homebrew/Flatpak installs, uncaptured personal changes, removed
+files, and structural Zirconium Niri drift. Known redundant Homebrew shadows
+of image binaries are visible but informational. Expected DMS runtime
+differences are summarized; use `just audit-diff` for their complete diff or
+`scripts/audit-dotfiles --strict` to make them fail. Deployment inspection is
+skipped when the host system bus is unavailable, such as inside a build
+container.
 
-`scripts/sync-dotfiles` copies the reviewed Fish, Zellij, Neovim, TUI,
-Fontconfig and Brewfile configuration into create-only source entries. Niri,
-Starship and Foot stay reviewed templates because they contain dynamic paths or
-compose with upstream files. It intentionally excludes Fish variables,
-credentials, caches, backups and runtime state.
+`just capture` synchronizes manifest-listed files, validates the repository and
+effective workstation, and shows the resulting Git diff. Niri, Starship and
+Foot remain reviewed templates because they contain dynamic paths or compose
+with upstream files.
 
-`scripts/validate` checks shell and Fish syntax, the Brewfile copy, effective
-Niri and Foot configuration, upstream drift, and the merged Zirconium/personal
-chezmoi target map. Pull requests and local container builds then validate the
-complete image.
+Instructions guide agents, but `just validate` is the enforcement layer: it
+checks shell/Fish syntax, manifest coverage, personal drift, the Brewfile,
+effective Niri/Foot configuration, and the combined chezmoi target map. Use
+`just build` for image changes before opening a pull request.
 
 Because create-only targets preserve existing files, changing a seed affects
 new accounts and targets that do not yet exist. To adopt a revised seed on an
