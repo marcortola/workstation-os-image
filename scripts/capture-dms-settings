@@ -1,0 +1,165 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+live=${DMS_SETTINGS_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/DankMaterialShell/settings.json}
+overlay=${DMS_SETTINGS_OVERLAY:-$repo_root/system_files/usr/share/workstation-os-image/dms-settings.json}
+denylist="$repo_root/config/dms-settings-denylist"
+mode=capture
+
+case ${1:-} in
+    "") ;;
+    --list) mode=list ;;
+    --remove) mode=remove ;;
+    *)
+        echo "Usage: scripts/capture-dms-settings [--list|--remove]" >&2
+        exit 2
+        ;;
+esac
+
+for command in jq node; do
+    command -v "$command" >/dev/null || {
+        echo "Missing required command: $command" >&2
+        exit 2
+    }
+done
+[[ $mode == list ]] || command -v fzf >/dev/null || {
+    echo "Missing required command: fzf" >&2
+    exit 2
+}
+[[ -r $live && -r $overlay && -r $denylist ]] || {
+    echo "DMS settings, overlay, or denylist is missing." >&2
+    exit 2
+}
+
+workdir="$(mktemp -d)"
+trap 'rm -rf -- "$workdir"' EXIT
+"$repo_root/scripts/dms-settings-defaults" > "$workdir/defaults.json"
+
+mapfile -t denied < <(
+    sed -e 's/[[:space:]]*#.*$//' -e '/^[[:space:]]*$/d' "$denylist"
+)
+printf '%s\n' "${denied[@]}" | \
+    jq -Rsc 'split("\n") | map(select(length > 0))' > "$workdir/denied.json"
+
+if [[ $mode == remove ]]; then
+    jq -r '
+        (to_entries[] | select(.key != "barConfigs")
+          | [.key, (.value | tojson)] | @tsv),
+        (.barConfigs[]? as $bar
+          | $bar | to_entries[] | select(.key != "id")
+          | ["barConfigs.\($bar.id).\(.key)", (.value | tojson)] | @tsv)
+    ' "$overlay" \
+        > "$workdir/options"
+    [[ -s $workdir/options ]] || {
+        echo "No DMS settings are currently tracked."
+        exit 0
+    }
+    selection="$(fzf --multi --layout=reverse --height=80% --border \
+        --delimiter=$'\t' --with-nth=1,2 \
+        --header='Tab: mark overrides to remove · Enter: confirm · Esc: cancel' \
+        --prompt='Remove DMS defaults > ' < "$workdir/options")" || exit 0
+    [[ -n $selection ]] || exit 0
+    printf '%s\n' "$selection" | cut -f1 | \
+        jq -Rsc 'split("\n") | map(select(length > 0))' > "$workdir/keys.json"
+    jq --slurpfile keys "$workdir/keys.json" '
+        reduce $keys[0][] as $key (.;
+          if ($key | startswith("barConfigs.")) then
+            ($key | capture("^barConfigs\\.(?<id>[^.]+)\\.(?<field>.+)$")) as $path
+            | .barConfigs = [
+                .barConfigs[]?
+                | if .id == $path.id then del(.[$path.field]) else . end
+                | select(keys != ["id"])
+              ]
+            | if (.barConfigs | length) == 0 then del(.barConfigs) else . end
+          else del(.[$key]) end
+        )
+    ' "$overlay" > "$workdir/updated.json"
+else
+    jq -n \
+        --slurpfile live "$live" \
+        --slurpfile defaults "$workdir/defaults.json" \
+        --slurpfile tracked "$overlay" \
+        --slurpfile denied "$workdir/denied.json" '
+        (($live[0] | to_entries[]) as $entry
+        | $entry.key as $key
+        | select($key != "configVersion")
+        | select($defaults[0] | has($key))
+        | select($denied[0] | index($key) | not)
+        | select($entry.value != $defaults[0][$key] or ($tracked[0] | has($key)))
+        | {
+            key: $key,
+            current: $entry.value,
+            default: $defaults[0][$key],
+            tracked: ($tracked[0] | has($key))
+          })
+        ,
+        ($live[0].barConfigs[]? as $bar
+          | ($defaults[0].barConfigs // []
+              | map(select(.id == $bar.id)) | first // {}) as $default_bar
+          | ($tracked[0].barConfigs // []
+              | map(select(.id == $bar.id)) | first // {}) as $tracked_bar
+          | $bar | to_entries[] as $entry
+          | $entry.key as $field
+          | select($field != "id")
+          | select($denied[0] | index($field) | not)
+          | select($entry.value != $default_bar[$field] or ($tracked_bar | has($field)))
+          | {
+              key: "barConfigs.\($bar.id).\($field)",
+              current: $entry.value,
+              default: $default_bar[$field],
+              tracked: ($tracked_bar | has($field))
+            })
+    ' | jq -s 'sort_by(.key)' > "$workdir/candidates.json"
+
+    jq -r '.[] | [
+        .key,
+        (if .tracked then "[tracked]" else "[new]" end),
+        ("current=" + (.current | tojson)),
+        ("default=" + (.default | tojson))
+    ] | @tsv' "$workdir/candidates.json" > "$workdir/options"
+
+    if [[ $mode == list ]]; then
+        if [[ -s $workdir/options ]]; then
+            column -s $'\t' -t < "$workdir/options"
+        else
+            echo "No portable DMS deviations are available to capture."
+        fi
+        exit 0
+    fi
+
+    [[ -s $workdir/options ]] || {
+        echo "No portable DMS deviations are available to capture."
+        exit 0
+    }
+    selection="$(fzf --multi --layout=reverse --height=90% --border \
+        --delimiter=$'\t' --with-nth=1,2,3,4 \
+        --header='Tab: select defaults to capture/update · Enter: confirm · Esc: cancel' \
+        --prompt='Capture DMS defaults > ' < "$workdir/options")" || exit 0
+    [[ -n $selection ]] || exit 0
+    printf '%s\n' "$selection" | cut -f1 | \
+        jq -Rsc 'split("\n") | map(select(length > 0))' > "$workdir/keys.json"
+    jq -S -n \
+        --slurpfile keys "$workdir/keys.json" \
+        --slurpfile live "$live" \
+        --slurpfile overlay "$overlay" '
+        reduce $keys[0][] as $key ($overlay[0];
+          if ($key | startswith("barConfigs.")) then
+            ($key | capture("^barConfigs\\.(?<id>[^.]+)\\.(?<field>.+)$")) as $path
+            | ($live[0].barConfigs | map(select(.id == $path.id)) | first) as $bar
+            | ($bar[$path.field]) as $value
+            | if any(.barConfigs[]?; .id == $path.id) then
+                .barConfigs |= map(
+                  if .id == $path.id then . + {($path.field): $value} else . end
+                )
+              else
+                .barConfigs = ((.barConfigs // [])
+                  + [{id: $path.id, ($path.field): $value}])
+              end
+          else . + {($key): $live[0][$key]} end
+        )
+    ' > "$workdir/updated.json"
+fi
+
+install -D -m 0644 "$workdir/updated.json" "$overlay"
+echo "Updated DMS preference overlay: $overlay"

@@ -1,2 +1,3 @@
 enable workstation-microsoft-fonts.service
 enable workstation-bootstrap.service
+enable workstation-dms-settings.service

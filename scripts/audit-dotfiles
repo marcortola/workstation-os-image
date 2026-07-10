@@ -72,6 +72,12 @@ show_diff "DMS user preferences" informational \
     "$HOME/.config/DankMaterialShell/settings.json" \
     "$HOME/.config/DankMaterialShell/clsettings.json"
 
+printf '\nCaptured DMS preference defaults:\n'
+"$repo_root/scripts/audit-dms-settings" || {
+    dms_status=$?
+    (( dms_status > status )) && status=$dms_status
+}
+
 printf '\nIntentional Niri overrides:\n'
 found=false
 for override in /etc/niri/local.kdl "$HOME/.config/niri/local.kdl"; do

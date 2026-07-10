@@ -1,0 +1,91 @@
+{
+  "acLockTimeout": 900,
+  "acMonitorTimeout": 1200,
+  "animationSpeed": 4,
+  "barConfigs": [
+    {
+      "centerWidgets": [
+        "music",
+        "clock",
+        {
+          "enabled": true,
+          "id": "weather"
+        }
+      ],
+      "id": "default",
+      "openOnOverview": true,
+      "rightWidgets": [
+        "systemTray",
+        "clipboard",
+        "notificationButton",
+        "battery",
+        "controlCenterButton"
+      ],
+      "spacing": 0,
+      "squareCorners": true
+    }
+  ],
+  "barElevationEnabled": false,
+  "batteryLockTimeout": 3600,
+  "batteryMonitorTimeout": 1200,
+  "batterySuspendTimeout": 3600,
+  "blurWallpaperOnOverview": true,
+  "builtInPluginSettings": {
+    "dms_clipboard_search": {
+      "trigger": "cb"
+    },
+    "dms_settings_search": {
+      "trigger": "?"
+    }
+  },
+  "cornerRadius": 12,
+  "currentThemeCategory": "registry",
+  "currentThemeName": "custom",
+  "customAnimationDuration": 167,
+  "customThemeFile": "${HOME}/.config/DankMaterialShell/themes/tokyoNightDark/theme.json",
+  "dashTabs": [
+    {
+      "enabled": true,
+      "id": "overview"
+    },
+    {
+      "enabled": true,
+      "id": "media"
+    },
+    {
+      "enabled": false,
+      "id": "wallpaper"
+    },
+    {
+      "enabled": true,
+      "id": "weather"
+    },
+    {
+      "enabled": false,
+      "id": "settings"
+    }
+  ],
+  "enableFprint": true,
+  "fontFamily": "Noto Sans",
+  "launcherLogoColorOverride": "surface",
+  "launcherLogoCustomPath": "/usr/share/zirconium/pixmaps/logo-z.svg",
+  "launcherLogoMode": "custom",
+  "launcherLogoSizeOffset": 12,
+  "lockBeforeSuspend": true,
+  "maxFprintTries": 3,
+  "monoFontFamily": "FiraCode Nerd Font Mono",
+  "muxType": "zellij",
+  "niriLayoutBorderSize": 1,
+  "runningAppsCurrentWorkspace": false,
+  "showCpuTemp": false,
+  "showCpuUsage": false,
+  "showGpuTemp": false,
+  "showMemUsage": false,
+  "showWeather": false,
+  "spotlightSectionViewModes": {
+    "apps": "list"
+  },
+  "updaterCustomCommand": "sudo bootc upgrade",
+  "updaterIntervalSeconds": 3600,
+  "updaterUseCustomCommand": true
+}

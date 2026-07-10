@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+spec=${DMS_SETTINGS_SPEC:-/usr/share/quickshell/dms/Common/settings/SettingsSpec.js}
+node=${NODE:-$(command -v node || true)}
+
+[[ -r $spec ]] || {
+    echo "DMS settings schema is unavailable: $spec" >&2
+    exit 2
+}
+[[ -n $node ]] || {
+    echo "Node.js is required to inspect the installed DMS settings schema." >&2
+    exit 2
+}
+
+"$node" - "$spec" <<'NODE'
+const fs = require("fs");
+const vm = require("vm");
+
+const path = process.argv[2];
+const source = fs.readFileSync(path, "utf8").replace(/^\.pragma[^\n]*\n/, "");
+const context = {};
+vm.runInNewContext(source, context, { filename: path });
+
+const defaults = {};
+for (const [key, spec] of Object.entries(context.SPEC)) {
+  if (spec.persist !== false) defaults[key] = spec.def;
+}
+process.stdout.write(`${JSON.stringify(defaults, null, 2)}\n`);
+NODE
