@@ -7,12 +7,18 @@ on:
       - Containerfile
       - system_files/**
       - scripts/**
+      - config/**
+      - tests/**
+      - justfile
       - .github/workflows/build.yml
   pull_request:
     paths:
       - Containerfile
       - system_files/**
       - scripts/**
+      - config/**
+      - tests/**
+      - justfile
       - .github/workflows/build.yml
   schedule:
     - cron: "17 4 * * *"
@@ -31,7 +37,27 @@ env:
   BASE_IMAGE: ${{ vars.BASE_IMAGE || 'ghcr.io/zirconium-dev/zirconium:latest' }}
 
 jobs:
+  dms-settings-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install --yes jq
+
+      - name: Test DMS preference lifecycle
+        env:
+          DMS_SETTINGS_SPEC: ${{ github.workspace }}/tests/fixtures/dms-settings-spec.js
+        run: scripts/test-dms-settings
+
   build:
+    needs: dms-settings-tests
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository

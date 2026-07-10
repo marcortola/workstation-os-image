@@ -1,4 +1,6 @@
-# DMS settings that are runtime, device-specific, sensitive, or path-bound.
+# DMS settings excluded from generic interactive capture because they are
+# runtime, device-specific, sensitive, path-bound, or require nested review.
+# A narrow sanitized value may remain in the overlay after explicit review.
 # Keep one exact top-level SettingsSpec key per line.
 activeDisplayProfile
 audioInputDevicePins
@@ -7,8 +9,10 @@ barConfigs
 bluetoothDevicePins
 brightnessDevicePins
 browserUsageHistory
+builtInPluginSettings
 connectedFrameBarStyleBackups
 customThemeFile
+desktopClockDisplayPreferences
 desktopClockCustomColor
 desktopWidgetGroups
 desktopWidgetInstances
@@ -17,15 +21,20 @@ desktopWidgetGridSettings
 displayProfiles
 enabledGpuPciIds
 filePickerUsageHistory
+frameScreenPreferences
 greeterSyncBaseline
+greeterSyncPending
 greeterWallpaperPath
 hyprlandOutputSettings
 lastAppliedIconTheme
 lockScreenVideoPath
 lockScreenWallpaperPath
+matugenTargetMonitor
 niriOutputSettings
 screenPreferences
 selectedGpuIndex
 showOnLastDisplay
+systemMonitorDisplayPreferences
+systemMonitorGpuPciId
 systemMonitorCustomColor
 wifiNetworkPins

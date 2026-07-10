@@ -19,23 +19,7 @@ just --list >/dev/null
 [[ $(< CLAUDE.md) == '@AGENTS.md' ]]
 (( $(wc -l < AGENTS.md) <= 200 ))
 
-overlay=system_files/usr/share/workstation-os-image/dms-settings.json
-jq -e 'type == "object" and (has("configVersion") | not)' "$overlay" >/dev/null
-jq -e --slurpfile defaults <(scripts/dms-settings-defaults) '
-    keys | all(. as $key | $defaults[0] | has($key))
-' "$overlay" >/dev/null
-jq -e --slurpfile defaults <(scripts/dms-settings-defaults) '
-    (.barConfigs // []) as $bars
-    | ($bars | type == "array")
-      and ($bars | all(.id | type == "string" and length > 0))
-      and (($bars | map(.id) | unique | length) == ($bars | length))
-      and ($bars | all(
-        . as $bar
-        | ($defaults[0].barConfigs | map(select(.id == $bar.id)) | first) as $default
-        | ($bar | keys | map(select(. != "id"))
-          | all(. as $field | $default | has($field)))
-      ))
-' "$overlay" >/dev/null
+scripts/validate-dms-overlay
 jq -n -e \
     --slurpfile defaults <(scripts/dms-settings-defaults) \
     --rawfile denied config/dms-settings-denylist '
@@ -43,6 +27,8 @@ jq -n -e \
       | map(sub("[[:space:]]*#.*$"; "") | select(length > 0))) as $keys
     | $keys | all(. as $key | $defaults[0] | has($key))
 ' >/dev/null
+
+scripts/test-dms-settings
 
 fish --no-execute \
     system_files/usr/share/zirconium/zdots/dot_config/fish/create_config.fish \

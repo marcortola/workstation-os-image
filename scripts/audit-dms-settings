@@ -20,8 +20,9 @@ WORKSTATION_DMS_SETTINGS_OVERLAY="$overlay" \
 /usr/bin/jq -S . "$live" > "$workdir/live.json"
 
 if ! cmp -s "$workdir/settings.json" "$workdir/live.json"; then
-    echo "Captured DMS preferences differ from the live settings."
-    echo "  Run 'just dms-apply' to restore the tracked defaults."
+    echo "Live DMS preferences differ from the captured defaults."
+    echo "  Run 'just dms-capture' to keep reviewed UI changes, or"
+    echo "  run 'just dms-apply' to explicitly restore captured defaults."
     status=1
 else
     echo "Captured DMS preferences match the live settings."

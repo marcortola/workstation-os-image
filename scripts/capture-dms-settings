@@ -43,12 +43,17 @@ printf '%s\n' "${denied[@]}" | \
     jq -Rsc 'split("\n") | map(select(length > 0))' > "$workdir/denied.json"
 
 if [[ $mode == remove ]]; then
-    jq -r '
+    jq -r --slurpfile defaults "$workdir/defaults.json" '
         (to_entries[] | select(.key != "barConfigs")
           | [.key, (.value | tojson)] | @tsv),
         (.barConfigs[]? as $bar
-          | $bar | to_entries[] | select(.key != "id")
-          | ["barConfigs.\($bar.id).\(.key)", (.value | tojson)] | @tsv)
+          | ($defaults[0].barConfigs | any(.id == $bar.id)) as $has_default
+          | if $has_default then
+              ($bar | to_entries[] | select(.key != "id")
+                | ["barConfigs.\($bar.id).\(.key)", (.value | tojson)] | @tsv)
+            else
+              ["barConfigs.\($bar.id)", ($bar | tojson)] | @tsv
+            end)
     ' "$overlay" \
         > "$workdir/options"
     [[ -s $workdir/options ]] || {
@@ -64,7 +69,11 @@ if [[ $mode == remove ]]; then
         jq -Rsc 'split("\n") | map(select(length > 0))' > "$workdir/keys.json"
     jq --slurpfile keys "$workdir/keys.json" '
         reduce $keys[0][] as $key (.;
-          if ($key | startswith("barConfigs.")) then
+          if ($key | test("^barConfigs\\.[^.]+$")) then
+            ($key | capture("^barConfigs\\.(?<id>[^.]+)$")) as $path
+            | .barConfigs = [.barConfigs[]? | select(.id != $path.id)]
+            | if (.barConfigs | length) == 0 then del(.barConfigs) else . end
+          elif ($key | startswith("barConfigs.")) then
             ($key | capture("^barConfigs\\.(?<id>[^.]+)\\.(?<field>.+)$")) as $path
             | .barConfigs = [
                 .barConfigs[]?
@@ -96,20 +105,32 @@ else
         ,
         ($live[0].barConfigs[]? as $bar
           | ($defaults[0].barConfigs // []
-              | map(select(.id == $bar.id)) | first // {}) as $default_bar
+              | map(select(.id == $bar.id)) | first) as $default_bar
           | ($tracked[0].barConfigs // []
-              | map(select(.id == $bar.id)) | first // {}) as $tracked_bar
-          | $bar | to_entries[] as $entry
-          | $entry.key as $field
-          | select($field != "id")
-          | select($denied[0] | index($field) | not)
-          | select($entry.value != $default_bar[$field] or ($tracked_bar | has($field)))
-          | {
-              key: "barConfigs.\($bar.id).\($field)",
-              current: $entry.value,
-              default: $default_bar[$field],
-              tracked: ($tracked_bar | has($field))
-            })
+              | map(select(.id == $bar.id)) | first) as $tracked_bar
+          | if $default_bar == null then
+              ($bar + {screenPreferences: ["all"], showOnLastDisplay: true}) as $portable_bar
+              | select($portable_bar != $tracked_bar or $tracked_bar != null)
+              | {
+                  key: "barConfigs.\($bar.id)",
+                  current: $portable_bar,
+                  default: null,
+                  tracked: ($tracked_bar != null)
+                }
+            else
+              ($bar | to_entries[] as $entry
+                | $entry.key as $field
+                | select($field != "id")
+                | select($denied[0] | index($field) | not)
+                | select($entry.value != $default_bar[$field]
+                    or ($tracked_bar != null and ($tracked_bar | has($field))))
+                | {
+                    key: "barConfigs.\($bar.id).\($field)",
+                    current: $entry.value,
+                    default: $default_bar[$field],
+                    tracked: ($tracked_bar != null and ($tracked_bar | has($field)))
+                  })
+            end)
     ' | jq -s 'sort_by(.key)' > "$workdir/candidates.json"
 
     jq -r '.[] | [
@@ -144,7 +165,13 @@ else
         --slurpfile live "$live" \
         --slurpfile overlay "$overlay" '
         reduce $keys[0][] as $key ($overlay[0];
-          if ($key | startswith("barConfigs.")) then
+          if ($key | test("^barConfigs\\.[^.]+$")) then
+            ($key | capture("^barConfigs\\.(?<id>[^.]+)$")) as $path
+            | ($live[0].barConfigs
+                | map(select(.id == $path.id)) | first
+                | . + {screenPreferences: ["all"], showOnLastDisplay: true}) as $bar
+            | .barConfigs = ((.barConfigs // [] | map(select(.id != $path.id))) + [$bar])
+          elif ($key | startswith("barConfigs.")) then
             ($key | capture("^barConfigs\\.(?<id>[^.]+)\\.(?<field>.+)$")) as $path
             | ($live[0].barConfigs | map(select(.id == $path.id)) | first) as $bar
             | ($bar[$path.field]) as $value
@@ -161,5 +188,7 @@ else
     ' > "$workdir/updated.json"
 fi
 
+DMS_SETTINGS_OVERLAY="$workdir/updated.json" \
+    "$repo_root/scripts/validate-dms-overlay"
 install -D -m 0644 "$workdir/updated.json" "$overlay"
 echo "Updated DMS preference overlay: $overlay"
