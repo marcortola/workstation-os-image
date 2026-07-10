@@ -1,0 +1,11 @@
+[Unit]
+Description=Install workstation Microsoft fonts
+Documentation=https://github.com/marcortola/workstation-os-image
+ConditionPathExists=!%h/.local/share/fonts/Microsoft/installed-list.txt
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/workstation-install-microsoft-fonts --accept-microsoft-eula
+
+[Install]
+WantedBy=default.target

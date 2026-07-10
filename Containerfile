@@ -18,9 +18,16 @@ RUN dnf -y config-manager addrepo \
       docker-compose-plugin \
       fish \
       fontconfig \
-      keyd && \
+      keyd \
+      shadow-utils && \
     dnf clean all && \
-    dockerd --validate --config-file=/etc/docker/daemon.json && \
-    keyd check /etc/keyd/default.conf && \
-    systemctl enable containerd.service docker.service keyd.service && \
+    dockerd --validate \
+      --config-file=/usr/share/factory/etc/docker/daemon.json && \
+    keyd check /usr/share/factory/etc/keyd/default.conf && \
+    systemd-analyze verify \
+      /usr/lib/systemd/system/workstation-docker-users.service \
+      /usr/lib/systemd/user/workstation-microsoft-fonts.service && \
+    systemctl preset containerd.service docker.service keyd.service \
+      workstation-docker-users.service && \
+    systemctl --global preset workstation-microsoft-fonts.service && \
     bootc container lint

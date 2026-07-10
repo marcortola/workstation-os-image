@@ -14,10 +14,12 @@ through the repository variable `BASE_IMAGE`.
 - Microsoft font installer prerequisites and an opt-in installation helper
 
 The image enables `containerd.service`, `docker.service`, and `keyd.service`
-at build time. It also installs the Docker log-rotation policy and Copilot-key
-mapping from `system_files/`. Docker creates `/run/docker.sock` when its service
-starts. See [configuration boundaries](docs/configuration-boundaries.md) for
-what belongs in this image versus user dotfiles.
+through image-owned systemd presets. Docker log rotation and the Copilot-key
+mapping live under `/usr/share/factory/etc` and are linked into `/etc` by
+systemd-tmpfiles, following Zirconium's factory-default convention. Docker
+creates `/run/docker.sock` when its service starts. See
+[configuration boundaries](docs/configuration-boundaries.md) for what belongs
+in this image versus user dotfiles.
 
 ## Published image
 
@@ -53,19 +55,23 @@ docker info --format '{{.LoggingDriver}}'
 sudo keyd check /etc/keyd/default.conf
 ```
 
-Docker is intentionally rootful and must be invoked through `sudo`. Users are
-not added to the root-equivalent `docker` group:
+Docker is rootful. Before graphical login, the image adds interactive local
+users with homes under `/home` or `/var/home` to the root-equivalent `docker`
+group. This avoids hardcoded usernames and allows Docker commands without
+`sudo` after login:
 
 ```bash
-sudo docker run --rm hello-world
+docker run --rm hello-world
 ```
 
-Microsoft font binaries are not redistributed in this public image. Install
-them user-locally from their original distributors after explicitly accepting
-the applicable EULAs:
+Microsoft font binaries are not redistributed in this public image. An enabled
+user service records the workstation owner's standing EULA acceptance by
+invoking the installer with `--accept-microsoft-eula` on first login. It
+downloads the fonts from their original distributors into the persistent user
+font directory. To run it immediately or retry it:
 
 ```bash
-workstation-install-microsoft-fonts --accept-microsoft-eula
+systemctl --user start workstation-microsoft-fonts.service
 ```
 
 ## Updates and rollback
