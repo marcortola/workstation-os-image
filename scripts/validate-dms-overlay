@@ -24,7 +24,10 @@ jq -e --slurpfile defaults "$workdir/defaults.json" '
         or (type == "object"
           and (.id | type == "string" and length > 0)
           and ((.enabled // true) | type == "boolean")
-          and (keys | all(. == "id" or . == "enabled")))
+          and (keys | all(. == "id" or . == "enabled"
+              or . == "minimumWidth" or . == "showInGb"))
+          and ((has("minimumWidth") | not) or (.minimumWidth | type == "boolean"))
+          and ((has("showInGb") | not) or (.showInGb | type == "boolean")))
       );
     (.barConfigs // []) as $bars
     | ($defaults[0].barConfigs[0]) as $template

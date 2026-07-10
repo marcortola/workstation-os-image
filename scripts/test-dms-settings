@@ -216,4 +216,19 @@ if DMS_SETTINGS_OVERLAY="$workdir/invalid-widget.json" \
     exit 1
 fi
 
+jq '.barConfigs[0].rightWidgets = [
+        {id: "cpuUsage", enabled: true, minimumWidth: true},
+        {id: "memUsage", enabled: true, minimumWidth: true, showInGb: false}
+    ]' "$workdir/custom-bar-overlay.json" > "$workdir/valid-widget-props.json"
+DMS_SETTINGS_OVERLAY="$workdir/valid-widget-props.json" \
+    "$repo_root/scripts/validate-dms-overlay"
+
+jq '.barConfigs[0].rightWidgets = [{id: "cpuUsage", enabled: true, minimumWidth: "yes"}]' \
+    "$workdir/custom-bar-overlay.json" > "$workdir/invalid-widget-props.json"
+if DMS_SETTINGS_OVERLAY="$workdir/invalid-widget-props.json" \
+    "$repo_root/scripts/validate-dms-overlay" 2>/dev/null; then
+    echo "Non-boolean widget property unexpectedly passed validation." >&2
+    exit 1
+fi
+
 echo "DMS settings lifecycle tests passed."

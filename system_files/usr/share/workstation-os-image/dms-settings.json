@@ -5,21 +5,49 @@
   "barConfigs": [
     {
       "centerWidgets": [
+        {
+          "enabled": true,
+          "id": "privacyIndicator"
+        },
         "music",
         "clock",
         {
           "enabled": true,
           "id": "weather"
-        }
+        },
+        "notificationButton"
       ],
       "id": "default",
       "openOnOverview": true,
       "rightWidgets": [
+        {
+          "enabled": true,
+          "id": "cpuUsage",
+          "minimumWidth": true
+        },
+        {
+          "enabled": true,
+          "id": "cpuTemp",
+          "minimumWidth": true
+        },
+        {
+          "enabled": true,
+          "id": "memUsage",
+          "minimumWidth": true,
+          "showInGb": false
+        },
+        {
+          "enabled": true,
+          "id": "separator"
+        },
         "systemTray",
         "clipboard",
-        "notificationButton",
         "battery",
-        "controlCenterButton"
+        "controlCenterButton",
+        {
+          "enabled": true,
+          "id": "vpn"
+        }
       ],
       "spacing": 0,
       "squareCorners": true
