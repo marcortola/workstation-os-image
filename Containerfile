@@ -9,12 +9,15 @@ COPY system_files/ /
 RUN dnf -y config-manager addrepo \
       --from-repofile=https://download.docker.com/linux/fedora/docker-ce.repo && \
     dnf -y install \
+      cabextract \
       containerd.io \
+      cpio \
       docker-buildx-plugin \
       docker-ce \
       docker-ce-cli \
       docker-compose-plugin \
       fish \
+      fontconfig \
       keyd && \
     dnf clean all && \
     dockerd --validate --config-file=/etc/docker/daemon.json && \

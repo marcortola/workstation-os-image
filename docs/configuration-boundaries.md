@@ -12,6 +12,7 @@ deployments.
 - `/etc/docker/daemon.json` log rotation policy
 - `/etc/keyd/default.conf` Copilot-key mapping
 - Docker's Fedora package repository
+- Microsoft font installer prerequisites and the opt-in download helper
 
 ## User-owned
 
@@ -26,9 +27,9 @@ install without rebuilding or republishing the bootable image.
 ## Deliberately excluded
 
 - Usernames, passwords, tokens, SSH keys, and registry credentials
-- Docker-group membership, because it grants root-equivalent access and is a
-  per-machine user decision
-- Microsoft fonts and installers whose redistribution is license-sensitive
+- Docker-group membership; this image requires rootful Docker through `sudo`
+- Microsoft font binaries; the image ships only an opt-in helper that downloads
+  them from their original distributors after explicit EULA acceptance
 - Files under `/var/home`, because image updates do not replace existing user
   home directories
 

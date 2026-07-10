@@ -11,6 +11,7 @@ through the repository variable `BASE_IMAGE`.
 - Fish
 - keyd
 - Docker Engine, CLI, Buildx, Compose, and containerd
+- Microsoft font installer prerequisites and an opt-in installation helper
 
 The image enables `containerd.service`, `docker.service`, and `keyd.service`
 at build time. It also installs the Docker log-rotation policy and Copilot-key
@@ -52,11 +53,19 @@ docker info --format '{{.LoggingDriver}}'
 sudo keyd check /etc/keyd/default.conf
 ```
 
-To use Docker without `sudo`, add the user to the `docker` group and then log
-out and back in. This membership grants root-equivalent privileges.
+Docker is intentionally rootful and must be invoked through `sudo`. Users are
+not added to the root-equivalent `docker` group:
 
 ```bash
-sudo usermod -aG docker "$USER"
+sudo docker run --rm hello-world
+```
+
+Microsoft font binaries are not redistributed in this public image. Install
+them user-locally from their original distributors after explicitly accepting
+the applicable EULAs:
+
+```bash
+workstation-install-microsoft-fonts --accept-microsoft-eula
 ```
 
 ## Updates and rollback
