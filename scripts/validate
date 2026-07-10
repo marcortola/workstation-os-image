@@ -9,6 +9,8 @@ git diff --check
 mapfile -t shell_files < <(
     find scripts system_files/usr/bin system_files/usr/libexec -type f \
         \( -perm /111 -o -name '*.sh' \) -print | sort
+    find system_files/usr/share/zirconium/zdots -type f \
+        -name 'create_executable_*' -print | sort
 )
 bash -n "${shell_files[@]}"
 shellcheck "${shell_files[@]}"
