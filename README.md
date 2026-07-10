@@ -13,7 +13,10 @@ through the repository variable `BASE_IMAGE`.
 - Docker Engine, CLI, Buildx, Compose, and containerd
 
 The image enables `containerd.service`, `docker.service`, and `keyd.service`
-at build time. Docker creates `/run/docker.sock` when its service starts.
+at build time. It also installs the Docker log-rotation policy and Copilot-key
+mapping from `system_files/`. Docker creates `/run/docker.sock` when its service
+starts. See [configuration boundaries](docs/configuration-boundaries.md) for
+what belongs in this image versus user dotfiles.
 
 ## Published image
 
@@ -45,6 +48,8 @@ rpm -q containerd.io docker-buildx-plugin docker-ce docker-ce-cli \
 systemctl is-enabled containerd.service docker.service keyd.service
 systemctl is-active containerd.service docker.service keyd.service
 test -S /run/docker.sock
+docker info --format '{{.LoggingDriver}}'
+sudo keyd check /etc/keyd/default.conf
 ```
 
 To use Docker without `sudo`, add the user to the `docker` group and then log
