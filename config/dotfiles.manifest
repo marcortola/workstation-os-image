@@ -7,6 +7,7 @@ directory|.config/fish/functions|dot_config/fish/functions|*.fish
 copy|.config/foot/tokyo-night.ini|dot_config/foot/create_tokyo-night.ini|-
 template|.config/foot/workstation.ini|dot_config/foot/create_workstation.ini.tmpl|-
 copy|.config/zellij/config.kdl|dot_config/zellij/create_config.kdl|-
+copy|.config/zellij/layouts/minimal.kdl|dot_config/zellij/layouts/create_minimal.kdl|-
 template|.config/niri/local.kdl|dot_config/niri/create_local.kdl.tmpl|-
 template|.config/starship.toml|dot_config/create_starship.toml.tmpl|-
 copy|.config/lazygit/config.yml|dot_config/lazygit/create_config.yml|-
@@ -14,6 +15,9 @@ copy|.config/lazydocker/config.yml|dot_config/lazydocker/create_config.yml|-
 copy|.config/btop/btop.conf|dot_config/btop/create_btop.conf|-
 copy|.config/fontconfig/fonts.conf|dot_config/fontconfig/create_fonts.conf|-
 copy|dotfiles/Brewfile|dotfiles/create_Brewfile|-
+copy|.local/bin/workstation-dev|private_dot_local/bin/create_executable_workstation-dev|-
+copy|.local/bin/workstation-dictate|private_dot_local/bin/create_executable_workstation-dictate|-
+copy|.local/bin/workstation-openai-key|private_dot_local/bin/create_executable_workstation-openai-key|-
 copy|.config/nvim/init.lua|dot_config/nvim/create_init.lua|-
 copy|.config/nvim/lazy-lock.json|dot_config/nvim/create_lazy-lock.json|-
 copy|.config/nvim/lazyvim.json|dot_config/nvim/create_lazyvim.json|-

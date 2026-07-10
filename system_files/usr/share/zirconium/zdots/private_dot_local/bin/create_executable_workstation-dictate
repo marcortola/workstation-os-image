@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+key_file="$config_home/openai/api-key"
+runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/workstation-dictation"
+pid_file="$runtime_dir/recorder.pid"
+audio_file="$runtime_dir/speech.wav"
+header_file="$runtime_dir/openai-header"
+
+api_key="${OPENAI_API_KEY:-}"
+if [[ -z $api_key && -s $key_file ]]; then
+    IFS= read -r api_key < "$key_file"
+fi
+if [[ -z $api_key ]]; then
+    notify-send "Dictation needs an OpenAI API key" \
+        "Run workstation-openai-key in a terminal."
+    exit 1
+fi
+
+mkdir -p "$runtime_dir"
+chmod 700 "$runtime_dir"
+
+if [[ -s $pid_file ]]; then
+    recorder_pid="$(< "$pid_file")"
+    if [[ ! $recorder_pid =~ ^[0-9]+$ ]] || \
+        [[ ! -r /proc/$recorder_pid/comm ]] || \
+        [[ $(< "/proc/$recorder_pid/comm") != pw-record ]]; then
+        rm -f "$pid_file" "$audio_file"
+        exec "$0"
+    fi
+
+    kill -INT "$recorder_pid"
+    for _ in {1..50}; do
+        kill -0 "$recorder_pid" 2>/dev/null || break
+        sleep 0.1
+    done
+    if kill -0 "$recorder_pid" 2>/dev/null; then
+        kill -TERM "$recorder_pid"
+        sleep 0.2
+    fi
+    rm -f "$pid_file"
+
+    if [[ ! -s $audio_file ]]; then
+        notify-send "Dictation failed" "No microphone audio was recorded."
+        exit 1
+    fi
+
+    umask 077
+    printf 'Authorization: Bearer %s\n' "$api_key" > "$header_file"
+    trap 'rm -f "$audio_file" "$header_file"' EXIT
+    notify-send "Dictation" "Transcribing…"
+    if ! transcript="$(/usr/bin/curl --fail-with-body --silent --show-error \
+        --max-time 120 \
+        https://api.openai.com/v1/audio/transcriptions \
+        --header "@$header_file" \
+        --form "file=@$audio_file;type=audio/wav" \
+        --form model=gpt-4o-transcribe \
+        --form response_format=text \
+        --form-string 'prompt=Use natural punctuation and preserve the spoken language.')"; then
+        notify-send "Dictation failed" "The OpenAI transcription request failed."
+        exit 1
+    fi
+
+    transcript="${transcript%$'\n'}"
+    [[ -n $transcript ]] || {
+        notify-send "Dictation" "No speech was detected."
+        exit 0
+    }
+
+    printf '%s' "$transcript" | /usr/bin/wl-copy
+    if printf '%s' "$transcript" | /usr/bin/wtype -; then
+        notify-send "Dictation complete" "The transcript was typed and copied."
+    else
+        notify-send "Dictation complete" "Typing failed; the transcript is on the clipboard."
+    fi
+    exit 0
+fi
+
+rm -f "$audio_file"
+/usr/bin/pw-record --rate=16000 --channels=1 --format=s16 "$audio_file" \
+    >/dev/null 2>&1 &
+echo "$!" > "$pid_file"
+notify-send "Dictation started" "Press Mod+Shift+V again to transcribe and type."

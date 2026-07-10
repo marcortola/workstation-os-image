@@ -28,6 +28,9 @@ fi
     exit 1
 }
 
+# Homebrew requires explicit trust before loading third-party tap formulae.
+# Scope this to the OpenCode formula recommended by its upstream project.
+"$brew" trust --formula anomalyco/tap/opencode
 "$brew" bundle install --file "$brewfile"
 
 # JetBrains does not publish a Linux Homebrew cask. Install Toolbox entirely

@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+projects_root="${WORKSTATION_PROJECTS_ROOT:-$HOME/projects}"
+
+if [[ ${1:-} != --picker ]]; then
+    /usr/bin/foot --title=Projects --app-id=project-picker \
+        "$0" --picker >/dev/null 2>&1 &
+    exit 0
+fi
+
+mapfile -t projects < <(
+    find "$projects_root" -mindepth 2 -maxdepth 3 \
+        -type d -name .git -prune \
+        -printf '%h\n' | sort
+)
+
+if (( ${#projects[@]} == 0 )); then
+    echo "No Git projects found below $projects_root" >&2
+    read -r -p "Press Enter to close."
+    exit 1
+fi
+
+selection="$(
+    printf '%s\n' "${projects[@]#"$projects_root/"}" | \
+        /usr/bin/fzf --multi --layout=reverse --border \
+            --header='Tab: select multiple · Enter: open · Esc: cancel' \
+            --prompt='Projects > '
+)" || exit 0
+
+while IFS= read -r relative; do
+    [[ -n $relative ]] || continue
+    project="$projects_root/$relative"
+    /usr/bin/foot --working-directory="$project" \
+        --title="${relative##*/}" --app-id=dev-terminal >/dev/null 2>&1 &
+done <<< "$selection"
