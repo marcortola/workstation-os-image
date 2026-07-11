@@ -43,10 +43,13 @@ RUN /usr/libexec/workstation-patch-zdots && \
       /usr/lib/systemd/user/workstation-bootstrap.service \
       /usr/lib/systemd/user/workstation-dms-settings.service \
       /usr/lib/systemd/user/workstation-invoice-bookmarks.service \
-      /usr/lib/systemd/user/workstation-microsoft-fonts.service && \
+      /usr/lib/systemd/user/workstation-microsoft-fonts.service \
+      /usr/lib/systemd/user/dcal.service \
+      /usr/lib/systemd/user/dsearch.service && \
     systemctl preset containerd.service docker.service keyd.service \
       workstation-docker-users.service && \
-    systemctl --global preset workstation-bootstrap.service \
+    systemctl --global preset dcal.service dsearch.service \
+      workstation-bootstrap.service \
       workstation-dms-settings.service \
       workstation-invoice-bookmarks.timer \
       workstation-microsoft-fonts.service && \
