@@ -1,3 +1,5 @@
+enable dcal.service
+enable dsearch.service
 enable workstation-bootstrap.service
 enable workstation-dms-settings.service
 enable workstation-invoice-bookmarks.timer
