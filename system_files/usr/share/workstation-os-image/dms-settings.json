@@ -43,11 +43,11 @@
         "systemTray",
         "clipboard",
         "battery",
-        "controlCenterButton",
         {
           "enabled": true,
           "id": "vpn"
-        }
+        },
+        "controlCenterButton"
       ],
       "spacing": 0,
       "squareCorners": true
