@@ -8,10 +8,6 @@ brewfile="${XDG_CONFIG_HOME:-$HOME/.config}/homebrew/Brewfile"
 marker="$state_home/workstation-os-image/bootstrap-complete"
 repo="$HOME/projects/personal/workstation-os-image"
 
-# Pinned Homebrew/install commit so the bootstrap never executes whatever
-# HEAD serves at login time.
-homebrew_installer_commit=c7952e40b7957268f61643152f4db725379b292e
-
 mkdir -p "$(dirname "$marker")" "$HOME/.local/bin" "$HOME/.local/opt" \
     "$(dirname "$repo")"
 
@@ -25,11 +21,13 @@ elif [[ ! -d $repo/.git ]]; then
     exit 1
 fi
 
-if [[ ! -x $brew ]]; then
-    curl -fsSL --retry 3 -o "$workdir/homebrew-install.sh" \
-        "https://raw.githubusercontent.com/Homebrew/install/$homebrew_installer_commit/install.sh"
-    NONINTERACTIVE=1 /bin/bash "$workdir/homebrew-install.sh"
-fi
+# Zirconium's brew image profile ships /usr/share/homebrew.tar.zst and
+# enables brew-setup.service, which unpacks it on first boot. Never install
+# Homebrew here; wait for the image-provided copy instead.
+[[ -x $brew ]] || {
+    echo "Waiting for Zirconium's brew-setup.service to provision $brew" >&2
+    exit 1
+}
 
 [[ -f $brewfile ]] || {
     echo "Waiting for Zirconium to create $brewfile" >&2
