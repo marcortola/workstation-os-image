@@ -4,7 +4,7 @@ set -euo pipefail
 state_home="${XDG_STATE_HOME:-$HOME/.local/state}"
 brew=/home/linuxbrew/.linuxbrew/bin/brew
 jq=/home/linuxbrew/.linuxbrew/bin/jq
-brewfile="$HOME/dotfiles/Brewfile"
+brewfile="${XDG_CONFIG_HOME:-$HOME/.config}/homebrew/Brewfile"
 marker="$state_home/workstation-os-image/bootstrap-complete"
 repo="$HOME/projects/personal/workstation-os-image"
 

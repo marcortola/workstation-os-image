@@ -51,7 +51,7 @@ for target in \
     .config/DankMaterialShell/themes/tokyoNightDark/theme.json \
     .config/niri/config.kdl \
     .config/niri/local.kdl \
-    dotfiles/Brewfile; do
+    .config/homebrew/Brewfile; do
     grep -Fqx "$target" "$tmp/managed"
 done
 

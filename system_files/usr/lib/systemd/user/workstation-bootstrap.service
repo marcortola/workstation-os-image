@@ -9,7 +9,7 @@ ConditionPathExists=!%h/.local/state/workstation-os-image/bootstrap-complete
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/workstation-bootstrap-user
+ExecStart=/usr/libexec/workstation-bootstrap-user
 
 [Install]
 WantedBy=graphical-session.target

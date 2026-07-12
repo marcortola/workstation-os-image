@@ -10,7 +10,7 @@ fi
 
 font_root="${XDG_DATA_HOME:-$HOME/.local/share}/fonts"
 target="$font_root/Microsoft"
-marker="$font_root/.workstation-fonts-installed"
+marker="${XDG_STATE_HOME:-$HOME/.local/state}/workstation-os-image/fonts-installed"
 workdir="$(mktemp -d)"
 trap 'rm -rf -- "$workdir"' EXIT
 
@@ -70,5 +70,5 @@ cabextract -q --lowercase -F cambria.ttc -d "$target" \
     "$workdir/ppviewer/ppviewer.cab"
 
 fc-cache -f "$font_root"
-touch "$marker"
+install -D -m 0644 /dev/null "$marker"
 echo "Workstation fonts installed in $font_root"

@@ -1,7 +1,7 @@
 [Unit]
 Description=Install workstation user fonts
 Documentation=https://github.com/marcortola/workstation-os-image
-ConditionPathExists=!%h/.local/share/fonts/.workstation-fonts-installed
+ConditionPathExists=!%h/.local/state/workstation-os-image/fonts-installed
 
 [Service]
 Type=oneshot
