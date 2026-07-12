@@ -8,8 +8,15 @@ brewfile="$HOME/dotfiles/Brewfile"
 marker="$state_home/workstation-os-image/bootstrap-complete"
 repo="$HOME/projects/personal/workstation-os-image"
 
+# Pinned Homebrew/install commit so the bootstrap never executes whatever
+# HEAD serves at login time.
+homebrew_installer_commit=c7952e40b7957268f61643152f4db725379b292e
+
 mkdir -p "$(dirname "$marker")" "$HOME/.local/bin" "$HOME/.local/opt" \
     "$(dirname "$repo")"
+
+workdir="$(mktemp -d)"
+trap 'rm -rf -- "$workdir"' EXIT
 
 if [[ ! -e $repo ]]; then
     git clone https://github.com/marcortola/workstation-os-image.git "$repo"
@@ -19,8 +26,9 @@ elif [[ ! -d $repo/.git ]]; then
 fi
 
 if [[ ! -x $brew ]]; then
-    NONINTERACTIVE=1 /bin/bash -c \
-        "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    curl -fsSL --retry 3 -o "$workdir/homebrew-install.sh" \
+        "https://raw.githubusercontent.com/Homebrew/install/$homebrew_installer_commit/install.sh"
+    NONINTERACTIVE=1 /bin/bash "$workdir/homebrew-install.sh"
 fi
 
 [[ -f $brewfile ]] || {
@@ -34,15 +42,19 @@ fi
 "$brew" bundle install --file "$brewfile"
 
 # JetBrains does not publish a Linux Homebrew cask. Install Toolbox entirely
-# below the home directory from its official release API.
-toolbox_url="$(curl -fsSL \
-    'https://data.services.jetbrains.com/products/releases?code=TBA&latest=true&type=release' \
-    | "$jq" -r '.TBA[0].downloads.linux.link')"
+# below the home directory from its official release API, verifying the
+# download-CDN tarball against the checksum served by the release API host.
+toolbox_release="$(curl -fsSL \
+    'https://data.services.jetbrains.com/products/releases?code=TBA&latest=true&type=release')"
+toolbox_url="$("$jq" -er '.TBA[0].downloads.linux.link' <<< "$toolbox_release")"
+toolbox_checksum_url="$("$jq" -er '.TBA[0].downloads.linux.checksumLink' \
+    <<< "$toolbox_release")"
 
-workdir="$(mktemp -d)"
-trap 'rm -rf -- "$workdir"' EXIT
-curl -fL --retry 3 "$toolbox_url" -o "$workdir/jetbrains-toolbox.tar.gz"
-tar -xzf "$workdir/jetbrains-toolbox.tar.gz" -C "$HOME/.local/opt"
+toolbox_archive="${toolbox_url##*/}"
+curl -fL --retry 3 "$toolbox_url" -o "$workdir/$toolbox_archive"
+curl -fL --retry 3 "$toolbox_checksum_url" -o "$workdir/$toolbox_archive.sha256"
+(cd "$workdir" && sha256sum -c "$toolbox_archive.sha256")
+tar -xzf "$workdir/$toolbox_archive" -C "$HOME/.local/opt"
 toolbox_bin="$(find "$HOME/.local/opt" -path '*/bin/jetbrains-toolbox' \
     -type f | sort | tail -n 1)"
 [[ -n $toolbox_bin ]]

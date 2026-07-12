@@ -14,25 +14,35 @@ marker="$font_root/.workstation-fonts-installed"
 workdir="$(mktemp -d)"
 trap 'rm -rf -- "$workdir"' EXIT
 
+# Pinned upstream references so a compromised or changed HEAD/latest cannot
+# alter what this installer fetches. PowerPointViewer.exe is a frozen 2010
+# artifact whose checksum winetricks also pins.
+nerd_fonts_version=v3.4.0
+ia_fonts_commit=f32c04c3058a75d7ce28919ce70fe8800817491b
+font_awesome_version=6.7.2
+ppviewer_sha256=249473568eba7a1e4f95498acba594e0f42e6581add4dead70c1dfb908a09423
+
 mkdir -p "$target" "$font_root/CaskaydiaMono" \
     "$font_root/iAWriterMono" "$font_root/FontAwesome" \
     "$workdir/rpm" "$workdir/ppviewer"
 
 # Redistributable user fonts used by terminal and desktop applications.
 curl -fL --retry 3 -o "$workdir/CascadiaMono.tar.xz" \
-    https://github.com/ryanoasis/nerd-fonts/releases/latest/download/CascadiaMono.tar.xz
+    "https://github.com/ryanoasis/nerd-fonts/releases/download/$nerd_fonts_version/CascadiaMono.tar.xz"
 tar -xJf "$workdir/CascadiaMono.tar.xz" -C "$font_root/CaskaydiaMono"
 
 curl -fL --retry 3 -o "$workdir/ia-fonts.zip" \
-    https://github.com/iaolo/iA-Fonts/archive/refs/heads/master.zip
+    "https://github.com/iaolo/iA-Fonts/archive/$ia_fonts_commit.zip"
 unzip -j -o "$workdir/ia-fonts.zip" '*/iA Writer Mono/Static/*.ttf' \
     -d "$font_root/iAWriterMono"
 
 curl -fL --retry 3 -o "$workdir/font-awesome.zip" \
-    https://github.com/FortAwesome/Font-Awesome/archive/refs/heads/6.x.zip
+    "https://github.com/FortAwesome/Font-Awesome/releases/download/$font_awesome_version/fontawesome-free-$font_awesome_version-desktop.zip"
 unzip -j -o "$workdir/font-awesome.zip" '*/otfs/*.otf' \
     -d "$font_root/FontAwesome"
 
+# The mscorefonts2 project publishes no checksum for this RPM; the cab files
+# it later downloads are verified against the sha256sums embedded in it.
 curl -fL --retry 3 \
     -o "$workdir/msttcore-fonts-installer.rpm" \
     https://downloads.sourceforge.net/project/mscorefonts2/rpms/msttcore-fonts-installer-2.6-1.noarch.rpm
@@ -53,6 +63,7 @@ curl -fL --retry 3 \
 curl -fL --retry 3 \
     -o "$workdir/PowerPointViewer.exe" \
     https://downloads.sourceforge.net/project/mscorefonts2/cabs/PowerPointViewer.exe
+sha256sum -c --quiet <<< "$ppviewer_sha256  $workdir/PowerPointViewer.exe"
 cabextract -q -d "$workdir/ppviewer" -F ppviewer.cab \
     "$workdir/PowerPointViewer.exe"
 cabextract -q --lowercase -F cambria.ttc -d "$target" \

@@ -1,6 +1,7 @@
 # kind|live path relative to $HOME|chezmoi source path|file pattern
 copy|.codex/AGENTS.md|dot_codex/create_AGENTS.md|-
 copy|.claude/CLAUDE.md|dot_claude/create_CLAUDE.md|-
+copy|.gitconfig|create_dot_gitconfig|-
 copy|.config/fish/config.fish|dot_config/fish/create_config.fish|-
 directory|.config/fish/conf.d|dot_config/fish/conf.d|*.fish
 directory|.config/fish/functions|dot_config/fish/functions|*.fish
