@@ -1,6 +1,7 @@
 {
-  "acLockTimeout": 900,
-  "acMonitorTimeout": 1200,
+  "acLockTimeout": 3600,
+  "acMonitorTimeout": 3600,
+  "acSuspendTimeout": 0,
   "animationSpeed": 4,
   "barConfigs": [
     {
@@ -100,6 +101,7 @@
   "launcherLogoMode": "custom",
   "launcherLogoSizeOffset": 12,
   "lockBeforeSuspend": true,
+  "loginctlLockIntegration": true,
   "maxFprintTries": 3,
   "monoFontFamily": "FiraCode Nerd Font Mono",
   "muxType": "zellij",
