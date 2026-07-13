@@ -36,11 +36,39 @@ fish --no-execute \
     system_files/usr/share/zirconium/zdots/dot_config/fish/functions/*.fish
 
 scripts/validate-manifest
-scripts/audit-workstation
-foot --check-config -c "$HOME/.config/foot/foot.ini"
 
 tmp="$(mktemp -d)"
 trap 'rm -rf -- "$tmp"' EXIT
+
+# Git reads the XDG global config before ~/.gitconfig, so a create-only
+# identity seed coexists with credential helpers and lets explicit user
+# identity overrides in ~/.gitconfig continue to win.
+git_home="$tmp/git-home"
+install -D -m 0644 \
+    system_files/usr/share/zirconium/zdots/dot_config/git/create_config \
+    "$git_home/.config/git/config"
+git config --file "$git_home/.gitconfig" credential.helper store
+[[ $(
+    HOME="$git_home" XDG_CONFIG_HOME="$git_home/.config" \
+        GIT_CONFIG_NOSYSTEM=1 git -C "$git_home" config user.name
+) == marcortola ]]
+[[ $(
+    HOME="$git_home" XDG_CONFIG_HOME="$git_home/.config" \
+        GIT_CONFIG_NOSYSTEM=1 git -C "$git_home" config user.email
+) == 15958009+marcortola@users.noreply.github.com ]]
+[[ $(
+    HOME="$git_home" XDG_CONFIG_HOME="$git_home/.config" \
+        GIT_CONFIG_NOSYSTEM=1 git -C "$git_home" config credential.helper
+) == store ]]
+git config --file "$git_home/.gitconfig" user.name "Local Override"
+[[ $(
+    HOME="$git_home" XDG_CONFIG_HOME="$git_home/.config" \
+        GIT_CONFIG_NOSYSTEM=1 git -C "$git_home" config user.name
+) == "Local Override" ]]
+
+scripts/audit-workstation
+foot --check-config -c "$HOME/.config/foot/foot.ini"
+
 cp -a /usr/share/zirconium/zdots/. "$tmp/"
 cp -a system_files/usr/share/zirconium/zdots/. "$tmp/"
 chezmoi managed -S "$tmp" > "$tmp/managed"
@@ -49,6 +77,7 @@ for target in \
     .config/foot/foot.ini \
     .config/foot/workstation.ini \
     .config/DankMaterialShell/themes/tokyoNightDark/theme.json \
+    .config/git/config \
     .config/niri/config.kdl \
     .config/niri/local.kdl \
     .config/homebrew/Brewfile; do
