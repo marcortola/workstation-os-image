@@ -1,0 +1,13 @@
+[Unit]
+Description=Seed default Claude Code MCP servers
+Documentation=https://github.com/marcortola/workstation-os-image
+Wants=network-online.target
+After=network-online.target workstation-bootstrap.service
+ConditionPathExists=!%h/.local/state/workstation-os-image/claude-mcp-seeded
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/workstation-seed-claude-mcp
+
+[Install]
+WantedBy=graphical-session.target

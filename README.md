@@ -23,6 +23,8 @@ ghcr.io/marcortola/workstation-os-image:latest
 - Fish, Foot, pane-focused Zellij, Starship, Neovim and Tokyo Night defaults.
 - OpenCode (`oc` and `Mod+Shift+O`), Caps Lock as Ctrl, and
   `gpt-4o-transcribe` dictation on `Mod+Shift+V`.
+- Default Claude Code MCP servers (`context7`, `playwright`, `ahrefs`) seeded
+  once into the user account; Ahrefs needs a one-time `claude mcp login ahrefs`.
 - Screen recording via `wf-recorder` on `Mod+Shift+R`.
 - `dev` to select a repository and change the current shell into it;
   `Mod+Shift+P` opens the same picker in a new Foot terminal.
@@ -196,13 +198,14 @@ systemctl reboot
 ```
 
 After graphical login, first-login services clone this repository, restore the
-Brewfile/Flatpaks, install Toolbox and fonts, and seed the DMS preference
-overlay once. Check convergence with:
+Brewfile/Flatpaks, install Toolbox and fonts, seed the DMS preference overlay
+once, and seed the default Claude Code MCP servers once. Check convergence with:
 
 ```bash
 wjust audit
 systemctl --user status workstation-bootstrap.service \
-  workstation-microsoft-fonts.service workstation-dms-settings.service
+  workstation-microsoft-fonts.service workstation-dms-settings.service \
+  workstation-claude-mcp-seed.service
 systemctl is-enabled --quiet containerd.service docker.service keyd.service
 systemctl is-active --quiet containerd.service docker.service keyd.service
 docker run --rm hello-world
@@ -259,6 +262,7 @@ state markers blindly:
 journalctl --user -u workstation-bootstrap.service -b
 journalctl --user -u workstation-microsoft-fonts.service -b
 journalctl --user -u workstation-dms-settings.service -b
+journalctl --user -u workstation-claude-mcp-seed.service -b
 wjust dms-apply  # only when intentionally restoring captured DMS defaults
 ```
 

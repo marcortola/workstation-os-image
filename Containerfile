@@ -41,6 +41,7 @@ RUN /usr/libexec/workstation-patch-zdots && \
     systemd-analyze verify \
       /usr/lib/systemd/system/workstation-docker-users.service \
       /usr/lib/systemd/user/workstation-bootstrap.service \
+      /usr/lib/systemd/user/workstation-claude-mcp-seed.service \
       /usr/lib/systemd/user/workstation-dms-settings.service \
       /usr/lib/systemd/user/workstation-invoice-bookmarks.service \
       /usr/lib/systemd/user/workstation-microsoft-fonts.service \
@@ -50,6 +51,7 @@ RUN /usr/libexec/workstation-patch-zdots && \
       workstation-docker-users.service && \
     systemctl --global preset dcal.service dsearch.service \
       workstation-bootstrap.service \
+      workstation-claude-mcp-seed.service \
       workstation-dms-settings.service \
       workstation-invoice-bookmarks.timer \
       workstation-microsoft-fonts.service && \
