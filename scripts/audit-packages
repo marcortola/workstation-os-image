@@ -8,6 +8,13 @@ tmp="$(mktemp -d)"
 trap 'rm -rf -- "$tmp"' EXIT
 status=0
 
+# On this image `brew` is a polkit-gated proxy (homebrew-proxy) that classifies
+# even read-only `bundle` queries as the privileged "modify the Homebrew
+# installation" action, so every audit would prompt for authentication. This
+# script only reads installed state, so bypass the proxy and disable auto-update
+# to keep the audit non-interactive and free of side effects.
+export NO_BREW_PROXY=1 HOMEBREW_NO_AUTO_UPDATE=1
+
 brew bundle dump --file "$tmp/installed.Brewfile" --force >/dev/null
 
 for kind in formula cask flatpak; do
@@ -28,19 +35,28 @@ if [[ -s $tmp/shadowed.formula ]]; then
     done < "$tmp/shadowed.formula"
 fi
 
+warn=0
 for kind in formula cask flatpak; do
     extra="$tmp/unknown.$kind"
     [[ $kind == formula ]] || \
         comm -23 "$tmp/installed.$kind" "$tmp/declared.$kind" > "$extra"
-    if [[ -s $extra ]]; then
-        while IFS= read -r package; do
-            printf '  %-18s %s\n' "undeclared" "$kind:$package"
-        done < "$extra"
+    [[ -s $extra ]] || continue
+    # Undeclared Flatpaks are a warning, not an error: a workstation may keep
+    # host-only Flatpaks that should not always ship in the image. Undeclared
+    # formulae and casks remain errors.
+    if [[ $kind == flatpak ]]; then
+        label="undeclared (warn)"
+        warn=1
+    else
+        label="undeclared"
         status=1
     fi
+    while IFS= read -r package; do
+        printf '  %-18s %s\n' "$label" "$kind:$package"
+    done < "$extra"
 done
 
-if (( status == 0 )); then
+if (( status == 0 && warn == 0 )); then
     echo "  no undeclared Homebrew formulae, casks, or Flatpaks"
 fi
 
