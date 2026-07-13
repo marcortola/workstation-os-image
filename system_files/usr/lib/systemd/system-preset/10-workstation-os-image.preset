@@ -1,4 +1,4 @@
 enable containerd.service
 enable docker.service
 enable keyd.service
-enable workstation-docker-users.service
+enable workstation-user-groups.service

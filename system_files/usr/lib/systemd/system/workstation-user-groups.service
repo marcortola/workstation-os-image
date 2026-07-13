@@ -1,12 +1,12 @@
 [Unit]
-Description=Grant interactive workstation users Docker access
+Description=Grant interactive workstation users supplemental group access
 Documentation=https://github.com/marcortola/workstation-os-image
 After=systemd-sysusers.service
 Before=systemd-user-sessions.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/libexec/workstation-configure-docker-users
+ExecStart=/usr/libexec/workstation-configure-user-groups
 
 [Install]
 WantedBy=multi-user.target
