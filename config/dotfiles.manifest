@@ -1,6 +1,8 @@
 # kind|live path relative to $HOME|chezmoi source path|file pattern
 copy|.codex/AGENTS.md|dot_codex/create_AGENTS.md|-
 copy|.claude/CLAUDE.md|dot_claude/create_CLAUDE.md|-
+tree|.claude/skills/weekly-summary|dot_claude/skills/weekly-summary|*
+tree|.codex/skills/weekly-summary|dot_codex/skills/weekly-summary|*
 copy|.config/git/config|dot_config/git/create_config|-
 copy|.config/fish/config.fish|dot_config/fish/create_config.fish|-
 directory|.config/fish/conf.d|dot_config/fish/conf.d|*.fish

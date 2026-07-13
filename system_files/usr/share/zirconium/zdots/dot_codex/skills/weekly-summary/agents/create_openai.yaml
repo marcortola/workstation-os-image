@@ -1,0 +1,4 @@
+interface:
+  display_name: "Weekly Summary"
+  short_description: "Resumen semanal de producto para stakeholders"
+  default_prompt: "Usa $weekly-summary para generar el resumen semanal de producto en español."
