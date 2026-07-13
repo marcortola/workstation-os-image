@@ -2,7 +2,12 @@
 Description=Initialize captured workstation DMS preference defaults
 Documentation=https://github.com/marcortola/workstation-os-image
 Requires=dms.service
-After=dms.service
+# Order after graphical-session.target, not just dms.service. dms.service is
+# itself After=graphical-session.target, and being WantedBy the target makes us
+# implicitly Before it; ordering after dms.service alone therefore closes an
+# ordering cycle (target -> dms -> us -> target) that systemd breaks by dropping
+# dms.service, leaving the session with no DMS bar/launcher.
+After=dms.service graphical-session.target
 Before=workstation-bootstrap.service
 
 [Service]

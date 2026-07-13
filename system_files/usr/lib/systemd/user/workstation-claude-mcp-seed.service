@@ -2,7 +2,9 @@
 Description=Seed default Claude Code MCP servers
 Documentation=https://github.com/marcortola/workstation-os-image
 Wants=network-online.target
-After=network-online.target workstation-bootstrap.service
+# graphical-session.target: ordered after it for the same reason as
+# workstation-bootstrap.service, whose DMS-dependent chain we run after.
+After=network-online.target workstation-bootstrap.service graphical-session.target
 ConditionPathExists=!%h/.local/state/workstation-os-image/claude-mcp-seeded
 
 [Service]
