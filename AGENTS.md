@@ -84,3 +84,25 @@ files. `CLAUDE.md` imports this file for Claude Code.
 
 Instructions describe policy; scripts provide enforcement. If a rule must be
 guaranteed, add it to validation or CI rather than relying only on this file.
+
+## Answering "is there DMS drift?"
+
+`just audit` reports two independent DMS signals; a drift answer must cover
+both, enumerated key by key, not just the summary counts:
+
+1. "Live DMS preferences differ from the captured defaults" means one or more
+   already-tracked overlay keys have diverged from their captured value. Do not
+   dismiss this as expected. Enumerate it by diffing the live settings against
+   the overlay per key:
+   `jq` the live `~/.config/DankMaterialShell/settings.json` against
+   `system_files/usr/share/workstation-os-image/dms-settings.json` and report
+   every key where they differ.
+2. "Portable DMS deviations are not captured (N)" means N brand-new keys are not
+   in the overlay yet. List them with `just dms-capture --list`.
+
+`just dms-capture --list` shows each candidate's live value against the
+Zirconium default, not against the overlay, so it does not reveal which tracked
+keys drifted — signal 1 is only visible through the direct live-vs-overlay diff.
+"DMS-generated Niri fragments"/"DMS user preferences differ from installed
+Zirconium defaults" are informational; DMS is UI-owned after seed. Never report
+only the uncaptured count and treat the tracked-value divergence as noise.
