@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Seed the workstation's default Claude Code MCP servers once per account.
+# Claude Code keeps user-scope servers in ~/.claude.json, which also holds
+# session history and credentials and is therefore never tracked in Git. The
+# image seeds the servers on the live machine instead of shipping that file.
+# Existing user choices win: a server that is already configured is left
+# untouched, and the completion marker keeps a deliberate later removal from
+# being re-added on the next login.
+
+state_home="${XDG_STATE_HOME:-$HOME/.local/state}"
+marker="$state_home/workstation-os-image/claude-mcp-seeded"
+claude=/home/linuxbrew/.linuxbrew/bin/claude
+npx=/home/linuxbrew/.linuxbrew/bin/npx
+
+# Homebrew provides both the claude-code cask and Node; wait for
+# workstation-bootstrap to install them before seeding. Exiting non-zero keeps
+# the marker absent so the next graphical session retries.
+[[ -x $claude ]] || {
+    echo "Waiting for Homebrew to provide $claude" >&2
+    exit 1
+}
+
+mkdir -p "$(dirname "$marker")"
+
+# Add a hosted HTTP server unless the account already defines it.
+seed_http() {
+    local name=$1 url=$2
+    if "$claude" mcp get "$name" >/dev/null 2>&1; then
+        return 0
+    fi
+    "$claude" mcp add --scope user --transport http "$name" "$url"
+}
+
+# Add a local stdio server unless the account already defines it.
+seed_stdio() {
+    local name=$1
+    shift
+    if "$claude" mcp get "$name" >/dev/null 2>&1; then
+        return 0
+    fi
+    "$claude" mcp add --scope user "$name" -- "$@"
+}
+
+# Documentation lookup server; no credentials.
+seed_http context7 https://mcp.context7.com/mcp
+
+# Microsoft's browser-automation server over stdio, launched through
+# Homebrew's npx. @playwright/mcp needs no credentials.
+seed_stdio playwright "$npx" @playwright/mcp@latest
+
+# Ahrefs SEO server. Authentication is an interactive browser OAuth login: run
+# `claude mcp login ahrefs` once per account. Requires a paid Ahrefs plan.
+seed_http ahrefs https://api.ahrefs.com/mcp/mcp
+
+touch "$marker"
+echo "Seeded default Claude Code MCP servers."
