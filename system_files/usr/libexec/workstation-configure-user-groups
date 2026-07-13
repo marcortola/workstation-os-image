@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Supplemental groups every interactive local user should belong to:
+#   docker - rootful Docker without sudo (see the docker invariant in AGENTS.md)
+#   input  - /dev/input access DankMaterialShell needs for its evdev features
+#            (global shortcuts, gestures); without it dms logs "insufficient
+#            permissions to access input devices" and degrades.
+groups=(docker input)
+
+# Only touch groups that actually exist, so a missing one never fails the unit.
+present=()
+for group in "${groups[@]}"; do
+    if getent group "$group" >/dev/null; then
+        present+=("$group")
+    fi
+done
+
+(( ${#present[@]} == 0 )) && exit 0
+joined=$(IFS=,; printf '%s' "${present[*]}")
+
+getent passwd | while IFS=: read -r name _ uid _ _ home shell; do
+    if (( uid < 1000 || uid >= 60000 )); then
+        continue
+    fi
+
+    case "$home" in
+        /home/*|/var/home/*) ;;
+        *) continue ;;
+    esac
+
+    case "$shell" in
+        */false|*/nologin) continue ;;
+    esac
+
+    usermod -aG "$joined" "$name"
+done

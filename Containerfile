@@ -46,7 +46,7 @@ RUN /usr/libexec/workstation-patch-zdots && \
       --config-file=/usr/share/factory/etc/docker/daemon.json && \
     keyd check /usr/share/factory/etc/keyd/default.conf && \
     systemd-analyze verify \
-      /usr/lib/systemd/system/workstation-docker-users.service \
+      /usr/lib/systemd/system/workstation-user-groups.service \
       /usr/lib/systemd/user/workstation-bootstrap.service \
       /usr/lib/systemd/user/workstation-claude-mcp-seed.service \
       /usr/lib/systemd/user/workstation-dms-settings.service \
@@ -56,7 +56,7 @@ RUN /usr/libexec/workstation-patch-zdots && \
       /usr/lib/systemd/user/dcal.service \
       /usr/lib/systemd/user/dsearch.service && \
     systemctl preset containerd.service docker.service keyd.service \
-      workstation-docker-users.service && \
+      workstation-user-groups.service && \
     systemctl --global preset dcal.service dsearch.service \
       workstation-bootstrap.service \
       workstation-claude-mcp-seed.service \
