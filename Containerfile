@@ -33,7 +33,14 @@ RUN /usr/libexec/workstation-patch-zdots && \
       slurp \
       unrar \
       unzip \
-      wf-recorder && \
+      wf-recorder \
+      libX11-devel \
+      libXfixes-devel && \
+    gcc -O2 -Wall -Wextra \
+      -o /usr/libexec/workstation-x11-clipsync \
+      /usr/src/workstation-x11-clipsync.c \
+      -lX11 -lXfixes && \
+    dnf -y remove libX11-devel libXfixes-devel && \
     dnf clean all && \
     dockerd --validate \
       --config-file=/usr/share/factory/etc/docker/daemon.json && \
@@ -45,6 +52,7 @@ RUN /usr/libexec/workstation-patch-zdots && \
       /usr/lib/systemd/user/workstation-dms-settings.service \
       /usr/lib/systemd/user/workstation-invoice-bookmarks.service \
       /usr/lib/systemd/user/workstation-microsoft-fonts.service \
+      /usr/lib/systemd/user/workstation-x11-clipsync.service \
       /usr/lib/systemd/user/dcal.service \
       /usr/lib/systemd/user/dsearch.service && \
     systemctl preset containerd.service docker.service keyd.service \
@@ -54,5 +62,6 @@ RUN /usr/libexec/workstation-patch-zdots && \
       workstation-claude-mcp-seed.service \
       workstation-dms-settings.service \
       workstation-invoice-bookmarks.timer \
-      workstation-microsoft-fonts.service && \
+      workstation-microsoft-fonts.service \
+      workstation-x11-clipsync.service && \
     bootc container lint
