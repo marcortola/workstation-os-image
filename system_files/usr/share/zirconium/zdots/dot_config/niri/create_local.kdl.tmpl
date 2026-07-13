@@ -32,3 +32,12 @@ binds {
         spawn "/usr/libexec/workstation-screenrecord";
     }
 }
+
+layout {
+    // Keep an always-empty workspace above the first one, mirroring niri's
+    // built-in always-empty trailing workspace. Makes Mod+Ctrl+Up land a column
+    // in an existing empty workspace at the top instead of appearing to spawn
+    // one, so the top edge behaves symmetrically with the bottom. (Merged with
+    // niri's other layout blocks from the DMS/Zirconium includes.)
+    empty-workspace-above-first
+}
