@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-brewfile="$HOME/dotfiles/Brewfile"
+brewfile="${XDG_CONFIG_HOME:-$HOME/.config}/homebrew/Brewfile"
 image_formulae="$repo_root/config/image-provided-brew-formulae"
 tmp="$(mktemp -d)"
 trap 'rm -rf -- "$tmp"' EXIT
