@@ -1,5 +1,15 @@
 // Local workstation shortcuts. This file is preserved by Zirconium/chezmoi.
 binds {
+    // Vertical arrows drive workspaces instead of window-in-column focus.
+    // Custom hotkey-overlay titles make niri's "Important Hotkeys" pop-up show
+    // these arrows instead of the built-in Page Up/Down binds (niri shows a
+    // custom-titled bind in preference to the first untitled one for an action).
+    // (Window-stack nav stays on Mod+J / Mod+K; Page Up/Down still work.)
+    Mod+Up        hotkey-overlay-title="Switch Workspace Up"          { focus-workspace-up; }
+    Mod+Down      hotkey-overlay-title="Switch Workspace Down"        { focus-workspace-down; }
+    Mod+Ctrl+Up   hotkey-overlay-title="Move Column to Workspace Up"   { move-column-to-workspace-up; }
+    Mod+Ctrl+Down hotkey-overlay-title="Move Column to Workspace Down" { move-column-to-workspace-down; }
+
     Mod+Shift+G hotkey-overlay-title="Lazygit" {
         spawn "foot" "--working-directory={{ .chezmoi.homeDir }}" "--title=Lazygit" "--app-id=lazygit" "/home/linuxbrew/.linuxbrew/bin/lazygit";
     }
