@@ -1,0 +1,14 @@
+[Unit]
+Description=Mirror the Xwayland (X11) clipboard into the Wayland clipboard
+Documentation=https://github.com/marcortola/workstation-os-image
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/libexec/workstation-x11-clipsync
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target

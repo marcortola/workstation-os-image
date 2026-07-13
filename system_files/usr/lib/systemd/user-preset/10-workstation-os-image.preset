@@ -5,3 +5,4 @@ enable workstation-claude-mcp-seed.service
 enable workstation-dms-settings.service
 enable workstation-invoice-bookmarks.timer
 enable workstation-microsoft-fonts.service
+enable workstation-x11-clipsync.service
