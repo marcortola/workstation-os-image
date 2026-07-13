@@ -5,9 +5,6 @@
     br = branch
     unstage = reset HEAD --
     last = log -1 HEAD
-[user]
-    name = marcortola
-    email = 15958009+marcortola@users.noreply.github.com
 [init]
     defaultBranch = main
 [pull]

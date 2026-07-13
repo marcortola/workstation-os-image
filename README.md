@@ -162,7 +162,8 @@ Use the smallest durable owner:
 
 - RPM, daemon, socket, privileged helper or system preset: `Containerfile` or
   `system_files/`.
-- Homebrew formula, cask or Flatpak: `~/dotfiles/Brewfile`, then `wjust sync`.
+- Homebrew formula, cask or Flatpak: `~/.config/homebrew/Brewfile`, then
+  `wjust sync`.
 - Portable user configuration: add it to `config/dotfiles.manifest`, then
   `wjust sync`.
 - Niri customization: `~/.config/niri/local.kdl`, never the upstream-managed

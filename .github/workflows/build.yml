@@ -29,7 +29,7 @@ permissions:
   packages: write
 
 concurrency:
-  group: bootc-image
+  group: bootc-image-${{ github.ref }}
   cancel-in-progress: true
 
 env:

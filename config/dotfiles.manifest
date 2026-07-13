@@ -1,6 +1,7 @@
 # kind|live path relative to $HOME|chezmoi source path|file pattern
 copy|.codex/AGENTS.md|dot_codex/create_AGENTS.md|-
 copy|.claude/CLAUDE.md|dot_claude/create_CLAUDE.md|-
+copy|.config/git/config|dot_config/git/create_config|-
 copy|.config/fish/config.fish|dot_config/fish/create_config.fish|-
 directory|.config/fish/conf.d|dot_config/fish/conf.d|*.fish
 directory|.config/fish/functions|dot_config/fish/functions|*.fish
@@ -15,7 +16,7 @@ copy|.config/lazydocker/config.yml|dot_config/lazydocker/create_config.yml|-
 copy|.config/btop/btop.conf|dot_config/btop/create_btop.conf|-
 copy|.config/fontconfig/fonts.conf|dot_config/fontconfig/create_fonts.conf|-
 copy|.config/DankMaterialShell/themes/tokyoNightDark/theme.json|dot_config/DankMaterialShell/themes/tokyoNightDark/create_theme.json|-
-copy|dotfiles/Brewfile|dotfiles/create_Brewfile|-
+copy|.config/homebrew/Brewfile|dot_config/homebrew/create_Brewfile|-
 copy|.local/bin/workstation-dev|private_dot_local/bin/create_executable_workstation-dev|-
 copy|.local/bin/workstation-dictate|private_dot_local/bin/create_executable_workstation-dictate|-
 copy|.local/bin/workstation-openai-key|private_dot_local/bin/create_executable_workstation-openai-key|-

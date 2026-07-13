@@ -10,7 +10,12 @@ if pgrep -x wf-recorder >/dev/null 2>&1; then
     exit 0
 fi
 
+# xdg-user-dir answers $HOME when the videos directory is unconfigured.
 dir="${HOME}/Videos"
+if command -v xdg-user-dir >/dev/null 2>&1; then
+    xdg_dir="$(xdg-user-dir VIDEOS)"
+    [ "$xdg_dir" = "$HOME" ] || dir="$xdg_dir"
+fi
 mkdir -p "$dir"
 file="$dir/recording-$(date +%Y%m%d-%H%M%S).mp4"
 region=$(slurp) || exit 0
