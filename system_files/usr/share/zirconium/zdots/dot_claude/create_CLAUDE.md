@@ -52,13 +52,6 @@ Once I approve a plan, execute with confidence and autonomy. Follow the agreed p
 
 **Context7:** Always use Context7 MCP for library/API documentation, code generation, setup, or configuration steps — without waiting for me to ask. Prefer Context7 over your training data for any library-specific or API-specific information.
 
-**Sequential Thinking:** Activate autonomously when you encounter:
-- Complex problems where the full scope isn't clear upfront
-- Planning or design work that may need revision or course correction
-- Multi-step analysis that benefits from branching or backtracking
-- Debugging scenarios requiring systematic hypothesis testing
-- Architectural decisions with interacting constraints
-
 ## Context About Me
 
 - Senior software architect with experience across multiple tech stacks
