@@ -3,8 +3,11 @@ Description=Restore workstation user tools
 Documentation=https://github.com/marcortola/workstation-os-image
 Wants=network-online.target
 Requires=workstation-dms-settings.service
+# graphical-session.target: we run after workstation-dms-settings.service (hence
+# after dms.service, which is After the target), so we must also order after the
+# target to avoid re-forming the ordering cycle that would drop dms.service.
 After=network-online.target chezmoi-init.service chezmoi-update.service \
-    workstation-dms-settings.service
+    workstation-dms-settings.service graphical-session.target
 ConditionPathExists=!%h/.local/state/workstation-os-image/bootstrap-complete
 
 [Service]
