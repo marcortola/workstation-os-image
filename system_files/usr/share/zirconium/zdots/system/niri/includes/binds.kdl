@@ -1,43 +1,105 @@
-// Workstation fork of the Zirconium/DMS niri binds. Reorganized logically; the
-// hotkey overlay (Super+/) shows entries in this file's order. Three changes
-// from upstream: (1) Mod+Ctrl+T opens a tmux terminal, placed right after
-// Mod+T; (2) Mod+Shift+V is hotkey-overlay-title=null so "Switch Focus Between
-// Floating and Tiling" no longer shows as "(not bound)"; (3) Mod+Y and
-// Mod+Alt+L are null-titled here to override the DMS seeds' overlay entries
-// ("Browse Wallpapers", "Lock Screen") — the keys still work, just hidden.
+// Workstation fork of the Zirconium/DMS niri binds and hotkey overlay.
+//
+// The Super+/ overlay shows niri's hardcoded window-management actions first
+// (fixed order: close, focus, move, workspaces, maximize, consume, floating,
+// overview), then every custom-titled bind in this file's order. This file
+// redefines all DMS and personal keybinds so they land in the cohesive
+// custom-titled section below, in a deliberate Launchers → Apps → System →
+// Utilities order.
+//
+// hide-not-bound drops "(not bound)" rows for hardcoded actions this config
+// doesn't bind — only switch-focus-between-floating-and-tiling, whose key
+// (Mod+Shift+V) is repurposed to dictation.
+//
+// Conflicts resolved (niri core wins; the DMS feature is dropped from the
+// overlay, the key keeps working):
+//   Mod+V       toggle-window-floating        (was DMS Clipboard Manager)
+//   Mod+Comma   consume-window-into-column    (was DMS Settings)
+//   Mod+M       maximize-column               (was DMS Task Manager; = Mod+F)
+// Task Manager lives on Ctrl+Alt+Delete; Ctrl+Shift+Escape is hidden (dup).
+//
+// Personal binds use spawn-sh with $HOME so no username is hardcoded.
+
+hotkey-overlay {
+    hide-not-bound true
+}
+
 binds {
-    // ── Launchers ───────────────────────────────────────────────────────
-    Mod+Slash { show-hotkey-overlay; }
+    // ── Launchers & apps (overlay order) ────────────────────────────────
+    Mod+Space hotkey-overlay-title="Application Launcher" {
+        spawn "dms" "ipc" "call" "spotlight" "toggle";
+    }
     Mod+T hotkey-overlay-title="Open a Terminal" { spawn "xdg-terminal-exec"; }
     Mod+Ctrl+T hotkey-overlay-title="Open a Tmux Terminal" {
         spawn "foot" "--title=Tmux" "--app-id=tmux" "tmux" "new-session";
     }
-    Shift+Mod+T hotkey-overlay-title="Open a Terminal" { spawn "xdg-terminal-exec"; }
     Mod+E hotkey-overlay-title="Open File Manager" { spawn "nautilus"; }
+    Mod+Shift+P hotkey-overlay-title="Projects" {
+        spawn-sh "foot --working-directory=$HOME --title=Projects --app-id=dev-terminal $HOME/.local/bin/workstation-dev --shell";
+    }
+    Mod+Shift+O hotkey-overlay-title="OpenCode" {
+        spawn-sh "foot --working-directory=$HOME --title=OpenCode --app-id=opencode /home/linuxbrew/.linuxbrew/bin/opencode";
+    }
+    Mod+Shift+G hotkey-overlay-title="Lazygit" {
+        spawn-sh "foot --working-directory=$HOME --title=Lazygit --app-id=lazygit /home/linuxbrew/.linuxbrew/bin/lazygit";
+    }
+    Mod+Shift+D hotkey-overlay-title="Lazydocker" {
+        spawn-sh "foot --working-directory=$HOME --title=Lazydocker --app-id=lazydocker /home/linuxbrew/.linuxbrew/bin/lazydocker";
+    }
+    Mod+Shift+T hotkey-overlay-title="Activity (btop)" {
+        spawn-sh "foot --working-directory=$HOME --title=Activity --app-id=btop /usr/bin/btop";
+    }
+
+    // ── System & utilities (overlay order) ──────────────────────────────
+    Mod+N hotkey-overlay-title="Notification Center" {
+        spawn "dms" "ipc" "call" "notifications" "toggle";
+    }
+    Mod+Shift+N hotkey-overlay-title="Notepad" {
+        spawn "dms" "ipc" "call" "notepad" "toggle";
+    }
+    Ctrl+Alt+Delete hotkey-overlay-title="Task Manager" {
+        spawn "dms" "ipc" "call" "processlist" "toggle";
+    }
+    Mod+Shift+S hotkey-overlay-title="Take a Screenshot" {
+        spawn "dms" "ipc" "call" "niri" "screenshot";
+    }
+    Mod+Print hotkey-overlay-title="Read contents of screen" { spawn "zocr" "screenshot"; }
+    Mod+Shift+R hotkey-overlay-title="Start/stop screen recording" {
+        spawn "/usr/libexec/workstation-screenrecord";
+    }
+    Mod+Shift+V hotkey-overlay-title="Start/stop dictation" {
+        spawn-sh "$HOME/.local/bin/workstation-dictate";
+    }
+    Ctrl+Alt+Space hotkey-overlay-title="Switch Keyboard Language" {
+        spawn-sh "$HOME/.local/bin/workstation-cycle-keyboard-layout";
+    }
+
+    // ── Window layout (titled; appear in niri's hardcoded section) ───────
+    Mod+M         hotkey-overlay-title="Maximize Column"            { maximize-column; }
+    Mod+Up        hotkey-overlay-title="Switch Workspace Up"        { focus-workspace-up; }
+    Mod+Down      hotkey-overlay-title="Switch Workspace Down"      { focus-workspace-down; }
+    Mod+Ctrl+Up   hotkey-overlay-title="Move Column to Workspace Up"   { move-column-to-workspace-up; }
+    Mod+Ctrl+Down hotkey-overlay-title="Move Column to Workspace Down" { move-column-to-workspace-down; }
 
     // ── Session ─────────────────────────────────────────────────────────
+    Mod+Slash { show-hotkey-overlay; }
     Mod+O repeat=false { toggle-overview; }
     Mod+Q repeat=false { close-window; }
     Mod+Shift+E { quit; }
-    Mod+Shift+P { power-off-monitors; }
 
-    // ── Window layout ───────────────────────────────────────────────────
+    // ── Window layout (untitled) ────────────────────────────────────────
     Mod+F { maximize-column; }
     Mod+Shift+F { fullscreen-window; }
     Mod+Ctrl+F { maximize-window-to-edges; }
     Mod+C { center-column; }
     Mod+Ctrl+C { center-visible-columns; }
     Mod+R { switch-preset-column-width; }
-    Mod+Shift+R { switch-preset-window-height; }
     Mod+Ctrl+R { reset-window-height; }
-    Mod+V       { toggle-window-floating; }
-    Mod+Shift+V hotkey-overlay-title=null { switch-focus-between-floating-and-tiling; }
+    Mod+V { toggle-window-floating; }
     Mod+W { toggle-column-tabbed-display; }
 
     // ── Focus ───────────────────────────────────────────────────────────
     Mod+Left  { focus-column-left; }
-    Mod+Down  { focus-window-down; }
-    Mod+Up    { focus-window-up; }
     Mod+Right { focus-column-right; }
     Mod+H     { focus-column-left; }
     Mod+J     { focus-window-down; }
@@ -58,8 +120,6 @@ binds {
 
     // ── Move ────────────────────────────────────────────────────────────
     Mod+Ctrl+Left  { move-column-left; }
-    Mod+Ctrl+Down  { move-window-down; }
-    Mod+Ctrl+Up    { move-window-up; }
     Mod+Ctrl+Right { move-column-right; }
     Mod+Ctrl+H     { move-column-left; }
     Mod+Ctrl+J     { move-window-down; }
@@ -151,21 +211,16 @@ binds {
     XF86MonBrightnessUp   allow-when-locked=true { spawn-sh "brightnessctl --class=backlight set +10%"; }
     XF86MonBrightnessDown allow-when-locked=true { spawn-sh "brightnessctl --class=backlight set 10%-"; }
 
-    // ── Screenshots & capture ───────────────────────────────────────────
+    // ── Screenshots (hidden variants; visible ones are above) ───────────
     Print hotkey-overlay-title=null { spawn "dms" "ipc" "call" "niri" "screenshot"; }
     Ctrl+Print { spawn "dms" "ipc" "call" "niri" "screenshotScreen"; }
     Alt+Print { spawn "dms" "ipc" "call" "niri" "screenshotWindow"; }
-    Mod+Shift+S hotkey-overlay-title="Take a Screenshot" { spawn "dms" "ipc" "call" "niri" "screenshot"; }
+    Mod+Alt+Shift+S hotkey-overlay-title=null { spawn "zocr" "screenshot"; }
 
-    Mod+Print hotkey-overlay-title="Read contents of screen" { spawn "zocr" "screenshot"; }
-    Mod+Alt+Shift+S hotkey-overlay-title="Read contents of screen" { spawn "zocr" "screenshot"; }
-
-    Ctrl+Shift+Escape hotkey-overlay-title="Task Manager" {
+    // ── Hidden from overlay (null-titled; keys still work) ───────────────
+    Ctrl+Shift+Escape hotkey-overlay-title=null {
         spawn "dms" "ipc" "call" "processlist" "toggle";
     }
-
-    // ── Hidden from overlay (null-titled) ───────────────────────────────
-    // DMS overrides: keep the keys working but hide their overlay entries.
     Mod+Y hotkey-overlay-title=null { spawn "dms" "ipc" "call" "dankdash" "wallpaper"; }
     Mod+Alt+L hotkey-overlay-title=null { spawn "dms" "ipc" "call" "lock" "lock"; }
 
