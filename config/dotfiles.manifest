@@ -12,6 +12,7 @@ tree|.codex/skills/rm-worktree|dot_codex/skills/rm-worktree|*
 copy|.config/opencode/commands/worktree.md|dot_config/opencode/commands/create_worktree.md|-
 copy|.config/opencode/commands/ship-worktree.md|dot_config/opencode/commands/create_ship-worktree.md|-
 copy|.config/opencode/commands/rm-worktree.md|dot_config/opencode/commands/create_rm-worktree.md|-
+copy|.config/workmux/config.yaml|dot_config/workmux/create_config.yaml|-
 copy|.config/git/config|dot_config/git/create_config|-
 copy|.config/fish/config.fish|dot_config/fish/create_config.fish|-
 directory|.config/fish/conf.d|dot_config/fish/conf.d|*.fish
