@@ -3,6 +3,15 @@ copy|.codex/AGENTS.md|dot_codex/create_AGENTS.md|-
 copy|.claude/CLAUDE.md|dot_claude/create_CLAUDE.md|-
 tree|.claude/skills/weekly-summary|dot_claude/skills/weekly-summary|*
 tree|.codex/skills/weekly-summary|dot_codex/skills/weekly-summary|*
+copy|.claude/commands/worktree.md|dot_claude/commands/create_worktree.md|-
+copy|.claude/commands/ship-worktree.md|dot_claude/commands/create_ship-worktree.md|-
+copy|.claude/commands/rm-worktree.md|dot_claude/commands/create_rm-worktree.md|-
+tree|.codex/skills/worktree|dot_codex/skills/worktree|*
+tree|.codex/skills/ship-worktree|dot_codex/skills/ship-worktree|*
+tree|.codex/skills/rm-worktree|dot_codex/skills/rm-worktree|*
+copy|.config/opencode/commands/worktree.md|dot_config/opencode/commands/create_worktree.md|-
+copy|.config/opencode/commands/ship-worktree.md|dot_config/opencode/commands/create_ship-worktree.md|-
+copy|.config/opencode/commands/rm-worktree.md|dot_config/opencode/commands/create_rm-worktree.md|-
 copy|.config/git/config|dot_config/git/create_config|-
 copy|.config/fish/config.fish|dot_config/fish/create_config.fish|-
 directory|.config/fish/conf.d|dot_config/fish/conf.d|*.fish
