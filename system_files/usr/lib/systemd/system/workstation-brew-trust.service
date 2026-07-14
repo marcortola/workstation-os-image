@@ -1,0 +1,24 @@
+[Unit]
+Description=Trust third-party Homebrew tap formulae for the linuxbrew user
+Documentation=https://github.com/marcortola/workstation-os-image
+# brew-setup.service untars /home/linuxbrew; brew-proxy-setup.service installs
+# the bin/brew dispatch wrapper and chowns /home/linuxbrew to linuxbrew. Both
+# must complete before we can run brew as linuxbrew and write its trust store.
+Wants=brew-setup.service brew-proxy-setup.service
+After=brew-setup.service brew-proxy-setup.service
+# proxy/brew-original exists only after brew-proxy-setup has swapped the symlink
+# (and, on first boot, before its recursive chown/chmod). Gating on it means we
+# no-op cleanly until brew is fully provisioned rather than racing that setup.
+ConditionPathExists=/home/linuxbrew/.linuxbrew/bin/brew
+ConditionPathExists=/home/linuxbrew/.linuxbrew/proxy/brew-original
+
+[Service]
+Type=oneshot
+User=linuxbrew
+# brew needs an unconfined SELinux context for its operations, matching
+# uupd.service which runs brew the same way.
+SELinuxContext=system_u:unconfined_r:unconfined_t:s0
+ExecStart=/usr/libexec/workstation-brew-trust
+
+[Install]
+WantedBy=multi-user.target

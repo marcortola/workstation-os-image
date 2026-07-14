@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# Trust every third-party (tap-qualified) Homebrew formula/cask declared in the
+# image Brewfile seed for the linuxbrew system user, so uupd's daily
+# `brew upgrade` (which runs as linuxbrew) stops skipping them. Runs as
+# linuxbrew, bypasses the polkit brew-proxy, and re-applies on every invocation
+# so adding a tap-qualified line to the Brewfile is sufficient -- no manual
+# per-package trust step. Best-effort by design: a single bad entry never fails
+# the unit, so it never blocks the uupd upgrade that orders after it.
+set -uo pipefail
+
+brew=/home/linuxbrew/.linuxbrew/bin/brew
+brewfile=/usr/share/zirconium/zdots/dot_config/homebrew/create_Brewfile
+
+[[ -x $brew ]] || {
+    echo "brew is not provisioned at $brew yet; skipping trust seed." >&2
+    exit 0
+}
+[[ -f $brewfile ]] || {
+    echo "Brewfile seed $brewfile is missing; nothing to trust." >&2
+    exit 0
+}
+
+# Pin brew's trust store to linuxbrew's own home regardless of inherited
+# environment. NO_BREW_PROXY=1 routes the Zirconium bin/brew dispatch wrapper
+# straight to proxy/brew-original instead of the DBus/polkit proxy; running as
+# linuxbrew with HOME=/home/linuxbrew makes `brew trust` write
+# /home/linuxbrew/.homebrew/trust.json -- exactly the store uupd reads.
+export NO_BREW_PROXY=1
+export HOME=/home/linuxbrew
+export USER=linuxbrew
+unset XDG_CONFIG_HOME HOMEBREW_XDG_CONFIG_HOME HOMEBREW_USER_CONFIG_HOME
+
+# A tap-qualified entry is a brew/cask line whose quoted argument contains a
+# slash (user/tap/name). Plain `brew "jq"` (official tap) has no slash and is
+# skipped. Emits: <type> <TAB> <name>, where <type> is `brew` or `cask`.
+mapfile -t entries < <(
+    grep -oE '^[[:space:]]*(brew|cask)[[:space:]]+"[^"]*/[^"]*"' "$brewfile" \
+        | sed -E 's/^[[:space:]]*(brew|cask)[[:space:]]+"([^"]+)".*/\1\t\2/'
+)
+
+if [[ ${#entries[@]} -eq 0 ]]; then
+    echo "No third-party tap entries in $brewfile; nothing to trust."
+    exit 0
+fi
+
+failures=0
+for entry in "${entries[@]}"; do
+    kind=${entry%%$'\t'*}
+    name=${entry#*$'\t'}
+    case $kind in
+        brew) flag=--formula ;;
+        cask) flag=--cask ;;
+        *) continue ;;
+    esac
+    # brew trust is idempotent: a no-op ("Already trusted ...", exit 0) when the
+    # name is already trusted, and it records the name by string parsing, so it
+    # needs neither the tap tapped nor the formula installed.
+    if "$brew" trust "$flag" "$name"; then
+        echo "Trusted $name ($kind) for linuxbrew."
+    else
+        echo "Failed to trust $name ($kind) for linuxbrew; continuing." >&2
+        failures=$((failures + 1))
+    fi
+done
+
+if [[ $failures -gt 0 ]]; then
+    echo "$failures entry(ies) could not be trusted; see above." >&2
+fi
+# Best-effort by design: never fail the unit or block the uupd upgrade.
+exit 0
