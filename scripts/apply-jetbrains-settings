@@ -113,7 +113,7 @@ apply_product() {
         return 0
     fi
 
-    if workstation_jetbrains_ide_running "$selector"; then
+    if workstation_jetbrains_ide_running "$product"; then
         echo "  $product: IDE appears to be RUNNING ($selector) — refusing." >&2
         echo "    Quit it and re-run; an external write is ignored while it runs." >&2
         (( ++skipped ))
