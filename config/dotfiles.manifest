@@ -22,6 +22,7 @@ copy|.config/fcitx5/conf/unicode.conf|dot_config/fcitx5/conf/create_unicode.conf
 copy|.config/DankMaterialShell/themes/tokyoNightDark/theme.json|dot_config/DankMaterialShell/themes/tokyoNightDark/create_theme.json|-
 copy|.config/homebrew/Brewfile|dot_config/homebrew/create_Brewfile|-
 copy|.local/share/flatpak/overrides/com.onepassword.OnePassword|private_dot_local/share/flatpak/overrides/create_com.onepassword.OnePassword|-
+copy|.var/app/md.obsidian.Obsidian/config/obsidian/user-flags.conf|dot_var/app/md.obsidian.Obsidian/config/obsidian/create_user-flags.conf|-
 copy|.local/bin/workstation-dev|private_dot_local/bin/create_executable_workstation-dev|-
 copy|.local/bin/workstation-dictate|private_dot_local/bin/create_executable_workstation-dictate|-
 copy|.local/bin/workstation-openai-key|private_dot_local/bin/create_executable_workstation-openai-key|-
@@ -31,6 +32,8 @@ copy|.config/nvim/lazy-lock.json|dot_config/nvim/create_lazy-lock.json|-
 copy|.config/nvim/lazyvim.json|dot_config/nvim/create_lazyvim.json|-
 copy|.config/nvim/stylua.toml|dot_config/nvim/create_stylua.toml|-
 tree|.config/nvim/lua|dot_config/nvim/lua|*
+copy|.var/app/io.typora.Typora/config/Typora/themes/ia_typora.css|dot_var/app/io.typora.Typora/config/Typora/themes/create_ia_typora.css|-
+copy|.var/app/io.typora.Typora/config/Typora/themes/ia_typora_night.css|dot_var/app/io.typora.Typora/config/Typora/themes/create_ia_typora_night.css|-
 # jetbrains-app|version-globbed live product dir|product subdir|-
 # Captures each IDE's product-specific remainder into config/jetbrains-settings/
 # <Product>/ (version-normalised, outside the chezmoi seed tree, never deployed).

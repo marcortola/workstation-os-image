@@ -14,7 +14,7 @@
     excludesfile = /etc/gitignore
 [diff]
     algorithm = histogram
-    colorMoved = zebra
+    colorMoved = default
     mnemonicPrefix = true
 [commit]
     verbose = true
@@ -27,3 +27,5 @@
     sort = -committerdate
 [column]
     ui = auto
+[tag]
+    sort = -version:refname
