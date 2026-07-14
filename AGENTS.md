@@ -76,6 +76,12 @@ files. `CLAUDE.md` imports this file for Claude Code.
   user group provisioning.
 - Do not add btop, chezmoi, Git, fzf, or Just to the Brewfile; Zirconium ships
   them. Do not install Fish through Homebrew; the image owns `/usr/bin/fish`.
+- Third-party Brewfile taps are trusted for the `linuxbrew` user automatically
+  by `workstation-brew-trust.service` (re-derived from the Brewfile each boot),
+  and `uupd` upgrades installed brews daily; the standalone `brew-*.timer` units
+  are inert under brew-proxy. A tap-qualified `brew`/`cask` line is self-trusting
+  but not self-installing on an existing machine: run `just brew-apply` once
+  after deploy to install newly added entries.
 - Do not capture `fish_variables`, mutable DMS JSON, Neovim state/cache, or
   configuration backup files.
 
@@ -101,6 +107,7 @@ files. `CLAUDE.md` imports this file for Claude Code.
   drift.
 - `just sync`: copy manifest-listed live files into create-only image seeds.
 - `just capture`: sync, validate, and show the resulting Git status/diff.
+- `just brew-apply`: install not-yet-installed Brewfile entries (brew, cask, Flatpak).
 - `just dms-capture`: interactively promote portable live DMS preferences.
 - `just dms-remove`: interactively stop tracking selected DMS preferences.
 - `just dms-apply`: explicitly restore the tracked overlay into the live account.
