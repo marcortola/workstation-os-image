@@ -35,9 +35,16 @@ fi
 }
 
 # Homebrew requires explicit trust before loading third-party tap formulae.
-# Scope this to the specific tap formulae the Brewfile pulls in.
-"$brew" trust --formula anomalyco/tap/opencode
-"$brew" trust --formula raine/workmux/workmux
+# Derive the trust set from the Brewfile so adding a tap-qualified `brew` line
+# is enough; the system-level workstation-brew-trust.service does the same for
+# linuxbrew's store (which uupd reads), while this covers this user's own store.
+mapfile -t trust_names < <(
+    grep -oE '^[[:space:]]*brew[[:space:]]+"[^"]*/[^"]*"' "$brewfile" \
+        | sed -E 's/^[[:space:]]*brew[[:space:]]+"([^"]+)".*/\1/'
+)
+for name in "${trust_names[@]}"; do
+    "$brew" trust --formula "$name"
+done
 "$brew" bundle install --file "$brewfile"
 
 # JetBrains does not publish a Linux Homebrew cask. Install Toolbox entirely
