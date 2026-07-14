@@ -1,5 +1,12 @@
 // Local workstation shortcuts. This file is preserved by Zirconium/chezmoi.
 binds {
+    // Tmux terminal: foot with a durable tmux session. Companion to Mod+T
+    // (plain terminal) — same T key, Alt modifier selects the tmux variant.
+    // 't' in fish does the same thing from an existing shell.
+    Mod+Alt+T hotkey-overlay-title="Open a Tmux Terminal" {
+        spawn "foot" "--title=Tmux" "--app-id=tmux" "tmux" "new-session" "-A" "-s" "main";
+    }
+
     // Vertical arrows drive workspaces instead of window-in-column focus.
     // Custom hotkey-overlay titles make niri's "Important Hotkeys" pop-up show
     // these arrows instead of the built-in Page Up/Down binds (niri shows a
