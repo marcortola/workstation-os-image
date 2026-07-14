@@ -6,7 +6,7 @@ if test -d /home/linuxbrew/.linuxbrew
 end
 
 if status is-interactive; and command -q tmux; and not set -q TMUX
-    exec tmux
+    tmux new-session -A -s main
 end
 
 if status is-interactive; and command -q starship
