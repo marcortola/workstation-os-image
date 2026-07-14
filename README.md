@@ -276,6 +276,17 @@ wjust audit
 Do not install image-owned software with rpm-ostree layering. Add it to this
 repository so every future workstation gets the same result.
 
+Homebrew updates run automatically: Universal Blue's `uupd` runs `brew update`
+and `brew upgrade` daily as the `linuxbrew` user (`uupd.timer`, 04:00), next to
+its Flatpak, Distrobox and bootc modules. The standalone upstream
+`brew-update.timer` and `brew-upgrade.timer` stay inert here — brew-proxy
+replaces `/home/linuxbrew/.linuxbrew/bin/brew` with a dispatch wrapper, so their
+`ConditionPathIsSymbolicLink` never matches and every firing skips. That is
+expected, not drift; `uupd` owns brew upgrades. Force one with `brew upgrade`
+and authenticate the brew-proxy prompt so it runs as `linuxbrew`. A tap left
+untrusted for that user (for example `anomalyco/tap`) is skipped until you
+`brew trust` it.
+
 ## Recover
 
 Inspect both bootc and ostree state before changing deployments:
