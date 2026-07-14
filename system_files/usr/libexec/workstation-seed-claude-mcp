@@ -12,7 +12,6 @@ set -euo pipefail
 state_home="${XDG_STATE_HOME:-$HOME/.local/state}"
 marker="$state_home/workstation-os-image/claude-mcp-seeded"
 claude=/home/linuxbrew/.linuxbrew/bin/claude
-npx=/home/linuxbrew/.linuxbrew/bin/npx
 
 # Homebrew provides both the claude-code cask and Node; wait for
 # workstation-bootstrap to install them before seeding. Exiting non-zero keeps
@@ -46,9 +45,11 @@ seed_stdio() {
 # Documentation lookup server; no credentials.
 seed_http context7 https://mcp.context7.com/mcp
 
-# Microsoft's browser-automation server over stdio, launched through
-# Homebrew's npx. @playwright/mcp needs no credentials.
-seed_stdio playwright "$npx" @playwright/mcp@latest
+# Microsoft's browser-automation server over stdio. It has no credentials and
+# drives the per-user Flatpak Google Chrome on demand through a CDP wrapper
+# (workstation-playwright-mcp): no browser is layered into the image, and Chrome
+# is started only when the MCP server is actually invoked.
+seed_stdio playwright /usr/libexec/workstation-playwright-mcp
 
 # Ahrefs SEO server. Authentication is an interactive browser OAuth login: run
 # `claude mcp login ahrefs` once per account. Requires a paid Ahrefs plan.

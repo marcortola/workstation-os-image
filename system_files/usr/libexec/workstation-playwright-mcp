@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# Launch the Playwright MCP server against the image's Flatpak Google Chrome.
+#
+# @playwright/mcp defaults to the "chrome" channel and expects a native Chrome
+# at /opt/google/chrome/chrome, which this image does not ship: Chrome is only
+# a Flatpak (com.google.Chrome, declared in the Brewfile). Playwright cannot
+# launch a Flatpak directly, so this wrapper starts Chrome itself with a CDP
+# port and attaches the MCP server to it with --cdp-endpoint. An already
+# running CDP endpoint is reused so repeated MCP launches share one browser.
+#
+# Optional environment toggles:
+#   WORKSTATION_PLAYWRIGHT_CDP_PORT   CDP port (default 9222)
+#   WORKSTATION_PLAYWRIGHT_HEADED     set to 1 for a visible Chrome window
+set -euo pipefail
+
+port="${WORKSTATION_PLAYWRIGHT_CDP_PORT:-9222}"
+npx=/home/linuxbrew/.linuxbrew/bin/npx
+
+# Per-user, per-boot state under the runtime dir: tmpfs, 0700, cleared on
+# logout, so browser profiles and logs never persist or leak between users.
+runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+state_dir="$runtime_dir/workstation-playwright-mcp"
+profile_dir="$state_dir/chrome-profile"
+log_file="$state_dir/chrome.log"
+mkdir -p "$profile_dir"
+
+headless_flag="--headless=new"
+[[ "${WORKSTATION_PLAYWRIGHT_HEADED:-0}" == "1" ]] && headless_flag=""
+
+cdp_endpoint="http://127.0.0.1:${port}"
+
+cdp_up() {
+    curl -fs --connect-timeout 1 "${cdp_endpoint}/json/version" >/dev/null 2>&1
+}
+
+if ! cdp_up; then
+    # Bind the debugging port to the loopback only. --user-data-dir keeps this
+    # profile out of the user's real Chrome profile. Chrome is detached so it
+    # outlives this wrapper and can be reused by the next MCP launch.
+    setsid flatpak run com.google.Chrome \
+        ${headless_flag:+"$headless_flag"} \
+        --no-first-run \
+        --no-default-browser-check \
+        --disable-gpu \
+        --user-data-dir="$profile_dir" \
+        --remote-debugging-address=127.0.0.1 \
+        --remote-debugging-port="$port" \
+        about:blank \
+        >"$log_file" 2>&1 &
+
+    for _ in $(seq 1 40); do
+        cdp_up && break
+        sleep 0.25
+    done
+
+    if ! cdp_up; then
+        echo "workstation-playwright-mcp: Chrome CDP endpoint ${cdp_endpoint} did not come up." >&2
+        echo "Is the com.google.Chrome Flatpak installed? See ${log_file}." >&2
+        exit 1
+    fi
+fi
+
+exec "$npx" -y @playwright/mcp@latest --cdp-endpoint "$cdp_endpoint" "$@"
