@@ -1,14 +1,18 @@
 [Unit]
 Description=Trust third-party Homebrew tap formulae for the linuxbrew user
 Documentation=https://github.com/marcortola/workstation-os-image
-# brew-setup.service untars /home/linuxbrew; brew-proxy-setup.service installs
-# the bin/brew dispatch wrapper and chowns /home/linuxbrew to linuxbrew. Order
-# after both (they are pulled in by their own presets); the ConditionPathExists
-# guards below make this a clean no-op if brew is not yet fully provisioned.
-After=brew-setup.service brew-proxy-setup.service
-# proxy/brew-original exists only after brew-proxy-setup has swapped the symlink
-# (and, on first boot, before its recursive chown/chmod). Gating on it means we
-# no-op cleanly until brew is fully provisioned rather than racing that setup.
+# Order after brew-setup.service (it untars /home/linuxbrew). Do NOT order after
+# brew-proxy-setup.service: it is itself After=multi-user.target while this unit
+# is WantedBy=multi-user.target, so ordering after it forms a cycle that systemd
+# breaks by dropping this unit's job. The ConditionPathExists on
+# proxy/brew-original below instead ensures brew-proxy-setup has already run; a
+# boot where it has not yet is a clean no-op that the next boot (or the uupd
+# drop-in, which runs this in uupd's own cycle-free transaction) covers.
+After=brew-setup.service
+# bin/brew must exist (brew provisioned) and proxy/brew-original must exist
+# (brew-proxy-setup has swapped the symlink and finished its recursive
+# chown/chmod), so this no-ops cleanly until brew is fully provisioned instead
+# of racing that setup.
 ConditionPathExists=/home/linuxbrew/.linuxbrew/bin/brew
 ConditionPathExists=/home/linuxbrew/.linuxbrew/proxy/brew-original
 
