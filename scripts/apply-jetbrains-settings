@@ -67,12 +67,6 @@ denied_path() {
     return 1
 }
 
-# Detect a running IDE by its paths.selector (the versioned config dir name),
-# which the JVM carries as -Didea.paths.selector=<Product><Version>.
-ide_running() {
-    pgrep -f "$1" >/dev/null 2>&1
-}
-
 timestamp="$(date +%Y%m%dT%H%M%S)"
 applied=0
 skipped=0
@@ -98,6 +92,7 @@ apply_product() {
         [[ -d $root ]] || continue
         while IFS= read -r -d '' src; do
             rel=${src#"$root/"}
+            [[ $rel == plugins.list ]] && continue
             denied_path "$rel" && continue
             payload["$rel"]="$src"
         done < <(find "$root" -type f -print0)
@@ -118,7 +113,7 @@ apply_product() {
         return 0
     fi
 
-    if ide_running "$selector"; then
+    if workstation_jetbrains_ide_running "$selector"; then
         echo "  $product: IDE appears to be RUNNING ($selector) — refusing." >&2
         echo "    Quit it and re-run; an external write is ignored while it runs." >&2
         (( ++skipped ))

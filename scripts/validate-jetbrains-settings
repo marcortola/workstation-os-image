@@ -18,6 +18,7 @@ mapfile -t products < <(awk -F'|' '$1 == "jetbrains-app" { print $3 }' "$manifes
 mapfile -t shared_allow < <(workstation_jetbrains_shared_allowlist)
 mapfile -t product_allow < <(workstation_jetbrains_product_allowlist)
 mapfile -t deny < <(workstation_jetbrains_denylist)
+mapfile -t vendored < <(workstation_jetbrains_vendored)
 
 declared_product() {
     local candidate=$1 product
@@ -61,8 +62,9 @@ while IFS= read -r -d '' file; do
     fi
 
     if [[ $bucket == _shared ]]; then
-        if ! path_allowed "$subpath" "${shared_allow[@]}"; then
-            echo "Non-shared file in _shared/ (belongs in a product dir?): $relative" >&2
+        if ! path_allowed "$subpath" "${shared_allow[@]}" \
+            && ! path_allowed "$subpath" "${vendored[@]}"; then
+            echo "Unexpected file in _shared/ (not shared config or vendored): $relative" >&2
             status=1
         fi
     elif declared_product "$bucket"; then
@@ -76,7 +78,30 @@ while IFS= read -r -d '' file; do
     fi
 done < <(find "$backup_root" -type f -print0 | sort -z)
 
+# Lint the shared plugin list: well-formed IDs, no duplicates, and CamelCase
+# present whenever the shared keymap binds its ToggleCamelCase action.
+plugins_list="$backup_root/_shared/plugins.list"
+keymap="$backup_root/_shared/keymaps/custom.xml"
+if [[ -f $plugins_list ]]; then
+    mapfile -t plugin_ids < <(workstation_jetbrains_plugins "$plugins_list")
+    for id in "${plugin_ids[@]:-}"; do
+        [[ -z $id ]] && continue
+        [[ $id =~ ^[A-Za-z0-9._-]+$ ]] || {
+            echo "Malformed plugin ID in plugins.list: $id" >&2
+            status=1
+        }
+    done
+    dupes="$(printf '%s\n' "${plugin_ids[@]:-}" | sort | uniq -d | grep -v '^$' || true)"
+    [[ -z $dupes ]] || { echo "Duplicate plugin IDs in plugins.list: $dupes" >&2; status=1; }
+    if [[ -f $keymap ]] && grep -qi 'CamelCasePlugin' "$keymap"; then
+        printf '%s\n' "${plugin_ids[@]:-}" | grep -qiFx 'de.netnexus.camelcaseplugin' || {
+            echo "Shared keymap binds CamelCase but plugins.list omits de.netnexus.camelcaseplugin" >&2
+            status=1
+        }
+    fi
+fi
+
 if (( status == 0 )); then
-    echo "JetBrains settings backup is split cleanly into shared + product, secret-free."
+    echo "JetBrains settings split cleanly (shared + product), secret-free; plugin list valid."
 fi
 exit "$status"

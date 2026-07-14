@@ -1,0 +1,8 @@
+# Shared JetBrains plugins, installed into every IDE by scripts/apply-jetbrains-plugins
+# via the headless `installPlugins` launcher command. One canonical Marketplace
+# plugin ID per line; JARs are fetched at apply time, never vendored. Only portable,
+# non-language-locked plugins belong here (PHP/Terraform/etc. stay per-IDE).
+de.netnexus.camelcaseplugin
+org.sylfra.idea.plugins.linessorter
+mobi.hsz.idea.gitignore
+ru.adelf.idea.dotenv

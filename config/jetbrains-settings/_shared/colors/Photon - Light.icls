@@ -1,9 +1,10 @@
 <scheme name="Photon - Light" version="142" parent_scheme="Default">
+  <option name="FONT_SCALE" value="1.0" />
   <metaInfo>
     <property name="created">2019-02-22T16:16:36</property>
     <property name="ide">PhpStorm</property>
     <property name="ideVersion">2018.3.4.0.0</property>
-    <property name="modified">2020-06-22T19:21:20</property>
+    <property name="modified">2019-02-22T16:16:39</property>
     <property name="originalScheme">Photon - Light</property>
   </metaInfo>
   <colors>
@@ -242,14 +243,13 @@
     </option>
     <option name="DEFAULT_DOC_COMMENT_TAG">
       <value>
-        <option name="FONT_TYPE" value="3" />
+        <option name="FOREGROUND" value="555555" />
+        <option name="FONT_TYPE" value="1" />
         <option name="EFFECT_TYPE" value="1" />
       </value>
     </option>
     <option name="DEFAULT_DOC_COMMENT_TAG_VALUE">
-      <value>
-        <option name="FONT_TYPE" value="2" />
-      </value>
+      <value />
     </option>
     <option name="DEFAULT_DOC_MARKUP">
       <value />
@@ -556,11 +556,6 @@
     </option>
     <option name="PHP_CONCATENATION">
       <value />
-    </option>
-    <option name="PHP_DOC_IDENTIFIER">
-      <value>
-        <option name="FOREGROUND" value="888888" />
-      </value>
     </option>
     <option name="PHP_EXEC_COMMAND_ID" baseAttributes="DEFAULT_STRING" />
     <option name="PHP_IDENTIFIER">
