@@ -9,14 +9,15 @@ directory|.config/fish/conf.d|dot_config/fish/conf.d|*.fish
 directory|.config/fish/functions|dot_config/fish/functions|*.fish
 copy|.config/foot/tokyo-night.ini|dot_config/foot/create_tokyo-night.ini|-
 template|.config/foot/workstation.ini|dot_config/foot/create_workstation.ini.tmpl|-
-copy|.config/zellij/config.kdl|dot_config/zellij/create_config.kdl|-
-copy|.config/zellij/layouts/minimal.kdl|dot_config/zellij/layouts/create_minimal.kdl|-
+copy|.config/tmux/tmux.conf|dot_config/tmux/create_tmux.conf|-
 template|.config/niri/local.kdl|dot_config/niri/create_local.kdl.tmpl|-
 template|.config/starship.toml|dot_config/create_starship.toml.tmpl|-
 copy|.config/lazygit/config.yml|dot_config/lazygit/create_config.yml|-
 copy|.config/lazydocker/config.yml|dot_config/lazydocker/create_config.yml|-
 copy|.config/btop/btop.conf|dot_config/btop/create_btop.conf|-
 copy|.config/fontconfig/fonts.conf|dot_config/fontconfig/create_fonts.conf|-
+copy|.config/fcitx5/config|dot_config/fcitx5/create_config|-
+copy|.config/fcitx5/profile|dot_config/fcitx5/create_profile|-
 copy|.config/fcitx5/conf/unicode.conf|dot_config/fcitx5/conf/create_unicode.conf|-
 copy|.config/DankMaterialShell/themes/tokyoNightDark/theme.json|dot_config/DankMaterialShell/themes/tokyoNightDark/create_theme.json|-
 copy|.config/homebrew/Brewfile|dot_config/homebrew/create_Brewfile|-
@@ -24,6 +25,7 @@ copy|.local/share/flatpak/overrides/com.onepassword.OnePassword|private_dot_loca
 copy|.local/bin/workstation-dev|private_dot_local/bin/create_executable_workstation-dev|-
 copy|.local/bin/workstation-dictate|private_dot_local/bin/create_executable_workstation-dictate|-
 copy|.local/bin/workstation-openai-key|private_dot_local/bin/create_executable_workstation-openai-key|-
+copy|.local/bin/workstation-cycle-keyboard-layout|private_dot_local/bin/create_executable_workstation-cycle-keyboard-layout|-
 copy|.config/nvim/init.lua|dot_config/nvim/create_init.lua|-
 copy|.config/nvim/lazy-lock.json|dot_config/nvim/create_lazy-lock.json|-
 copy|.config/nvim/lazyvim.json|dot_config/nvim/create_lazyvim.json|-

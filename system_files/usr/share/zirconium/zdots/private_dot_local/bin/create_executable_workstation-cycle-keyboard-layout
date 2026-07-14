@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Cycle to the next fcitx5 input method (keyboard layout) among the configured
+# layouts, wrapping around. Bound in niri as "Switch Keyboard Language" on
+# Ctrl+Alt+Space, replacing fcitx5's built-in Ctrl+Space trigger so that key is
+# free for the tmux prefix.
+set -euo pipefail
+
+command -v fcitx5-remote >/dev/null 2>&1 || exit 0
+fcitx5-remote --check >/dev/null 2>&1 || exit 0
+
+profile="${XDG_CONFIG_HOME:-$HOME/.config}/fcitx5/profile"
+[[ -r $profile ]] || exit 0
+
+# Input-method unique names in profile order (one entry per configured layout).
+mapfile -t ims < <(
+    awk -F= '
+        /^\[Groups\/[0-9]+\/Items\/[0-9]+\]$/ { in_item = 1; next }
+        in_item && /^Name=/ { print $2; in_item = 0 }
+    ' "$profile"
+)
+(( ${#ims[@]} >= 2 )) || exit 0
+
+current="$(fcitx5-remote -n 2>/dev/null || true)"
+next="${ims[0]}"
+for i in "${!ims[@]}"; do
+    if [[ ${ims[i]} == "$current" ]]; then
+        next="${ims[$(((i + 1) % ${#ims[@]}))]}"
+        break
+    fi
+done
+
+exec fcitx5-remote -s "$next"

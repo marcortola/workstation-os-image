@@ -62,8 +62,6 @@ brew "watch"
 brew "yazi"
 # Process YAML, JSON, XML, CSV and properties documents from the CLI
 brew "yq"
-# Terminal workspace and multiplexer
-brew "zellij"
 # Smarter directory navigation
 brew "zoxide"
 # Terminal-based AI coding assistant
