@@ -1,4 +1,4 @@
-<code_scheme name="marc-psr2" version="173">
+<code_scheme name="custom" version="173">
   <option name="FORMATTER_TAGS_ENABLED" value="true" />
   <JSCodeStyleSettings version="0">
     <option name="USE_DOUBLE_QUOTES" value="false" />
@@ -16,9 +16,6 @@
     <option name="KEEP_RPAREN_AND_LBRACE_ON_ONE_LINE" value="true" />
     <option name="FORCE_SHORT_DECLARATION_ARRAY_STYLE" value="true" />
   </PHPCodeStyleSettings>
-  <codeStyleSettings language="HCL-Terraform">
-    <option name="RIGHT_MARGIN" value="300" />
-  </codeStyleSettings>
   <codeStyleSettings language="PHP">
     <option name="BLANK_LINES_AFTER_PACKAGE" value="1" />
     <option name="ALIGN_MULTILINE_ARRAY_INITIALIZER_EXPRESSION" value="true" />
@@ -34,13 +31,5 @@
     <option name="DOWHILE_BRACE_FORCE" value="3" />
     <option name="WHILE_BRACE_FORCE" value="3" />
     <option name="FOR_BRACE_FORCE" value="3" />
-  </codeStyleSettings>
-  <codeStyleSettings language="Twig">
-    <option name="RIGHT_MARGIN" value="160" />
-  </codeStyleSettings>
-  <codeStyleSettings language="yaml">
-    <indentOptions>
-      <option name="INDENT_SIZE" value="4" />
-    </indentOptions>
   </codeStyleSettings>
 </code_scheme>

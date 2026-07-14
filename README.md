@@ -149,7 +149,12 @@ state, and enforces that a file lives in exactly one place.
 | --- | --- |
 | `wjust jetbrains-diff` | Show where each installed IDE diverges from the shared canonical |
 | `wjust jetbrains-promote [Product]` | Refresh `_shared/` from the canonical IDE (default: first listed) |
-| `wjust jetbrains-apply [--force]` | Write `_shared/` + remainder into the IDEs (dry run without `--force`) |
+| `wjust jetbrains-apply [--force]` | Write `_shared/` + remainder and install shared plugins (dry run without `--force`) |
+| `wjust jetbrains-plugins [--force]` | Install the `_shared/plugins.list` plugins into each IDE (dry run without `--force`) |
+
+Shared plugins are declared as Marketplace IDs in
+`config/jetbrains-settings/_shared/plugins.list` and installed headlessly with the
+IDE's `installPlugins` command; the JARs are fetched at apply time, never vendored.
 
 Typical unification: edit settings in the canonical IDE, `wjust jetbrains-promote`
 to capture them into `_shared/`, review the diff, then `wjust jetbrains-apply

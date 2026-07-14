@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+# Install the shared JetBrains plugins (config/jetbrains-settings/_shared/plugins.list)
+# into every installed IDE using the headless `installPlugins` launcher command.
+# JARs are fetched from Marketplace at apply time, never vendored. Idempotent:
+# already-present plugins are skipped and each install is verified by read-back.
+# Requires network. Dry run without --force; installs load on the IDE's next launch.
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/lib/dotfiles.sh
+source "$repo_root/scripts/lib/dotfiles.sh"
+
+manifest="$repo_root/config/dotfiles.manifest"
+overlay="${WORKSTATION_JETBRAINS_OVERLAY:-$repo_root/config/jetbrains-settings}"
+plugins_list="$overlay/_shared/plugins.list"
+toolbox_apps="$HOME/.local/share/JetBrains/Toolbox/apps"
+plugins_root="$HOME/.local/share/JetBrains"
+
+force=false
+only_product=""
+
+while (( $# )); do
+    case "$1" in
+        --force) force=true ;;
+        # Accepted for parity with jetbrains-apply's flags; unused here because
+        # installing a plugin locally does not force-push any cloud state.
+        --i-understand-overwrites-cloud) : ;;
+        --product) shift; only_product="${1:-}" ;;
+        --product=*) only_product="${1#*=}" ;;
+        -h | --help) echo "Usage: apply-jetbrains-plugins [--force] [--product NAME]"; exit 0 ;;
+        *) echo "Unknown argument: $1" >&2; exit 2 ;;
+    esac
+    shift
+done
+
+mapfile -t plugins < <(workstation_jetbrains_plugins "$plugins_list")
+if (( ${#plugins[@]} == 0 )); then
+    echo "No shared plugins declared in $plugins_list"
+    exit 0
+fi
+
+# Lowercased plugin IDs already installed under a product's plugins directory.
+installed_ids() {
+    local dir=$1 jar id
+    [[ -d $dir ]] || return 0
+    while IFS= read -r -d '' jar; do
+        id="$(unzip -p "$jar" META-INF/plugin.xml 2>/dev/null | grep -oPm1 '(?<=<id>)[^<]+')"
+        [[ -n $id ]] && printf '%s\n' "${id,,}"
+    done < <(find "$dir" -maxdepth 3 -name '*.jar' -print0 2>/dev/null)
+}
+
+installed=0
+already=0
+skipped=0
+failed=0
+
+apply_product() {
+    local product=$1 live_glob=$2
+    local live_dir selector launcher plugins_dir id out
+    live_dir="$(workstation_jetbrains_newest_dir "$live_glob")"
+    if [[ -z $live_dir ]]; then
+        echo "  $product: not installed, skipping"
+        return 0
+    fi
+    selector="$(basename "$live_dir")"
+    launcher="$toolbox_apps/${product,,}/bin/${product,,}.sh"
+    plugins_dir="$plugins_root/$selector"
+    if [[ ! -x $launcher ]]; then
+        echo "  $product: launcher not found ($launcher), skipping" >&2
+        (( skipped += ${#plugins[@]} ))
+        return 0
+    fi
+
+    local -A have=()
+    while IFS= read -r id; do have["$id"]=1; done < <(installed_ids "$plugins_dir")
+    local missing=()
+    for id in "${plugins[@]}"; do
+        [[ -n ${have[${id,,}]:-} ]] || missing+=("$id")
+    done
+
+    if (( ${#missing[@]} == 0 )); then
+        echo "  $product: all ${#plugins[@]} shared plugin(s) already present"
+        (( already += ${#plugins[@]} ))
+        return 0
+    fi
+
+    if [[ $force != true ]]; then
+        echo "  $product ($selector): would install ${missing[*]}"
+        return 0
+    fi
+
+    if workstation_jetbrains_ide_running "$selector"; then
+        echo "  $product: IDE is RUNNING ($selector) — refusing plugin install." >&2
+        (( skipped += ${#missing[@]} ))
+        return 0
+    fi
+
+    echo "  $product ($selector): installing ${missing[*]}"
+    out="$("$launcher" installPlugins "${missing[@]}" 2>&1)"
+
+    # Verify by read-back of the user plugins dir, OR the launcher's own
+    # "already installed" line (covers plugins bundled with the product, which
+    # never appear in the user plugins dir).
+    have=()
+    while IFS= read -r id; do have["$id"]=1; done < <(installed_ids "$plugins_dir")
+    for id in "${missing[@]}"; do
+        if [[ -n ${have[${id,,}]:-} ]] || grep -qiF "already installed: $id" <<< "$out"; then
+            echo "    installed $id"
+            (( ++installed ))
+        else
+            echo "    FAILED $id (incompatible or network/marketplace)" >&2
+            (( ++failed ))
+        fi
+    done
+}
+
+echo "Applying shared JetBrains plugins (list: $plugins_list)"
+[[ $force == true ]] || echo "(dry run — pass --force to install)"
+
+while IFS='|' read -r kind live_path source_path _; do
+    [[ $kind == jetbrains-app ]] || continue
+    [[ -n $only_product && $source_path != "$only_product" ]] && continue
+    apply_product "$source_path" "$live_path"
+done < "$manifest"
+
+echo
+echo "Plugins: installed $installed, already-present $already, skipped $skipped, failed $failed."
+[[ $force == true && $installed -gt 0 ]] && echo "Installed plugins load on the IDE's next launch."
+exit "$(( failed > 0 ? 1 : 0 ))"

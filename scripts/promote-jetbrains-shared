@@ -32,9 +32,11 @@ live_dir="$(workstation_jetbrains_newest_dir "$live_glob")"
 }
 
 echo "Promoting shared JetBrains settings from $product ($live_dir) into _shared/"
-rm -rf -- "$shared_dir"
 count=0
 while IFS= read -r entry; do
+    # Refresh each captured entry in place; vendored files (colours, plugins.list)
+    # are not in the allow-list and are deliberately left untouched.
+    rm -rf -- "${shared_dir:?}/$entry"
     entry_src="$live_dir/$entry"
     if [[ -d $entry_src ]]; then
         while IFS= read -r -d '' file; do

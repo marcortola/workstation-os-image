@@ -32,9 +32,15 @@ jetbrains-diff:
 jetbrains-promote product="":
     ./scripts/promote-jetbrains-shared {{ product }}
 
-# Write the shared JetBrains config into the IDEs (dry run without --force).
+# Write the shared JetBrains config and install shared plugins into the IDEs
+# (dry run without --force).
 jetbrains-apply *args:
     ./scripts/apply-jetbrains-settings {{ args }}
+    ./scripts/apply-jetbrains-plugins {{ args }}
+
+# Install the shared JetBrains plugins into the IDEs (dry run without --force).
+jetbrains-plugins *args:
+    ./scripts/apply-jetbrains-plugins {{ args }}
 
 # Refresh create-only seeds from manifest-listed live files.
 sync:

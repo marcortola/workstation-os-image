@@ -27,32 +27,27 @@ workstation_live_relative() {
 # handled recursively.
 workstation_jetbrains_shared_allowlist() {
     printf '%s\n' \
-        keymaps \
-        colors \
+        keymaps/custom.xml \
         templates \
         options/editor.xml \
         options/editor-font.xml \
-        options/console-font.xml \
         options/terminal-font.xml \
         options/laf.xml \
         options/ui.lnf.xml \
         options/colors.scheme.xml \
-        options/keymap.xml \
-        options/keymapFlags.xml
+        options/keymapFlags.xml \
+        options/linux/keymap.xml
 }
 
 # Portable but product-specific JetBrains settings that legitimately differ per
-# IDE (language code styles, file/live templates, inspections, product toolbars).
-# Captured per product into config/jetbrains-settings/<Product>/ by sync-dotfiles
-# and layered on top of the shared canonical during apply.
+# IDE (a language code style and file/live templates). Captured per product into
+# config/jetbrains-settings/<Product>/ by sync-dotfiles and layered on top of the
+# shared canonical during apply.
 workstation_jetbrains_product_allowlist() {
     printf '%s\n' \
-        codestyles \
+        codestyles/custom.xml \
         fileTemplates \
-        inspection \
-        options/code.style.schemes.xml \
-        options/customization.xml \
-        options/filetypes.xml
+        options/code.style.schemes.xml
 }
 
 # The full capturable/portable set: the union of the shared and product lists.
@@ -61,6 +56,35 @@ workstation_jetbrains_product_allowlist() {
 workstation_jetbrains_allowlist() {
     workstation_jetbrains_shared_allowlist
     workstation_jetbrains_product_allowlist
+}
+
+# Files embedded in _shared/ from upstream or authored by hand rather than captured
+# from a live IDE, so promote-jetbrains-shared must preserve them: the colour
+# schemes vendored from upstream, and the shared plugin list. apply writes the
+# colour schemes into the IDEs; plugins.list drives apply-jetbrains-plugins and is
+# never written into an IDE configuration directory.
+workstation_jetbrains_vendored() {
+    printf '%s\n' \
+        'colors/Photon - Light.icls' \
+        'colors/Photon - Dark.icls' \
+        plugins.list
+}
+
+# Detect a running IDE by its launcher process name (PhpStorm2026.1 -> "phpstorm").
+# Matching the exact comm avoids false positives from background helpers
+# (embeddings-server, fsnotifier) that merely reference the config directory.
+workstation_jetbrains_ide_running() {
+    local selector=$1 product
+    product=${selector%%[0-9]*}
+    pgrep -x "${product,,}" >/dev/null 2>&1
+}
+
+# Emit the shared plugin IDs from a plugins.list file, one per line, skipping
+# comments (# to end of line) and blank lines, trimming surrounding whitespace.
+workstation_jetbrains_plugins() {
+    local list=$1
+    [[ -f $list ]] || return 0
+    sed 's/#.*//' "$list" | awk '{gsub(/^[ \t]+|[ \t]+$/, "")} NF'
 }
 
 # Names that must never appear in the captured JetBrains backup tree. Enforced

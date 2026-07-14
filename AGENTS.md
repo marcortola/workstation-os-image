@@ -64,6 +64,12 @@ files. `CLAUDE.md` imports this file for Claude Code.
   GUI "Push Settings to Account" step. chezmoi never deploys these. `just
   jetbrains-diff` reports divergence; `just validate` enforces the shared/product
   split and the secret deny-list.
+- Shared plugins are declared as Marketplace IDs in
+  `config/jetbrains-settings/_shared/plugins.list` and installed headlessly by
+  `just jetbrains-plugins` (also run by `jetbrains-apply`); JARs are fetched at
+  apply time, never vendored. Only portable, non-language-locked plugins belong
+  there. Colour schemes and this list are vendored artifacts that `promote`
+  preserves and validation lints.
 - Docker remains rootful and available without `sudo` through dynamic local
   user group provisioning.
 - Do not add btop, chezmoi, Git, fzf, or Just to the Brewfile; Zirconium ships
@@ -99,6 +105,7 @@ files. `CLAUDE.md` imports this file for Claude Code.
 - `just jetbrains-diff`: report IDE divergence from the shared JetBrains canonical.
 - `just jetbrains-promote`: refresh `_shared/` from the canonical IDE.
 - `just jetbrains-apply`: write the shared config into the IDEs (dry run without `--force`).
+- `just jetbrains-plugins`: install the shared plugin list into the IDEs (dry run without `--force`).
 - `just validate`: run repository and effective workstation checks.
 - `just build`: build the complete bootc image locally with Podman.
 

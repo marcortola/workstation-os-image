@@ -126,8 +126,15 @@ if [[ -d $shared_dir && -n $canonical_live ]]; then
             fi
         done < <(workstation_jetbrains_shared_allowlist)
 
+        declare -A jb_vendored=()
+        while IFS= read -r vendored_entry; do
+            jb_vendored["$vendored_entry"]=1
+        done < <(workstation_jetbrains_vendored)
         while IFS= read -r -d '' seed; do
             relative=${seed#"$shared_dir/"}
+            # Vendored artifacts (colour schemes, plugins.list) are never in a live
+            # IDE, so they are not drift.
+            [[ -n ${jb_vendored[$relative]:-} ]] && continue
             [[ -f $canonical_dir/$relative ]] || \
                 report_difference "removed-live" "_shared/$relative"
         done < <(find "$shared_dir" -type f -print0 | sort -z)
