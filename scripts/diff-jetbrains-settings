@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+# Read-only, advisory: report where each installed JetBrains IDE's live settings
+# diverge from the single shared canonical (_shared/), so you can see whether the
+# IDEs still "feel the same". Structural XML comparison ignores cosmetic noise.
+# Exit status is non-zero when any divergence exists, for opt-in gating; it is not
+# wired into `just validate`.
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/lib/dotfiles.sh
+source "$repo_root/scripts/lib/dotfiles.sh"
+
+manifest="$repo_root/config/dotfiles.manifest"
+shared_dir="$repo_root/config/jetbrains-settings/_shared"
+flatten="$repo_root/scripts/lib/jetbrains-xml-flatten.py"
+
+for arg in "$@"; do
+    case "$arg" in
+        -h | --help) echo "Usage: diff-jetbrains-settings"; exit 0 ;;
+        *) echo "Unknown argument: $arg" >&2; exit 2 ;;
+    esac
+done
+
+[[ -d $shared_dir ]] || {
+    echo "No shared canonical (_shared/); run 'just jetbrains-promote' first." >&2
+    exit 2
+}
+
+tmp="$(mktemp -d)"
+trap 'rm -rf -- "$tmp"' EXIT
+divergent=0
+
+# Flatten both files (falling back to raw content on parse failure) and report
+# whether they are structurally identical.
+xml_identical() {
+    python3 "$flatten" "$1" > "$tmp/canon" 2>/dev/null || cp -- "$1" "$tmp/canon"
+    python3 "$flatten" "$2" > "$tmp/live" 2>/dev/null || cp -- "$2" "$tmp/live"
+    diff -q "$tmp/canon" "$tmp/live" >/dev/null 2>&1
+}
+
+report() {
+    printf '  %-9s %s\n' "$1" "$2"
+    divergent=$((divergent + 1))
+}
+
+while IFS='|' read -r kind live_path source_path _; do
+    [[ $kind == jetbrains-app ]] || continue
+    live_dir="$(workstation_jetbrains_newest_dir "$live_path")"
+    [[ -n $live_dir ]] || { printf '%s: not installed\n' "$source_path"; continue; }
+
+    printf '%s vs shared canonical:\n' "$source_path"
+    before=$divergent
+    while IFS= read -r -d '' canon; do
+        rel=${canon#"$shared_dir/"}
+        live="$live_dir/$rel"
+        if [[ ! -f $live ]]; then
+            report "missing" "$rel"
+        elif ! xml_identical "$canon" "$live"; then
+            report "differs" "$rel"
+            diff "$tmp/canon" "$tmp/live" 2>/dev/null \
+                | grep -E '^[<>]' | head -n 6 | sed 's/^/          /'
+        fi
+    done < <(find "$shared_dir" -type f -print0 | sort -z)
+    (( divergent == before )) && echo "  matches the shared canonical"
+done < "$manifest"
+
+echo
+if (( divergent == 0 )); then
+    echo "All installed IDEs match the shared canonical."
+else
+    echo "$divergent divergence(s) from the shared canonical."
+    echo "Reconcile with 'just jetbrains-apply' (writes _shared/ into the IDEs)."
+fi
+exit "$(( divergent > 0 ? 1 : 0 ))"

@@ -90,7 +90,7 @@ while IFS='|' read -r kind live_path source_path pattern; do
                     compare_file "$entry_src" "$product_dir/$entry" \
                         "$source_path/$entry"
                 fi
-            done < <(workstation_jetbrains_allowlist)
+            done < <(workstation_jetbrains_product_allowlist)
 
             if [[ -d $product_dir ]]; then
                 while IFS= read -r -d '' seed; do
@@ -106,6 +106,33 @@ while IFS='|' read -r kind live_path source_path pattern; do
             ;;
     esac
 done < "$manifest"
+
+# Shared JetBrains canonical: compare _shared/ against the canonical product
+# (the first jetbrains-app entry), which promote-jetbrains-shared captures from.
+shared_dir="$repo_root/config/jetbrains-settings/_shared"
+canonical_live="$(awk -F'|' '$1 == "jetbrains-app" { print $2; exit }' "$manifest")"
+if [[ -d $shared_dir && -n $canonical_live ]]; then
+    canonical_dir="$(workstation_jetbrains_newest_dir "$canonical_live")"
+    if [[ -n $canonical_dir ]]; then
+        while IFS= read -r entry; do
+            entry_src="$canonical_dir/$entry"
+            if [[ -d $entry_src ]]; then
+                while IFS= read -r -d '' live; do
+                    relative=${live#"$canonical_dir/"}
+                    compare_file "$live" "$shared_dir/$relative" "_shared/$relative"
+                done < <(find "$entry_src" -type f -print0 | sort -z)
+            elif [[ -f $entry_src ]]; then
+                compare_file "$entry_src" "$shared_dir/$entry" "_shared/$entry"
+            fi
+        done < <(workstation_jetbrains_shared_allowlist)
+
+        while IFS= read -r -d '' seed; do
+            relative=${seed#"$shared_dir/"}
+            [[ -f $canonical_dir/$relative ]] || \
+                report_difference "removed-live" "_shared/$relative"
+        done < <(find "$shared_dir" -type f -print0 | sort -z)
+    fi
+fi
 
 if (( status == 0 )); then
     echo "  all manifest-listed files match their repository seeds"

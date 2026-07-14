@@ -24,6 +24,18 @@ dms-apply:
     WORKSTATION_DMS_SETTINGS_OVERLAY="$PWD/system_files/usr/share/workstation-os-image/dms-settings.json" \
         ./system_files/usr/bin/workstation-apply-dms-settings --force
 
+# Report where installed JetBrains IDEs diverge from the shared canonical.
+jetbrains-diff:
+    ./scripts/diff-jetbrains-settings
+
+# Refresh the shared JetBrains canonical (_shared/) from the canonical IDE.
+jetbrains-promote product="":
+    ./scripts/promote-jetbrains-shared {{ product }}
+
+# Write the shared JetBrains config into the IDEs (dry run without --force).
+jetbrains-apply *args:
+    ./scripts/apply-jetbrains-settings {{ args }}
+
 # Refresh create-only seeds from manifest-listed live files.
 sync:
     ./scripts/sync-dotfiles

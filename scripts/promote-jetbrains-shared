@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Refresh the single shared JetBrains canonical (config/jetbrains-settings/_shared/)
+# from a canonical product's live configuration. This is how the one shared
+# configuration is maintained: edit settings in the canonical IDE, promote, then
+# apply the result into the other IDEs.
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/lib/dotfiles.sh
+source "$repo_root/scripts/lib/dotfiles.sh"
+
+manifest="$repo_root/config/dotfiles.manifest"
+shared_dir="$repo_root/config/jetbrains-settings/_shared"
+
+product="${1:-}"
+# Default canonical product = the first declared jetbrains-app entry.
+if [[ -z $product ]]; then
+    product="$(awk -F'|' '$1 == "jetbrains-app" { print $3; exit }' "$manifest")"
+fi
+live_glob="$(awk -F'|' -v p="$product" \
+    '$1 == "jetbrains-app" && $3 == p { print $2; exit }' "$manifest")"
+[[ -n $live_glob ]] || {
+    echo "Unknown JetBrains product (not a jetbrains-app entry): $product" >&2
+    exit 2
+}
+
+live_dir="$(workstation_jetbrains_newest_dir "$live_glob")"
+[[ -n $live_dir ]] || {
+    echo "Canonical product not installed locally: $product ($live_glob)" >&2
+    exit 1
+}
+
+echo "Promoting shared JetBrains settings from $product ($live_dir) into _shared/"
+rm -rf -- "$shared_dir"
+count=0
+while IFS= read -r entry; do
+    entry_src="$live_dir/$entry"
+    if [[ -d $entry_src ]]; then
+        while IFS= read -r -d '' file; do
+            relative=${file#"$live_dir/"}
+            install -D -m 0644 "$file" "$shared_dir/$relative"
+            (( ++count ))
+        done < <(find "$entry_src" -type f -print0 | sort -z)
+    elif [[ -f $entry_src ]]; then
+        install -D -m 0644 "$entry_src" "$shared_dir/$entry"
+        (( ++count ))
+    fi
+done < <(workstation_jetbrains_shared_allowlist)
+
+echo "Promoted $count shared file(s) from $product."
+echo "Review 'git diff', then 'just jetbrains-apply' to fan the shared config out."

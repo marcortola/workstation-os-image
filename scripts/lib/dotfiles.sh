@@ -19,19 +19,17 @@ workstation_live_relative() {
     printf '%s%s%s\n' "$parent" "${parent:+/}" "$basename"
 }
 
-# Portable JetBrains settings captured for backup and version-tracking only.
-# Each entry is a path relative to a product configuration directory. Listed
-# directories are captured recursively; option files are allow-listed one by
-# one because options/ is dominated by telemetry, AI, licensing and per-machine
-# state that must never enter Git.
-workstation_jetbrains_allowlist() {
+# Portable JetBrains settings that should feel identical across every IDE:
+# shortcuts, colours, fonts and product-neutral editor/UI behaviour. These are
+# maintained once in config/jetbrains-settings/_shared/ (the single canonical
+# source) and applied into each IDE by scripts/apply-jetbrains-settings. Each
+# entry is a path relative to a product configuration directory; directories are
+# handled recursively.
+workstation_jetbrains_shared_allowlist() {
     printf '%s\n' \
         keymaps \
         colors \
-        codestyles \
         templates \
-        fileTemplates \
-        inspection \
         options/editor.xml \
         options/editor-font.xml \
         options/console-font.xml \
@@ -39,10 +37,30 @@ workstation_jetbrains_allowlist() {
         options/laf.xml \
         options/ui.lnf.xml \
         options/colors.scheme.xml \
+        options/keymap.xml \
+        options/keymapFlags.xml
+}
+
+# Portable but product-specific JetBrains settings that legitimately differ per
+# IDE (language code styles, file/live templates, inspections, product toolbars).
+# Captured per product into config/jetbrains-settings/<Product>/ by sync-dotfiles
+# and layered on top of the shared canonical during apply.
+workstation_jetbrains_product_allowlist() {
+    printf '%s\n' \
+        codestyles \
+        fileTemplates \
+        inspection \
         options/code.style.schemes.xml \
         options/customization.xml \
-        options/filetypes.xml \
-        options/keymapFlags.xml
+        options/filetypes.xml
+}
+
+# The full capturable/portable set: the union of the shared and product lists.
+# options/ is allow-listed one file at a time because it is otherwise dominated
+# by telemetry, AI, licensing and per-machine state that must never enter Git.
+workstation_jetbrains_allowlist() {
+    workstation_jetbrains_shared_allowlist
+    workstation_jetbrains_product_allowlist
 }
 
 # Names that must never appear in the captured JetBrains backup tree. Enforced
