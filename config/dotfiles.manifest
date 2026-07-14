@@ -17,6 +17,7 @@ copy|.config/lazygit/config.yml|dot_config/lazygit/create_config.yml|-
 copy|.config/lazydocker/config.yml|dot_config/lazydocker/create_config.yml|-
 copy|.config/btop/btop.conf|dot_config/btop/create_btop.conf|-
 copy|.config/fontconfig/fonts.conf|dot_config/fontconfig/create_fonts.conf|-
+copy|.config/fcitx5/conf/unicode.conf|dot_config/fcitx5/conf/create_unicode.conf|-
 copy|.config/DankMaterialShell/themes/tokyoNightDark/theme.json|dot_config/DankMaterialShell/themes/tokyoNightDark/create_theme.json|-
 copy|.config/homebrew/Brewfile|dot_config/homebrew/create_Brewfile|-
 copy|.local/share/flatpak/overrides/com.onepassword.OnePassword|private_dot_local/share/flatpak/overrides/create_com.onepassword.OnePassword|-
