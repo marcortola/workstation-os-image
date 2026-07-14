@@ -10,6 +10,12 @@ binds {
     Mod+Ctrl+Up   hotkey-overlay-title="Move Column to Workspace Up"   { move-column-to-workspace-up; }
     Mod+Ctrl+Down hotkey-overlay-title="Move Column to Workspace Down" { move-column-to-workspace-down; }
 
+    // Switch keyboard layout (fcitx5 us/es). Takes Ctrl+Space's old job so that
+    // key is free for the tmux prefix; the cycle helper drives fcitx5.
+    Ctrl+Alt+Space hotkey-overlay-title="Switch Keyboard Language" {
+        spawn "{{ .chezmoi.homeDir }}/.local/bin/workstation-cycle-keyboard-layout";
+    }
+
     Mod+Shift+G hotkey-overlay-title="Lazygit" {
         spawn "foot" "--working-directory={{ .chezmoi.homeDir }}" "--title=Lazygit" "--app-id=lazygit" "/home/linuxbrew/.linuxbrew/bin/lazygit";
     }

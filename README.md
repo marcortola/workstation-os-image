@@ -20,7 +20,7 @@ ghcr.io/marcortola/workstation-os-image:latest
   launcher's `/` file search.
 - Rootful Docker with its socket enabled and local users added dynamically to
   the `docker` group, so Docker does not require `sudo` after login.
-- Fish, Foot, pane-focused Zellij, Starship, Neovim and Tokyo Night defaults.
+- Fish, Foot, Omarchy-based Tmux, Starship, Neovim and Tokyo Night defaults.
 - OpenCode (`oc` and `Mod+Shift+O`), Caps Lock as Ctrl, and
   `gpt-4o-transcribe` dictation on `Mod+Shift+V`.
 - Default Claude Code MCP servers (`context7`, `playwright`, `ahrefs`) seeded
@@ -75,7 +75,7 @@ local terminal/GUI edits ──> audit + interactive capture ──> Git branch/
 | --- | --- | --- |
 | Zirconium | Niri/DMS scaffolding and desktop integration | Continues moving with the base image |
 | This image | RPMs, daemons, sockets, privileged helpers and factory defaults | Replaced transactionally by bootc |
-| Chezmoi seeds | Portable Fish, Foot, Zellij, Niri and application defaults | Create missing files; preserve later edits |
+| Chezmoi seeds | Portable Fish, Foot, Tmux, Niri and application defaults | Create missing files; preserve later edits |
 | DMS overlay | Explicitly captured, portable GUI preferences | Seeds a new account once; later UI edits win unless explicitly restored |
 | JetBrains config | One shared canonical (`_shared/`) plus per-product remainder | Applied into the IDEs on demand; never auto-synced |
 | Persistent home | Secrets, projects, histories, device state and application databases | Never stored in the image or Git |

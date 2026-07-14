@@ -1,13 +1,12 @@
 set -gx SHELL /usr/bin/fish
-set -gx ZELLIJ_AUTO_EXIT true
 
 # Homebrew
 if test -d /home/linuxbrew/.linuxbrew
     eval (/home/linuxbrew/.linuxbrew/bin/brew shellenv)
 end
 
-if status is-interactive; and command -q zellij
-    eval (zellij setup --generate-auto-start fish | string collect)
+if status is-interactive; and command -q tmux; and not set -q TMUX
+    exec tmux
 end
 
 if status is-interactive; and command -q starship
