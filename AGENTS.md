@@ -68,8 +68,10 @@ files. `CLAUDE.md` imports this file for Claude Code.
   `config/jetbrains-settings/_shared/plugins.list` and installed headlessly by
   `just jetbrains-plugins` (also run by `jetbrains-apply`); JARs are fetched at
   apply time, never vendored. Only portable, non-language-locked plugins belong
-  there. Colour schemes and this list are vendored artifacts that `promote`
-  preserves and validation lints.
+  there; product-specific plugins go in `config/jetbrains-settings/<Product>/
+  plugins.list` and install only into that IDE. Colour schemes and every
+  `plugins.list` are vendored artifacts that `sync`/`promote` preserve and
+  validation lints.
 - Docker remains rootful and available without `sudo` through dynamic local
   user group provisioning.
 - Do not add btop, chezmoi, Git, fzf, or Just to the Brewfile; Zirconium ships
