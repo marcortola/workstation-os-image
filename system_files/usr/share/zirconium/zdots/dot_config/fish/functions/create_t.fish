@@ -1,3 +1,3 @@
-function t --description "Attach or create the durable tmux session (main)"
-    tmux new-session -A -s main $argv
+function t --description "Open a fresh tmux session"
+    tmux new-session $argv
 end
