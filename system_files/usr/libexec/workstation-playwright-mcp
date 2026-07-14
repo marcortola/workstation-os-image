@@ -35,9 +35,12 @@ cdp_up() {
 
 if ! cdp_up; then
     # Bind the debugging port to the loopback only. --user-data-dir keeps this
-    # profile out of the user's real Chrome profile. Chrome is detached so it
-    # outlives this wrapper and can be reused by the next MCP launch.
-    setsid flatpak run com.google.Chrome \
+    # profile out of the user's real Chrome profile. Chrome is detached with
+    # nohup so it outlives this wrapper and can be reused by the next MCP launch.
+    # NOT setsid: a new session detaches Chrome from the graphical session's
+    # D-Bus portal and it dies with "cannot autolaunch D-Bus without X11
+    # $DISPLAY". nohup keeps the session (portal works) while surviving SIGHUP.
+    nohup flatpak run com.google.Chrome \
         ${headless_flag:+"$headless_flag"} \
         --no-first-run \
         --no-default-browser-check \
@@ -48,9 +51,10 @@ if ! cdp_up; then
         about:blank \
         >"$log_file" 2>&1 &
 
-    for _ in $(seq 1 40); do
+    # Up to 30s: a cold first-login can still be staging the Flatpak runtime.
+    for _ in $(seq 1 60); do
         cdp_up && break
-        sleep 0.25
+        sleep 0.5
     done
 
     if ! cdp_up; then
