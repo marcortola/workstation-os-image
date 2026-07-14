@@ -15,7 +15,8 @@ status=0
 }
 
 mapfile -t products < <(awk -F'|' '$1 == "jetbrains-app" { print $3 }' "$manifest")
-mapfile -t allow < <(workstation_jetbrains_allowlist)
+mapfile -t shared_allow < <(workstation_jetbrains_shared_allowlist)
+mapfile -t product_allow < <(workstation_jetbrains_product_allowlist)
 mapfile -t deny < <(workstation_jetbrains_denylist)
 
 declared_product() {
@@ -26,16 +27,23 @@ declared_product() {
     return 1
 }
 
+# A subpath is allowed if it equals or lives under an allow-list entry. The two
+# buckets are disjoint by design, so this doubles as the double-ownership lint:
+# a shared file dropped into a product dir (or a product file in _shared/) fails.
+path_allowed() {
+    local subpath=$1
+    shift
+    local entry
+    for entry in "$@"; do
+        [[ $subpath == "$entry" || $subpath == "$entry"/* ]] && return 0
+    done
+    return 1
+}
+
 while IFS= read -r -d '' file; do
     relative=${file#"$backup_root/"}
-    product=${relative%%/*}
+    bucket=${relative%%/*}
     subpath=${relative#*/}
-
-    if ! declared_product "$product"; then
-        echo "Undeclared JetBrains product in backup tree: $product" >&2
-        status=1
-        continue
-    fi
 
     leaf=${subpath##*/}
     denied=false
@@ -52,20 +60,23 @@ while IFS= read -r -d '' file; do
         continue
     fi
 
-    allowed=false
-    for entry in "${allow[@]}"; do
-        if [[ $subpath == "$entry" || $subpath == "$entry"/* ]]; then
-            allowed=true
-            break
+    if [[ $bucket == _shared ]]; then
+        if ! path_allowed "$subpath" "${shared_allow[@]}"; then
+            echo "Non-shared file in _shared/ (belongs in a product dir?): $relative" >&2
+            status=1
         fi
-    done
-    if [[ $allowed != true ]]; then
-        echo "Non-allow-listed JetBrains file captured: $relative" >&2
+    elif declared_product "$bucket"; then
+        if ! path_allowed "$subpath" "${product_allow[@]}"; then
+            echo "Shared or non-allow-listed file in product dir (promote to _shared/?): $relative" >&2
+            status=1
+        fi
+    else
+        echo "Undeclared JetBrains bucket in backup tree: $bucket" >&2
         status=1
     fi
 done < <(find "$backup_root" -type f -print0 | sort -z)
 
 if (( status == 0 )); then
-    echo "JetBrains settings backup contains only allow-listed, secret-free files."
+    echo "JetBrains settings backup is split cleanly into shared + product, secret-free."
 fi
 exit "$status"

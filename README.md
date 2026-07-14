@@ -77,7 +77,7 @@ local terminal/GUI edits ──> audit + interactive capture ──> Git branch/
 | This image | RPMs, daemons, sockets, privileged helpers and factory defaults | Replaced transactionally by bootc |
 | Chezmoi seeds | Portable Fish, Foot, Zellij, Niri and application defaults | Create missing files; preserve later edits |
 | DMS overlay | Explicitly captured, portable GUI preferences | Seeds a new account once; later UI edits win unless explicitly restored |
-| JetBrains backup | Portable IDE settings captured for version-tracking | Backup-only; cloud Backup and Sync restores a machine |
+| JetBrains config | One shared canonical (`_shared/`) plus per-product remainder | Applied into the IDEs on demand; never auto-synced |
 | Persistent home | Secrets, projects, histories, device state and application databases | Never stored in the image or Git |
 
 The image extends Zirconium's existing chezmoi source. It does not introduce a
@@ -132,16 +132,30 @@ all validation and shows the resulting diff. Review that diff before committing.
 For a new portable file, add one entry to `config/dotfiles.manifest`; it is the
 only personal-file inventory. Do not add whole application directories.
 
-### Capture JetBrains IDE settings
+### Share JetBrains IDE settings
 
-JetBrains IDEs keep their live settings in cloud Backup and Sync, which stays the
-authoritative cross-IDE mechanism. `jetbrains-app` manifest entries additionally
-mirror a small allow-list of portable, secret-free settings (keymaps, colour and
-code styles, templates, selected `options/*.xml`) into `config/jetbrains-settings/`
-for version history and review. Capture resolves the newest installed product
-directory, so no IDE version is pinned; the mirror is never deployed by chezmoi.
-`wjust sync` refreshes it, `wjust audit` reports its drift, and `wjust validate`
-fails if any license key, database source, or runtime state is ever captured.
+The repository keeps one canonical JetBrains configuration so every IDE feels the
+same, and applies it explicitly — it is not an automatic sync.
+`config/jetbrains-settings/_shared/` holds the portable "feel the same" subset
+once (keymaps, colour schemes, fonts, product-neutral editor/UI options); each
+`config/jetbrains-settings/<Product>/` holds only that IDE's product-specific
+remainder (code styles, templates, inspections, toolbars). Capture resolves the
+newest installed product directory, so no IDE version is pinned, and nothing is
+deployed by chezmoi. Only portable, secret-free files are tracked — `wjust
+validate` fails on any license key, database source, `settingsSync/`, or runtime
+state, and enforces that a file lives in exactly one place.
+
+| Command | Purpose |
+| --- | --- |
+| `wjust jetbrains-diff` | Show where each installed IDE diverges from the shared canonical |
+| `wjust jetbrains-promote [Product]` | Refresh `_shared/` from the canonical IDE (default: first listed) |
+| `wjust jetbrains-apply [--force]` | Write `_shared/` + remainder into the IDEs (dry run without `--force`) |
+
+Typical unification: edit settings in the canonical IDE, `wjust jetbrains-promote`
+to capture them into `_shared/`, review the diff, then `wjust jetbrains-apply
+--force --i-understand-overwrites-cloud` to fan them into the other IDEs. `apply`
+refuses a running IDE, backs up the live config plus `settingsSync/`, and prints
+the manual "Push Settings to Account" step (the cloud force-push is GUI-only).
 
 ### Capture DMS preferences
 

@@ -1,0 +1,171 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Explicitly restore the shared JetBrains canonical (_shared/) plus each product's
+# remainder into the newest installed product directory, then prime a forced cloud
+# push. This is the "initial setup / manual override" path — never automatic.
+#
+# The cloud force-push itself is GUI-only (only the enable-dialog "Push Settings
+# to Account" choice unconditionally overwrites the cloud), so this script writes
+# the files and resets local sync state, then prints the exact manual step.
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/lib/dotfiles.sh
+source "$repo_root/scripts/lib/dotfiles.sh"
+
+manifest="$repo_root/config/dotfiles.manifest"
+overlay="${WORKSTATION_JETBRAINS_OVERLAY:-$repo_root/config/jetbrains-settings}"
+shared_dir="$overlay/_shared"
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/workstation-os-image/jetbrains-apply-backup"
+
+force=false
+acked=false
+only_product=""
+
+usage() {
+    cat >&2 <<'USAGE'
+Usage: apply-jetbrains-settings [--force] [--i-understand-overwrites-cloud] [--product NAME]
+
+Writes _shared/ plus each product's remainder into the newest installed JetBrains
+config directory, then primes a forced cloud push.
+
+Without --force this is a dry run: it prints the planned file operations and
+writes nothing. With --force it requires --i-understand-overwrites-cloud, because
+the eventual "Push Settings to Account" step overwrites the settings your other
+machines synced to the JetBrains cloud.
+USAGE
+}
+
+while (( $# )); do
+    case "$1" in
+        --force) force=true ;;
+        --i-understand-overwrites-cloud) acked=true ;;
+        --product) shift; only_product="${1:-}" ;;
+        --product=*) only_product="${1#*=}" ;;
+        -h | --help) usage; exit 0 ;;
+        *) echo "Unknown argument: $1" >&2; usage; exit 2 ;;
+    esac
+    shift
+done
+
+if [[ $force == true && $acked != true ]]; then
+    echo "Refusing --force without --i-understand-overwrites-cloud." >&2
+    echo "The GUI push step overwrites cloud settings on all your machines." >&2
+    exit 2
+fi
+
+mapfile -t deny < <(workstation_jetbrains_denylist)
+
+denied_path() {
+    local subpath=$1 leaf=${1##*/} pattern
+    for pattern in "${deny[@]}"; do
+        # shellcheck disable=SC2053
+        if [[ $leaf == $pattern || "/$subpath/" == *"/$pattern/"* ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Detect a running IDE by its paths.selector (the versioned config dir name),
+# which the JVM carries as -Didea.paths.selector=<Product><Version>.
+ide_running() {
+    pgrep -f "$1" >/dev/null 2>&1
+}
+
+timestamp="$(date +%Y%m%dT%H%M%S)"
+applied=0
+skipped=0
+
+apply_product() {
+    local product=$1 live_glob=$2
+    local live_dir selector product_dir backup rel src root
+
+    live_dir="$(workstation_jetbrains_newest_dir "$live_glob")"
+    if [[ -z $live_dir ]]; then
+        echo "  $product: not installed, skipping"
+        (( ++skipped ))
+        return 0
+    fi
+    selector="$(basename "$live_dir")"
+    product_dir="$overlay/$product"
+
+    # Source files: shared canonical first, then product remainder (which wins on
+    # collision, letting a product override a shared default). Buckets are disjoint
+    # by design, so in practice there is no overlap.
+    local -A payload=()
+    for root in "$shared_dir" "$product_dir"; do
+        [[ -d $root ]] || continue
+        while IFS= read -r -d '' src; do
+            rel=${src#"$root/"}
+            denied_path "$rel" && continue
+            payload["$rel"]="$src"
+        done < <(find "$root" -type f -print0)
+    done
+
+    if (( ${#payload[@]} == 0 )); then
+        echo "  $product: nothing to apply, skipping"
+        (( ++skipped ))
+        return 0
+    fi
+
+    if [[ $force != true ]]; then
+        echo "  $product ($selector): would write ${#payload[@]} file(s) into $live_dir"
+        while IFS= read -r rel; do
+            echo "      $rel"
+        done < <(printf '%s\n' "${!payload[@]}" | sort)
+        (( ++applied ))
+        return 0
+    fi
+
+    if ide_running "$selector"; then
+        echo "  $product: IDE appears to be RUNNING ($selector) — refusing." >&2
+        echo "    Quit it and re-run; an external write is ignored while it runs." >&2
+        (( ++skipped ))
+        return 0
+    fi
+
+    backup="$state_dir/$product-$timestamp"
+    echo "  $product ($selector): backing up live config -> $backup"
+    for rel in "${!payload[@]}"; do
+        [[ -f "$live_dir/$rel" ]] && install -D -m 0644 "$live_dir/$rel" "$backup/config/$rel"
+    done
+    if [[ -d "$live_dir/settingsSync" ]]; then
+        cp -a "$live_dir/settingsSync" "$backup/settingsSync"
+        rm -rf -- "$live_dir/settingsSync"
+        echo "    reset live settingsSync/ (backed up) for a deterministic push"
+    fi
+
+    for rel in "${!payload[@]}"; do
+        install -D -m 0644 "${payload[$rel]}" "$live_dir/$rel"
+    done
+    # Turn local sync off so the next launch does not merge before you push.
+    rm -f -- "$live_dir/options/settingsSync.xml"
+    echo "  $product: wrote ${#payload[@]} file(s)."
+    (( ++applied ))
+}
+
+echo "Applying shared JetBrains configuration (overlay: $overlay)"
+[[ $force == true ]] || echo "(dry run — pass --force to write)"
+
+while IFS='|' read -r kind live_path source_path _; do
+    [[ $kind == jetbrains-app ]] || continue
+    [[ -n $only_product && $source_path != "$only_product" ]] && continue
+    apply_product "$source_path" "$live_path"
+done < "$manifest"
+
+echo
+echo "Applied to $applied product(s); skipped $skipped."
+if [[ $force == true && $applied -gt 0 ]]; then
+    cat <<'NEXT'
+
+The files are in place. Finish the forced cloud push by hand (GUI-only; only this
+path unconditionally overwrites the cloud):
+
+  1. On every OTHER machine: Settings -> Backup and Sync -> Disable, and log out.
+  2. Start each IDE here, let indexing finish, do NOT change settings.
+  3. Settings (Ctrl+Alt+S) -> Backup and Sync -> Enable Backup and Sync ->
+     choose "Push Settings to Account" (overwrites the cloud) -> Enable.
+  4. Re-enable sync on the other machines with "Get Settings from Account".
+NEXT
+fi
