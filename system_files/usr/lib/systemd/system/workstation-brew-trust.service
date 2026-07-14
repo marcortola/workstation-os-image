@@ -2,9 +2,9 @@
 Description=Trust third-party Homebrew tap formulae for the linuxbrew user
 Documentation=https://github.com/marcortola/workstation-os-image
 # brew-setup.service untars /home/linuxbrew; brew-proxy-setup.service installs
-# the bin/brew dispatch wrapper and chowns /home/linuxbrew to linuxbrew. Both
-# must complete before we can run brew as linuxbrew and write its trust store.
-Wants=brew-setup.service brew-proxy-setup.service
+# the bin/brew dispatch wrapper and chowns /home/linuxbrew to linuxbrew. Order
+# after both (they are pulled in by their own presets); the ConditionPathExists
+# guards below make this a clean no-op if brew is not yet fully provisioned.
 After=brew-setup.service brew-proxy-setup.service
 # proxy/brew-original exists only after brew-proxy-setup has swapped the symlink
 # (and, on first boot, before its recursive chown/chmod). Gating on it means we
