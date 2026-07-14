@@ -56,6 +56,10 @@ capture: sync validate
 validate:
     ./scripts/validate
 
+# Install not-yet-installed Brewfile entries (brew, cask, Flatpak); tap trust and daily upgrades are already automatic.
+brew-apply:
+    brew bundle install --file "${XDG_CONFIG_HOME:-$HOME/.config}/homebrew/Brewfile"
+
 # Build and lint the complete bootc image locally.
 build:
     podman build --pull=always --tag workstation-os-image:review -f Containerfile .

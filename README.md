@@ -291,9 +291,13 @@ its Flatpak, Distrobox and bootc modules. The standalone upstream
 replaces `/home/linuxbrew/.linuxbrew/bin/brew` with a dispatch wrapper, so their
 `ConditionPathIsSymbolicLink` never matches and every firing skips. That is
 expected, not drift; `uupd` owns brew upgrades. Force one with `brew upgrade`
-and authenticate the brew-proxy prompt so it runs as `linuxbrew`. A tap left
-untrusted for that user (for example `anomalyco/tap`) is skipped until you
-`brew trust` it.
+and authenticate the brew-proxy prompt so it runs as `linuxbrew`. Third-party
+tap formulae are trusted for `linuxbrew` automatically by
+`workstation-brew-trust.service`, which re-derives the trust set from the
+Brewfile on every boot, so adding a tap-qualified `brew`/`cask` line is enough
+for it to be auto-upgraded. That line is not self-installing on an existing
+machine, though: run `just brew-apply` once after deploy to install newly added
+Brewfile entries (`just audit` flags any that are declared but missing).
 
 ## Recover
 
