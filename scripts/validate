@@ -36,6 +36,7 @@ fish --no-execute \
     system_files/usr/share/zirconium/zdots/dot_config/fish/functions/*.fish
 
 scripts/validate-manifest
+scripts/validate-jetbrains-settings
 
 tmp="$(mktemp -d)"
 trap 'rm -rf -- "$tmp"' EXIT

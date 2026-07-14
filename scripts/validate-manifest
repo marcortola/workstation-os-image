@@ -30,6 +30,9 @@ while IFS='|' read -r kind live_path source_path pattern; do
             done < <(find "$live_dir" "${max_depth[@]}" -type f \
                 -name "$pattern" -print0 | sort -z)
             ;;
+        jetbrains-app)
+            : # captured outside the chezmoi seed tree; validate-jetbrains-settings
+            ;;
         *)
             echo "Unknown manifest kind: $kind" >&2
             exit 2

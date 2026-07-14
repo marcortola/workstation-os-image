@@ -1,0 +1,10 @@
+<application>
+  <component name="CodeInsightSettings">
+    <option name="completionCaseSensitive" value="2" />
+    <option name="COMPLETION_CASE_SENSITIVE" value="2" />
+    <option name="REFORMAT_ON_PASTE" value="1" />
+  </component>
+  <component name="SqlCodeCompletionSettings" SUGGEST_ALL_OBJECTS="true">
+    <option name="suggestAllObjects" value="true" />
+  </component>
+</application>

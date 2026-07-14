@@ -1,0 +1,27 @@
+<application>
+  <component name="FileTypeManager" version="19">
+    <extensionMap>
+      <mapping pattern="pre-deploy" type="AUTO_DETECTED" />
+      <mapping pattern="sdddddddddddd" type="AUTO_DETECTED" />
+      <mapping pattern="restore-database" type="AUTO_DETECTED" />
+      <mapping pattern="restore-contents" type="AUTO_DETECTED" />
+      <mapping pattern="secrets" type="AUTO_DETECTED" />
+      <mapping pattern="reset-test-env" type="AUTO_DETECTED" />
+      <mapping pattern="add-trackers" type="AUTO_DETECTED" />
+      <mapping pattern="translation" type="AUTO_DETECTED" />
+      <mapping pattern=".gitkeep" type="PLAIN_TEXT" />
+      <mapping ext="dev" type="PLAIN_TEXT" />
+      <mapping ext="back_nested" type="PLAIN_TEXT" />
+      <mapping ext="list" type="PLAIN_TEXT" />
+      <mapping ext="back" type="PLAIN_TEXT" />
+      <mapping ext="auto-tpl" type="PLAIN_TEXT" />
+      <removed_mapping ext="conf" approved="true" type="SmartyConfig" />
+      <removed_mapping ext="dockerignore" approved="true" type="DockerIgnore file" />
+      <removed_mapping ext="ignore" approved="true" type="IgnoreLang file" />
+      <removed_mapping ext="log" approved="true" type="PLAIN_TEXT" />
+      <removed_mapping ext="neon" approved="true" type="PLAIN_TEXT" />
+      <removed_mapping ext="pdf" approved="true" type="Native" />
+      <removed_mapping ext="xlf" approved="true" type="PLAIN_TEXT" />
+    </extensionMap>
+  </component>
+</application>
