@@ -104,6 +104,7 @@
   "loginctlLockIntegration": true,
   "maxFprintTries": 3,
   "monoFontFamily": "FiraCode Nerd Font Mono",
+  "muxType": "tmux",
   "niriLayoutBorderSize": 1,
   "runningAppsCurrentWorkspace": false,
   "showCpuTemp": false,
