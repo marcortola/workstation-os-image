@@ -1,0 +1,13 @@
+# hadolint configuration for the workstation bootc Containerfile.
+#
+# DL3041 (pin exact dnf package versions) does not apply: this image
+# deliberately tracks the current Fedora release and installs the latest
+# packages so a rebuilt image converges with upstream. Pinning versions would
+# fight that design and add churn.
+#
+# SC2046 fires on the `$(rpm -E %fedora)` command substitution embedded in the
+# RPM Fusion release URLs. `rpm -E %fedora` always expands to a single integer
+# token, so no word splitting can occur; the warning is a false positive here.
+ignored:
+  - DL3041
+  - SC2046

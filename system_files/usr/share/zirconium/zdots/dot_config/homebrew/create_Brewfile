@@ -1,9 +1,13 @@
+# Static checker for GitHub Actions workflow files
+brew "actionlint"
 # Clone of cat(1) with syntax highlighting and Git integration
 brew "bat"
 # Reference implementation for the Development Containers specification
 brew "devcontainer"
 # Load and unload environment variables depending on the current directory
 brew "direnv"
+# More intuitive version of du in rust
+brew "dust"
 # Linux utility to get information on filesystems, like df but better
 brew "dysk"
 # Modern, maintained replacement for ls
@@ -12,8 +16,16 @@ brew "eza"
 brew "fd"
 # GitHub command-line tool
 brew "gh"
+# Syntax-highlighting pager for git and diff output
+brew "git-delta"
+# Audit git repos for secrets
+brew "gitleaks"
 # Open-source GitLab command-line tool
 brew "glab"
+# Render markdown on the CLI
+brew "glow"
+# Smarter Dockerfile linter to validate best practices
+brew "hadolint"
 # User-friendly cURL replacement (command-line HTTP client)
 brew "httpie"
 # Lightweight and flexible command-line JSON processor
@@ -32,6 +44,8 @@ brew "neovim"
 brew "pandoc"
 # Search tool like grep and The Silver Searcher
 brew "ripgrep"
+# Intuitive find & replace CLI
+brew "sd"
 # Static analysis and lint tool, for (ba)sh scripts
 brew "shellcheck"
 # Cross-shell prompt
@@ -44,6 +58,8 @@ brew "tmux"
 brew "trash-cli"
 # Executes a program periodically, showing output fullscreen
 brew "watch"
+# Blazing fast terminal file manager written in Rust, based on async I/O
+brew "yazi"
 # Process YAML, JSON, XML, CSV and properties documents from the CLI
 brew "yq"
 # Terminal workspace and multiplexer

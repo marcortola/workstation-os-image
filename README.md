@@ -39,6 +39,8 @@ ghcr.io/marcortola/workstation-os-image:latest
   journald caps, and zstd-compressed zram sized to half of RAM.
 - Audits for image/package drift, portable personal configuration, upstream
   Niri/DMS changes and captured DMS preferences.
+- Containerfile and workflow linting (`hadolint`, `actionlint`) and secret
+  scanning (`gitleaks`), enforced by both local validation and CI.
 
 ## Development environments
 
@@ -123,7 +125,7 @@ all validation and shows the resulting diff. Review that diff before committing.
 | `wjust audit-diff` | Show the complete upstream Niri/DMS diff when diagnosing it |
 | `wjust sync` | Refresh manifest-listed create-only seeds from the live account |
 | `wjust capture` | Sync, validate and display the complete pending change |
-| `wjust validate` | Check structure, syntax, manifests and the effective workstation |
+| `wjust validate` | Check structure, syntax, linting, secret scan, manifests and the effective workstation |
 | `wjust build` | Build and lint the bootc image locally with Podman |
 | `wjust status` | Show the current Git branch and diff summary |
 
@@ -198,8 +200,10 @@ git diff
 wjust build
 ```
 
-GitHub Actions also builds every relevant PR. Merges to `main` and the daily
-scheduled workflow publish both `latest` and an immutable commit tag.
+GitHub Actions also builds every relevant PR. A separate lint workflow runs
+`hadolint`, `actionlint` and `gitleaks` on every push and pull request. Merges
+to `main` and the daily scheduled workflow publish both `latest` and an
+immutable commit tag.
 
 ## Install a workstation
 
