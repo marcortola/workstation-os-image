@@ -1,0 +1,32 @@
+# workmux global configuration
+# Applies to every repository. Override per project in a repo's .workmux.yaml
+# (use "<global>" inside a list to inherit these values alongside project ones).
+# Full annotated reference: `workmux config reference`.
+
+# AI agent launched wherever "<agent>" appears in the pane layout below.
+# Change to `codex` or `opencode`, or override with `workmux add --agent <cmd>`.
+agent: claude
+
+# `workmux merge` squashes by default, matching the PR-based squash-merge flow
+# the ship-worktree command uses. The --rebase / --merge CLI flags override.
+merge_strategy: squash
+
+# Pane layout for each worktree window: agent | editor | shell.
+#   left  : the AI agent (focused)
+#   right : editor on top, a plain shell (12 rows) beneath it
+panes:
+  - command: "<agent>"
+    focus: true
+  - command: nvim
+    split: horizontal
+  - split: vertical
+    size: 12
+
+# Best-effort file operations when a worktree is created (missing files are
+# skipped). Gitignored env files must be unique per worktree, so copy them
+# rather than symlink. Add language-specific symlinks (e.g. node_modules) and
+# install hooks in the per-project .workmux.yaml, not here.
+files:
+  copy:
+    - .env
+    - .env.local
