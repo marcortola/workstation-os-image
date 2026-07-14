@@ -34,6 +34,10 @@ ghcr.io/marcortola/workstation-os-image:latest
 - `ga <branch>` / `gd` create and remove a per-branch git worktree at
   `../<repo>--<branch>`, keeping parallel branches — and the AI agents working
   them — in separate directories.
+- `workmux` for heavier parallel work: each branch gets its own tmux window and
+  worktree under `<repo>__worktrees/`, driven by matching `worktree` /
+  `ship-worktree` / `rm-worktree` helpers seeded for Claude Code (commands),
+  Codex (skills) and OpenCode (commands).
 - Brewfile and Flatpak restoration, JetBrains Toolbox, personal fonts and the
   accepted Microsoft-font installer.
 - Private video codecs (RPM Fusion), RAR extraction, `pandoc`, `mkcert`,
