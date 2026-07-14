@@ -24,7 +24,10 @@ ghcr.io/marcortola/workstation-os-image:latest
 - OpenCode (`oc` and `Mod+Shift+O`), Caps Lock as Ctrl, and
   `gpt-4o-transcribe` dictation on `Mod+Shift+V`.
 - Default Claude Code MCP servers (`context7`, `playwright`, `ahrefs`) seeded
-  once into the user account; Ahrefs needs a one-time `claude mcp login ahrefs`.
+  once into the user account; `playwright` drives the per-user Flatpak Google
+  Chrome on demand through a CDP wrapper (`workstation-playwright-mcp`), so no
+  browser is layered into the image; Ahrefs needs a one-time
+  `claude mcp login ahrefs`.
 - Screen recording via `wf-recorder` on `Mod+Shift+R`.
 - `dev` to select a repository and change the current shell into it;
   `Mod+Shift+P` opens the same picker in a new Foot terminal.
