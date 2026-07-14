@@ -31,6 +31,9 @@ ghcr.io/marcortola/workstation-os-image:latest
 - Screen recording via `wf-recorder` on `Mod+Shift+R`.
 - `dev` to select a repository and change the current shell into it;
   `Mod+Shift+P` opens the same picker in a new Foot terminal.
+- `ga <branch>` / `gd` create and remove a per-branch git worktree at
+  `../<repo>--<branch>`, keeping parallel branches — and the AI agents working
+  them — in separate directories.
 - Brewfile and Flatpak restoration, JetBrains Toolbox, personal fonts and the
   accepted Microsoft-font installer.
 - Private video codecs (RPM Fusion), RAR extraction, `pandoc`, `mkcert`,

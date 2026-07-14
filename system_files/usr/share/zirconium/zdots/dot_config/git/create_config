@@ -15,6 +15,3 @@
 
 [merge]
     conflictStyle = zdiff3
-
-[diff]
-    colorMoved = default
