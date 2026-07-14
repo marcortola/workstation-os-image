@@ -35,11 +35,11 @@ Worktree: <worktree_path>
 Branch: <branch> -> main
 
 Steps:
-1. /git:commit
-2. /git:pull-main
-3. /git:pr
+1. Commit outstanding work
+2. Sync main into the branch
+3. Open a PR
 4. Migrate tasks
-5. Merge PR
+5. Merge the PR
 6. Done — close window manually
 
 Proceed?
@@ -47,31 +47,43 @@ Proceed?
 
 ### 4. Execute
 
-**Step 1:** Invoke `/git:commit`
-- If no staged changes and no new commits, skip
+**Step 1 — Commit.** If there are staged or unstaged changes, commit them with a
+clear message. If the tree is clean and there are no new commits, skip.
 
-**Step 2:** Invoke `/git:pull-main`
-- Worktrees can outlive `main` by days — sync before the PR so the merge is clean
-- If already up to date, continue
-- If the merge resolved conflicts cleanly, commit the merge (`git commit --no-edit`) and continue
-- If any conflict was flagged as "needs review", **STOP** and let the user inspect before resuming
+**Step 2 — Sync main.** Worktrees can outlive `main` by days — sync before the PR so
+the merge is clean:
 
-**Step 3:** Invoke `/git:pr`
-- If PR already exists, skip
-- Note the PR number
+```bash
+git fetch origin main:main
+git merge main
+```
 
-**Step 4:** Migrate Tasks (while CWD is still valid)
+- If already up to date, continue.
+- If the merge resolves cleanly, commit it (`git commit --no-edit`) and continue.
+- If any conflict needs review, **STOP** and let the user inspect before resuming.
+
+**Step 3 — Open a PR.**
+
+```bash
+git push -u origin "$BRANCH"
+gh pr create --fill --base main
+```
+
+- If a PR already exists, skip.
+- Note the PR number.
+
+**Step 4 — Migrate Tasks** (while CWD is still valid)
 
 ```bash
 ls -d .claude/tasks/*/ 2>/dev/null | grep -v "DONE-"
 ```
 
-If tasks exist, move to main:
+If tasks exist, move them to main:
 ```bash
 mv .claude/tasks/<task> "<MAIN_PATH>/.claude/tasks/DONE-<task>"
 ```
 
-**Step 5:** Merge PR
+**Step 5 — Merge the PR.**
 
 ```bash
 gh pr merge <PR_NUMBER> --squash --delete-branch
@@ -93,8 +105,7 @@ This window stays alive — feel free to review or continue the conversation.
 
 When you're truly done:
   1. Switch to the main window (ctrl-s + number)
-  2. From there, run: /git:rm-worktree <branch>
-     (or directly: workmux remove <branch>)
+  2. From there, run: workmux remove <branch>
 
 That removes the worktree, the local branch, and this tmux window.
 ```
@@ -103,6 +114,6 @@ That removes the worktree, the local branch, and this tmux window.
 
 ## Error Handling
 
-- Stop immediately if commit, pull-main, PR, or merge fails
+- Stop immediately if commit, sync, PR, or merge fails
 - If merge fails, show which step failed and how to resume
 - After successful merge: NEVER run more Bash commands (CWD is dead)
