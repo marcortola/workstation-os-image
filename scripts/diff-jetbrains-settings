@@ -53,6 +53,9 @@ while IFS='|' read -r kind live_path source_path _; do
     before=$divergent
     while IFS= read -r -d '' canon; do
         rel=${canon#"$shared_dir/"}
+        # plugins.list is a repo artifact that apply never writes into an IDE; it
+        # drives apply-jetbrains-plugins, so it is not settings drift.
+        [[ $rel == plugins.list ]] && continue
         live="$live_dir/$rel"
         if [[ ! -f $live ]]; then
             report "missing" "$rel"
