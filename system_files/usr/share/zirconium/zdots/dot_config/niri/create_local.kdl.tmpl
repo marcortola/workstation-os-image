@@ -1,10 +1,10 @@
 // Local workstation shortcuts. This file is preserved by Zirconium/chezmoi.
 binds {
     // Tmux terminal: foot with a fresh tmux session. Companion to Mod+T
-    // (plain terminal) — same T key, Alt modifier selects the tmux variant.
+    // (plain terminal) — same T key, Ctrl modifier selects the tmux variant.
     // 't' in fish does the same thing from an existing shell. Attach to an
     // existing session from inside tmux with prefix + s.
-    Mod+Alt+T hotkey-overlay-title="Open a Tmux Terminal" {
+    Mod+Ctrl+T hotkey-overlay-title="Open a Tmux Terminal" {
         spawn "foot" "--title=Tmux" "--app-id=tmux" "tmux" "new-session";
     }
 
