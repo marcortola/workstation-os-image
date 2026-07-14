@@ -70,6 +70,36 @@ while IFS='|' read -r kind live_path source_path pattern; do
                     -name 'create_*' -print0 | sort -z)
             fi
             ;;
+        jetbrains-app)
+            live_dir="$(workstation_jetbrains_newest_dir "$live_path")"
+            product_dir="$repo_root/config/jetbrains-settings/$source_path"
+            if [[ -z $live_dir ]]; then
+                [[ -d $product_dir ]] && \
+                    report_difference "missing-live" "$live_path"
+                continue
+            fi
+            while IFS= read -r entry; do
+                entry_src="$live_dir/$entry"
+                if [[ -d $entry_src ]]; then
+                    while IFS= read -r -d '' live; do
+                        relative=${live#"$live_dir/"}
+                        compare_file "$live" "$product_dir/$relative" \
+                            "$source_path/$relative"
+                    done < <(find "$entry_src" -type f -print0 | sort -z)
+                elif [[ -f $entry_src ]]; then
+                    compare_file "$entry_src" "$product_dir/$entry" \
+                        "$source_path/$entry"
+                fi
+            done < <(workstation_jetbrains_allowlist)
+
+            if [[ -d $product_dir ]]; then
+                while IFS= read -r -d '' seed; do
+                    relative=${seed#"$product_dir/"}
+                    [[ -f $live_dir/$relative ]] || \
+                        report_difference "removed-live" "$source_path/$relative"
+                done < <(find "$product_dir" -type f -print0 | sort -z)
+            fi
+            ;;
         *)
             echo "Unknown manifest kind: $kind" >&2
             exit 2

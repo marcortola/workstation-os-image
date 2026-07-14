@@ -7,6 +7,7 @@ source "$repo_root/scripts/lib/dotfiles.sh"
 
 manifest="$repo_root/config/dotfiles.manifest"
 dest="$repo_root/system_files/usr/share/zirconium/zdots"
+backup_root="$repo_root/config/jetbrains-settings"
 
 copy_default() {
     local source=$1 target=$2
@@ -29,6 +30,26 @@ while IFS='|' read -r kind live_path source_path pattern; do
                 install -D -m 0644 "$source" "$target"
             done < <(find "$live_dir" "${max_depth[@]}" -type f \
                 -name "$pattern" -print0 | sort -z)
+            ;;
+        jetbrains-app)
+            live_dir="$(workstation_jetbrains_newest_dir "$live_path")"
+            [[ -n $live_dir ]] || {
+                echo "JetBrains product not installed, skipping: $live_path" >&2
+                continue
+            }
+            product_dir="$backup_root/$source_path"
+            rm -rf -- "$product_dir"
+            while IFS= read -r entry; do
+                entry_src="$live_dir/$entry"
+                if [[ -d $entry_src ]]; then
+                    while IFS= read -r -d '' file; do
+                        relative=${file#"$live_dir/"}
+                        install -D -m 0644 "$file" "$product_dir/$relative"
+                    done < <(find "$entry_src" -type f -print0 | sort -z)
+                elif [[ -f $entry_src ]]; then
+                    install -D -m 0644 "$entry_src" "$product_dir/$entry"
+                fi
+            done < <(workstation_jetbrains_allowlist)
             ;;
         template)
             ;;

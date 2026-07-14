@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/lib/dotfiles.sh
+source "$repo_root/scripts/lib/dotfiles.sh"
+
+manifest="$repo_root/config/dotfiles.manifest"
+backup_root="$repo_root/config/jetbrains-settings"
+status=0
+
+[[ -d $backup_root ]] || {
+    echo "No JetBrains settings captured; nothing to validate."
+    exit 0
+}
+
+mapfile -t products < <(awk -F'|' '$1 == "jetbrains-app" { print $3 }' "$manifest")
+mapfile -t allow < <(workstation_jetbrains_allowlist)
+mapfile -t deny < <(workstation_jetbrains_denylist)
+
+declared_product() {
+    local candidate=$1 product
+    for product in "${products[@]}"; do
+        [[ $candidate == "$product" ]] && return 0
+    done
+    return 1
+}
+
+while IFS= read -r -d '' file; do
+    relative=${file#"$backup_root/"}
+    product=${relative%%/*}
+    subpath=${relative#*/}
+
+    if ! declared_product "$product"; then
+        echo "Undeclared JetBrains product in backup tree: $product" >&2
+        status=1
+        continue
+    fi
+
+    leaf=${subpath##*/}
+    denied=false
+    for pattern in "${deny[@]}"; do
+        # shellcheck disable=SC2053
+        if [[ $leaf == $pattern || "/$subpath/" == *"/$pattern/"* ]]; then
+            denied=true
+            break
+        fi
+    done
+    if [[ $denied == true ]]; then
+        echo "Secret or runtime JetBrains file must not be captured: $relative" >&2
+        status=1
+        continue
+    fi
+
+    allowed=false
+    for entry in "${allow[@]}"; do
+        if [[ $subpath == "$entry" || $subpath == "$entry"/* ]]; then
+            allowed=true
+            break
+        fi
+    done
+    if [[ $allowed != true ]]; then
+        echo "Non-allow-listed JetBrains file captured: $relative" >&2
+        status=1
+    fi
+done < <(find "$backup_root" -type f -print0 | sort -z)
+
+if (( status == 0 )); then
+    echo "JetBrains settings backup contains only allow-listed, secret-free files."
+fi
+exit "$status"

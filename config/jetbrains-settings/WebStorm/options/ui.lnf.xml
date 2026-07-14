@@ -1,0 +1,8 @@
+<application>
+  <component name="UISettings">
+    <option name="CLOSE_NON_MODIFIED_FILES_FIRST" value="true" />
+    <option name="EDITOR_TAB_PLACEMENT" value="3" />
+    <option name="SHOW_CLOSE_BUTTON" value="false" />
+    <option name="UI_DENSITY" value="COMPACT" />
+  </component>
+</application>

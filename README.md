@@ -75,6 +75,7 @@ local terminal/GUI edits ──> audit + interactive capture ──> Git branch/
 | This image | RPMs, daemons, sockets, privileged helpers and factory defaults | Replaced transactionally by bootc |
 | Chezmoi seeds | Portable Fish, Foot, Zellij, Niri and application defaults | Create missing files; preserve later edits |
 | DMS overlay | Explicitly captured, portable GUI preferences | Seeds a new account once; later UI edits win unless explicitly restored |
+| JetBrains backup | Portable IDE settings captured for version-tracking | Backup-only; cloud Backup and Sync restores a machine |
 | Persistent home | Secrets, projects, histories, device state and application databases | Never stored in the image or Git |
 
 The image extends Zirconium's existing chezmoi source. It does not introduce a
@@ -128,6 +129,17 @@ all validation and shows the resulting diff. Review that diff before committing.
 
 For a new portable file, add one entry to `config/dotfiles.manifest`; it is the
 only personal-file inventory. Do not add whole application directories.
+
+### Capture JetBrains IDE settings
+
+JetBrains IDEs keep their live settings in cloud Backup and Sync, which stays the
+authoritative cross-IDE mechanism. `jetbrains-app` manifest entries additionally
+mirror a small allow-list of portable, secret-free settings (keymaps, colour and
+code styles, templates, selected `options/*.xml`) into `config/jetbrains-settings/`
+for version history and review. Capture resolves the newest installed product
+directory, so no IDE version is pinned; the mirror is never deployed by chezmoi.
+`wjust sync` refreshes it, `wjust audit` reports its drift, and `wjust validate`
+fails if any license key, database source, or runtime state is ever captured.
 
 ### Capture DMS preferences
 

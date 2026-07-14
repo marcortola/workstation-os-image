@@ -28,3 +28,10 @@ copy|.config/nvim/lazy-lock.json|dot_config/nvim/create_lazy-lock.json|-
 copy|.config/nvim/lazyvim.json|dot_config/nvim/create_lazyvim.json|-
 copy|.config/nvim/stylua.toml|dot_config/nvim/create_stylua.toml|-
 tree|.config/nvim/lua|dot_config/nvim/lua|*
+# jetbrains-app|version-globbed live product dir|backup subdir|-
+# Backup-only capture of portable JetBrains IDE settings; cloud Backup and Sync
+# stays the live mechanism. Stored version-normalised under config/jetbrains-
+# settings/, outside the chezmoi seed tree, and never deployed. See AGENTS.md.
+jetbrains-app|.config/JetBrains/PhpStorm*|PhpStorm|-
+jetbrains-app|.config/JetBrains/WebStorm*|WebStorm|-
+jetbrains-app|.config/JetBrains/DataGrip*|DataGrip|-
