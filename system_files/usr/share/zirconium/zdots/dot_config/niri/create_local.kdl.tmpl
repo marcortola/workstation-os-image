@@ -1,13 +1,7 @@
 // Local workstation shortcuts. This file is preserved by Zirconium/chezmoi.
+// Mod+Ctrl+T (Open a Tmux Terminal) lives in the forked system binds.kdl so it
+// appears right after "Open a Terminal" in the Super+/ overlay.
 binds {
-    // Tmux terminal: foot with a fresh tmux session. Companion to Mod+T
-    // (plain terminal) — same T key, Ctrl modifier selects the tmux variant.
-    // 't' in fish does the same thing from an existing shell. Attach to an
-    // existing session from inside tmux with prefix + s.
-    Mod+Ctrl+T hotkey-overlay-title="Open a Tmux Terminal" {
-        spawn "foot" "--title=Tmux" "--app-id=tmux" "tmux" "new-session";
-    }
-
     // Vertical arrows drive workspaces instead of window-in-column focus.
     // Custom hotkey-overlay titles make niri's "Important Hotkeys" pop-up show
     // these arrows instead of the built-in Page Up/Down binds (niri shows a
