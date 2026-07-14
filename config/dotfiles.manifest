@@ -40,3 +40,5 @@ tree|.config/nvim/lua|dot_config/nvim/lua|*
 jetbrains-app|.config/JetBrains/PhpStorm*|PhpStorm|-
 jetbrains-app|.config/JetBrains/WebStorm*|WebStorm|-
 jetbrains-app|.config/JetBrains/DataGrip*|DataGrip|-
+jetbrains-app|.config/JetBrains/IntelliJIdea*|IntelliJIdea|-
+jetbrains-app|.config/JetBrains/PyCharm*|PyCharm|-

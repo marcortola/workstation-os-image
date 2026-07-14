@@ -52,14 +52,15 @@ failed=0
 
 apply_product() {
     local product=$1 live_glob=$2
-    local live_dir selector launcher plugins_dir id out
+    local live_dir selector launcher plugins_dir id out app_dir launcher_name
     live_dir="$(workstation_jetbrains_newest_dir "$live_glob")"
     if [[ -z $live_dir ]]; then
         echo "  $product: not installed, skipping"
         return 0
     fi
     selector="$(basename "$live_dir")"
-    launcher="$toolbox_apps/${product,,}/bin/${product,,}.sh"
+    read -r app_dir launcher_name < <(workstation_jetbrains_launcher "$product")
+    launcher="$toolbox_apps/$app_dir/bin/$launcher_name.sh"
     plugins_dir="$plugins_root/$selector"
     if [[ ! -x $launcher ]]; then
         echo "  $product: launcher not found ($launcher), skipping" >&2
@@ -100,7 +101,7 @@ apply_product() {
         return 0
     fi
 
-    if workstation_jetbrains_ide_running "$selector"; then
+    if workstation_jetbrains_ide_running "$product"; then
         echo "  $product: IDE is RUNNING ($selector) — refusing plugin install." >&2
         (( skipped += ${#missing[@]} ))
         return 0

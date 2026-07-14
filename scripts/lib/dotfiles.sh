@@ -73,13 +73,25 @@ workstation_jetbrains_vendored() {
         plugins.list
 }
 
-# Detect a running IDE by its launcher process name (PhpStorm2026.1 -> "phpstorm").
-# Matching the exact comm avoids false positives from background helpers
-# (embeddings-server, fsnotifier) that merely reference the config directory.
+# Map a JetBrains config product (the manifest source path, e.g. IntelliJIdea) to
+# its Toolbox app directory and launcher/process basename, printed as
+# "<app-dir> <launcher>". Most products match their lowercase name; IntelliJ IDEA
+# is the exception (app "intellij-idea", launcher and process "idea").
+workstation_jetbrains_launcher() {
+    case "$1" in
+        IntelliJIdea) printf '%s %s\n' 'intellij-idea' 'idea' ;;
+        *) printf '%s %s\n' "${1,,}" "${1,,}" ;;
+    esac
+}
+
+# Detect a running IDE for a product by its launcher process name (e.g.
+# IntelliJIdea -> "idea", PhpStorm -> "phpstorm"). Matching the exact comm avoids
+# false positives from background helpers (embeddings-server, fsnotifier) that
+# merely reference the config directory.
 workstation_jetbrains_ide_running() {
-    local selector=$1 product
-    product=${selector%%[0-9]*}
-    pgrep -x "${product,,}" >/dev/null 2>&1
+    local comm
+    read -r _ comm < <(workstation_jetbrains_launcher "$1")
+    pgrep -x "$comm" >/dev/null 2>&1
 }
 
 # Emit the shared plugin IDs from a plugins.list file, one per line, skipping
