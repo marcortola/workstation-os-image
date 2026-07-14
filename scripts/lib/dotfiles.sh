@@ -35,6 +35,7 @@ workstation_jetbrains_shared_allowlist() {
         options/laf.xml \
         options/ui.lnf.xml \
         options/vcs.xml \
+        options/ignore.xml \
         options/colors.scheme.xml \
         options/keymapFlags.xml \
         options/linux/keymap.xml
@@ -48,7 +49,8 @@ workstation_jetbrains_product_allowlist() {
     printf '%s\n' \
         codestyles/custom.xml \
         fileTemplates \
-        options/code.style.schemes.xml
+        options/code.style.schemes.xml \
+        options/php.xml
 }
 
 # The full capturable/portable set: the union of the shared and product lists.

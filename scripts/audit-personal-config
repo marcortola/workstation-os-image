@@ -95,6 +95,8 @@ while IFS='|' read -r kind live_path source_path pattern; do
             if [[ -d $product_dir ]]; then
                 while IFS= read -r -d '' seed; do
                     relative=${seed#"$product_dir/"}
+                    # plugins.list is a vendored artifact, never in a live IDE.
+                    [[ $relative == plugins.list ]] && continue
                     [[ -f $live_dir/$relative ]] || \
                         report_difference "removed-live" "$source_path/$relative"
                 done < <(find "$product_dir" -type f -print0 | sort -z)
