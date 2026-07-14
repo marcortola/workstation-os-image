@@ -34,6 +34,7 @@ workstation_jetbrains_shared_allowlist() {
         options/terminal-font.xml \
         options/laf.xml \
         options/ui.lnf.xml \
+        options/vcs.xml \
         options/colors.scheme.xml \
         options/keymapFlags.xml \
         options/linux/keymap.xml
