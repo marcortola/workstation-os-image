@@ -2,5 +2,6 @@
   <component name="TerminalFontOptions">
     <option name="VERSION" value="1" />
     <option name="FONT_FAMILY" value="FiraMono Nerd Font" />
+    <option name="LINE_SPACING" value="1.0" />
   </component>
 </application>
