@@ -40,8 +40,10 @@ while IFS='|' read -r kind live_path source_path pattern; do
                 continue
             }
             product_dir="$backup_root/$source_path"
-            rm -rf -- "$product_dir"
             while IFS= read -r entry; do
+                # Refresh each captured entry in place; the per-product plugins.list
+                # is a vendored artifact (not an allow-list entry) and is preserved.
+                rm -rf -- "${product_dir:?}/$entry"
                 entry_src="$live_dir/$entry"
                 if [[ -d $entry_src ]]; then
                     while IFS= read -r -d '' file; do

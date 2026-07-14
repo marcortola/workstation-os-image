@@ -1,0 +1,6 @@
+# PhpStorm-specific plugins (installed only into PhpStorm, in addition to
+# _shared/plugins.list). Marketplace plugin IDs; JARs fetched at apply time.
+de.espend.idea.php.annotation
+de.espend.idea.php.toolbox
+fr.adrienbrault.idea.symfony2plugin
+de.espend.idea.localization

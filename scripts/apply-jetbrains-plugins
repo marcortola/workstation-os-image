@@ -35,11 +35,6 @@ while (( $# )); do
 done
 
 mapfile -t plugins < <(workstation_jetbrains_plugins "$plugins_list")
-if (( ${#plugins[@]} == 0 )); then
-    echo "No shared plugins declared in $plugins_list"
-    exit 0
-fi
-
 # Lowercased plugin IDs already installed under a product's plugins directory.
 installed_ids() {
     local dir=$1 jar id
@@ -72,16 +67,31 @@ apply_product() {
         return 0
     fi
 
+    # Combine the shared list with this product's own plugins.list (deduped).
+    local -a want=("${plugins[@]}")
+    local product_list="$overlay/$product/plugins.list"
+    if [[ -f $product_list ]]; then
+        while IFS= read -r id; do want+=("$id"); done \
+            < <(workstation_jetbrains_plugins "$product_list")
+    fi
+    local -A seen=()
+    local -a wanted=()
+    for id in "${want[@]}"; do
+        [[ -n ${seen[${id,,}]:-} ]] && continue
+        seen[${id,,}]=1
+        wanted+=("$id")
+    done
+
     local -A have=()
     while IFS= read -r id; do have["$id"]=1; done < <(installed_ids "$plugins_dir")
     local missing=()
-    for id in "${plugins[@]}"; do
+    for id in "${wanted[@]}"; do
         [[ -n ${have[${id,,}]:-} ]] || missing+=("$id")
     done
 
     if (( ${#missing[@]} == 0 )); then
-        echo "  $product: all ${#plugins[@]} shared plugin(s) already present"
-        (( already += ${#plugins[@]} ))
+        echo "  $product: all ${#wanted[@]} plugin(s) already present"
+        (( already += ${#wanted[@]} ))
         return 0
     fi
 

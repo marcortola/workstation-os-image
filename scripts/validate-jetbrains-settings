@@ -68,7 +68,8 @@ while IFS= read -r -d '' file; do
             status=1
         fi
     elif declared_product "$bucket"; then
-        if ! path_allowed "$subpath" "${product_allow[@]}"; then
+        if [[ $subpath != plugins.list ]] \
+            && ! path_allowed "$subpath" "${product_allow[@]}"; then
             echo "Shared or non-allow-listed file in product dir (promote to _shared/?): $relative" >&2
             status=1
         fi
@@ -78,27 +79,29 @@ while IFS= read -r -d '' file; do
     fi
 done < <(find "$backup_root" -type f -print0 | sort -z)
 
-# Lint the shared plugin list: well-formed IDs, no duplicates, and CamelCase
-# present whenever the shared keymap binds its ToggleCamelCase action.
-plugins_list="$backup_root/_shared/plugins.list"
-keymap="$backup_root/_shared/keymaps/custom.xml"
-if [[ -f $plugins_list ]]; then
-    mapfile -t plugin_ids < <(workstation_jetbrains_plugins "$plugins_list")
+# Lint every plugins.list (shared + per-product): well-formed IDs, no duplicates.
+while IFS= read -r -d '' plist; do
+    rel=${plist#"$backup_root/"}
+    mapfile -t plugin_ids < <(workstation_jetbrains_plugins "$plist")
     for id in "${plugin_ids[@]:-}"; do
         [[ -z $id ]] && continue
         [[ $id =~ ^[A-Za-z0-9._-]+$ ]] || {
-            echo "Malformed plugin ID in plugins.list: $id" >&2
+            echo "Malformed plugin ID in $rel: $id" >&2
             status=1
         }
     done
     dupes="$(printf '%s\n' "${plugin_ids[@]:-}" | sort | uniq -d | grep -v '^$' || true)"
-    [[ -z $dupes ]] || { echo "Duplicate plugin IDs in plugins.list: $dupes" >&2; status=1; }
-    if [[ -f $keymap ]] && grep -qi 'CamelCasePlugin' "$keymap"; then
-        printf '%s\n' "${plugin_ids[@]:-}" | grep -qiFx 'de.netnexus.camelcaseplugin' || {
-            echo "Shared keymap binds CamelCase but plugins.list omits de.netnexus.camelcaseplugin" >&2
-            status=1
-        }
-    fi
+    [[ -z $dupes ]] || { echo "Duplicate plugin IDs in $rel: $dupes" >&2; status=1; }
+done < <(find "$backup_root" -name plugins.list -print0)
+
+# The shared keymap's CamelCase binding requires CamelCase in the shared list.
+shared_plugins="$backup_root/_shared/plugins.list"
+keymap="$backup_root/_shared/keymaps/custom.xml"
+if [[ -f $shared_plugins && -f $keymap ]] && grep -qi 'CamelCasePlugin' "$keymap"; then
+    workstation_jetbrains_plugins "$shared_plugins" | grep -qiFx 'de.netnexus.camelcaseplugin' || {
+        echo "Shared keymap binds CamelCase but _shared/plugins.list omits de.netnexus.camelcaseplugin" >&2
+        status=1
+    }
 fi
 
 if (( status == 0 )); then

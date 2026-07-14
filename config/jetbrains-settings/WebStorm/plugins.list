@@ -1,0 +1,3 @@
+# WebStorm-specific plugins (installed only into WebStorm, in addition to
+# _shared/plugins.list). Marketplace plugin IDs; JARs fetched at apply time.
+org.jetbrains.plugins.astro
