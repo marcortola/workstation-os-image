@@ -9,6 +9,7 @@ copy|.claude/commands/rm-worktree.md|dot_claude/commands/create_rm-worktree.md|-
 tree|.codex/skills/worktree|dot_codex/skills/worktree|*
 tree|.codex/skills/ship-worktree|dot_codex/skills/ship-worktree|*
 tree|.codex/skills/rm-worktree|dot_codex/skills/rm-worktree|*
+copy|.config/opencode/opencode.jsonc|dot_config/opencode/create_opencode.jsonc|-
 copy|.config/opencode/commands/worktree.md|dot_config/opencode/commands/create_worktree.md|-
 copy|.config/opencode/commands/ship-worktree.md|dot_config/opencode/commands/create_ship-worktree.md|-
 copy|.config/opencode/commands/rm-worktree.md|dot_config/opencode/commands/create_rm-worktree.md|-
