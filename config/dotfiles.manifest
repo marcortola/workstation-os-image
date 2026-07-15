@@ -1,6 +1,7 @@
 # kind|live path relative to $HOME|chezmoi source path|file pattern
 copy|.codex/AGENTS.md|dot_codex/create_AGENTS.md|-
 copy|.claude/CLAUDE.md|dot_claude/create_CLAUDE.md|-
+copy|.claude/settings.json|dot_claude/create_settings.json|-
 tree|.claude/skills/weekly-summary|dot_claude/skills/weekly-summary|*
 tree|.codex/skills/weekly-summary|dot_codex/skills/weekly-summary|*
 copy|.claude/commands/worktree.md|dot_claude/commands/create_worktree.md|-
