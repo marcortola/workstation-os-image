@@ -90,6 +90,15 @@ local terminal/GUI edits ──> audit + interactive capture ──> Git branch/
 The image extends Zirconium's existing chezmoi source. It does not introduce a
 second dotfile manager, hardcode a username, or use rpm-ostree package layers.
 
+Image builds keep the slow runtime-package transaction ahead of the volatile
+`system_files/` copy, while compiled helpers use isolated builder stages. CI
+stores Buildah intermediate layers in the companion GHCR cache repository and
+reuses cache entries for ordinary pushes and pull requests. The daily scheduled
+build deliberately skips cache reads so DNF metadata and packages are refreshed;
+it then replaces the remote cache. Changes that do not affect `Containerfile`,
+`system_files/` or the build workflow still run their tests but skip the image
+job. The build context contains only `Containerfile` and `system_files/`.
+
 ## Working with AI agents
 
 `AGENTS.md` is the canonical maintenance policy. `CLAUDE.md` imports it, and
@@ -230,7 +239,9 @@ wjust build
 GitHub Actions also builds every relevant PR. A separate lint workflow runs
 `hadolint`, `actionlint` and `gitleaks` on every push and pull request. Merges
 to `main` and the daily scheduled workflow publish both `latest` and an
-immutable commit tag.
+immutable commit tag. Image builds consume and update
+`ghcr.io/marcortola/workstation-os-image-cache`; scheduled builds bypass that
+cache on input and repopulate it after refreshing packages.
 
 ## Install a workstation
 

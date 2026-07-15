@@ -26,7 +26,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 concurrency:
   group: bootc-image-${{ github.ref }}
@@ -34,9 +33,37 @@ concurrency:
 
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/workstation-os-image
+  CACHE_IMAGE: ghcr.io/${{ github.repository_owner }}/workstation-os-image-cache
   BASE_IMAGE: ${{ vars.BASE_IMAGE || 'ghcr.io/zirconium-dev/zirconium:latest' }}
 
 jobs:
+  image-inputs:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.changes.outputs.changed }}
+    steps:
+      - name: Check out repository history
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Detect image input changes
+        id: changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [[ "${{ github.event_name }}" == schedule || \
+                "${{ github.event_name }}" == workflow_dispatch ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          elif git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- \
+              Containerfile system_files .github/workflows/build.yml; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
   dms-settings-tests:
     runs-on: ubuntu-latest
     steps:
@@ -57,35 +84,50 @@ jobs:
         run: scripts/test-dms-settings
 
   build:
-    needs: dms-settings-tests
+    needs: [image-inputs, dms-settings-tests]
+    if: needs.image-inputs.outputs.changed == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
 
-      - name: Build image
-        id: build
-        uses: redhat-actions/buildah-build@v2
-        with:
-          image: workstation-os-image
-          tags: latest ${{ github.sha }}
-          containerfiles: ./Containerfile
-          build-args: |
-            BASE_IMAGE=${{ env.BASE_IMAGE }}
-          layers: false
-
       - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
-        uses: redhat-actions/podman-login@v1
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GHCR_TOKEN" | buildah login --username "$GITHUB_ACTOR" --password-stdin ghcr.io
+
+      - name: Build image with registry cache
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          cache_args=(--layers)
+
+          # A scheduled build always refreshes DNF metadata and packages. Other
+          # builds may consume the latest cache for up to 25 hours.
+          if [[ "$EVENT_NAME" != schedule ]]; then
+            cache_args+=(--cache-from "$CACHE_IMAGE" --cache-ttl 25h)
+          fi
+          if [[ "$EVENT_NAME" != pull_request ]]; then
+            cache_args+=(--cache-to "$CACHE_IMAGE")
+          fi
+
+          buildah bud \
+            --file Containerfile \
+            --build-arg "BASE_IMAGE=$BASE_IMAGE" \
+            --tag "$IMAGE_NAME:latest" \
+            --tag "$IMAGE_NAME:$GITHUB_SHA" \
+            "${cache_args[@]}" \
+            .
 
       - name: Push image
         if: github.event_name != 'pull_request'
-        uses: redhat-actions/push-to-registry@v2
-        with:
-          image: ${{ steps.build.outputs.image }}
-          tags: ${{ steps.build.outputs.tags }}
-          registry: ghcr.io/${{ github.repository_owner }}
+        run: |
+          buildah push "$IMAGE_NAME:latest" "docker://$IMAGE_NAME:latest"
+          buildah push "$IMAGE_NAME:$GITHUB_SHA" "docker://$IMAGE_NAME:$GITHUB_SHA"
+
+      - name: Log out of GHCR
+        if: always()
+        run: buildah logout ghcr.io
