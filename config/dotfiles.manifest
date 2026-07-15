@@ -32,6 +32,7 @@ copy|.config/fcitx5/profile|dot_config/fcitx5/create_profile|-
 copy|.config/fcitx5/conf/unicode.conf|dot_config/fcitx5/conf/create_unicode.conf|-
 copy|.config/DankMaterialShell/themes/tokyoNightDark/theme.json|dot_config/DankMaterialShell/themes/tokyoNightDark/create_theme.json|-
 copy|.config/homebrew/Brewfile|dot_config/homebrew/create_Brewfile|-
+copy|.config/mimeapps.list|dot_config/create_mimeapps.list|-
 copy|.local/share/flatpak/overrides/com.onepassword.OnePassword|private_dot_local/share/flatpak/overrides/create_com.onepassword.OnePassword|-
 copy|.var/app/md.obsidian.Obsidian/config/obsidian/user-flags.conf|dot_var/app/md.obsidian.Obsidian/config/obsidian/create_user-flags.conf|-
 copy|.local/bin/workstation-dev|private_dot_local/bin/create_executable_workstation-dev|-
