@@ -30,9 +30,6 @@ binds {
         spawn "dms" "ipc" "call" "spotlight" "toggle";
     }
     Mod+T hotkey-overlay-title="Open a Terminal" { spawn "xdg-terminal-exec"; }
-    Mod+Ctrl+T hotkey-overlay-title="Open a Tmux Terminal" {
-        spawn "foot" "--title=Tmux" "--app-id=tmux" "tmux" "new-session";
-    }
     Mod+E hotkey-overlay-title="Open File Manager" { spawn "nautilus"; }
     Mod+Shift+P hotkey-overlay-title="Projects" {
         spawn-sh "foot --working-directory=$HOME --title=Projects --app-id=dev-terminal $HOME/.local/bin/workstation-dev --shell";
