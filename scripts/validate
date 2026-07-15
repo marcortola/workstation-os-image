@@ -19,6 +19,7 @@ just --list >/dev/null
 
 # Lint the image build and CI workflows, and scan the tree for committed
 # secrets. CI enforces the same three checks in .github/workflows/lint.yml.
+scripts/validate-image-build
 hadolint --config .hadolint.yaml Containerfile
 actionlint
 gitleaks dir . --no-banner --redact

@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+
+fail() {
+    echo "image build validation: $*" >&2
+    exit 1
+}
+
+require_literal() {
+    local file=$1
+    local text=$2
+    grep -Fq -- "$text" "$file" || fail "$file is missing: $text"
+}
+
+line_of() {
+    local file=$1
+    local text=$2
+    grep -Fn -- "$text" "$file" | head -n 1 | cut -d: -f1
+}
+
+require_literal Containerfile "FROM \${BASE_IMAGE} AS workstation-x11-clipsync-builder"
+require_literal Containerfile 'COPY system_files/etc/yum.repos.d/insync.repo /etc/yum.repos.d/insync.repo'
+require_literal Containerfile 'RUN rpm --import https://d2t3ff60b2tol4.cloudfront.net/repomd.xml.key'
+require_literal Containerfile 'COPY system_files/ /'
+require_literal Containerfile '--setopt=install_weak_deps=False'
+require_literal Containerfile 'rm -rf /run/dnf /run/systemd/systemd-units-load'
+require_literal Containerfile 'find /tmp -mindepth 1 -delete'
+
+package_layer=$(line_of Containerfile 'RUN rpm --import')
+config_layer=$(line_of Containerfile 'COPY system_files/ /')
+(( package_layer < config_layer )) || \
+    fail "runtime packages must be installed before copying volatile configuration"
+
+require_literal .github/workflows/build.yml 'cache_args=(--layers)'
+require_literal .github/workflows/build.yml "--cache-from \"\$CACHE_IMAGE\" --cache-ttl 25h"
+require_literal .github/workflows/build.yml "--cache-to \"\$CACHE_IMAGE\""
+require_literal .github/workflows/build.yml "if [[ \"\$EVENT_NAME\" != schedule ]]"
+require_literal .github/workflows/build.yml "if: needs.image-inputs.outputs.changed == 'true'"
+
+if grep -Eq 'redhat-actions/(buildah-build|podman-login|push-to-registry)' \
+    .github/workflows/build.yml; then
+    fail "deprecated Node-based Red Hat image actions must not be reintroduced"
+fi
+
+require_literal .containerignore '!Containerfile'
+require_literal .containerignore '!system_files/**'
+require_literal system_files/usr/lib/sysusers.d/workstation-docker.conf 'g docker - -'
+
+echo "Image build cache and layering validation passed."
