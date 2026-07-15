@@ -1,22 +1,47 @@
 // Workstation fork of the Zirconium/DMS niri binds and hotkey overlay.
 //
-// The Super+/ overlay shows niri's hardcoded window-management actions first
-// (fixed order: close, focus, move, workspaces, maximize, consume, floating,
-// overview), then every custom-titled bind in this file's order. This file
-// redefines all DMS and personal keybinds so they land in the cohesive
-// custom-titled section below, in a deliberate Launchers → Apps → System →
-// Utilities order.
+// OVERLAY ORDER (Super+/) IS NOT THIS FILE'S ORDER. niri builds it in
+// `collect_actions` (src/ui/hotkey_overlay.rs), which emits:
 //
-// hide-not-bound drops "(not bound)" rows for hardcoded actions this config
-// doesn't bind — only switch-focus-between-floating-and-tiling, whose key
-// (Mod+Shift+V) is repurposed to dictation.
+//   1. A fixed, compiled block of "important" actions, ALWAYS in this order:
+//        show-hotkey-overlay, quit, close-window,
+//        focus-column-left, focus-column-right,
+//        move-column-left, move-column-right,
+//        focus-workspace-down, focus-workspace-up,
+//        move-column-to-workspace-down, move-column-to-workspace-up,
+//        switch-preset-column-width, maximize-column,
+//        consume-or-expel-window-left, consume-or-expel-window-right,
+//        toggle-window-floating, switch-focus-between-floating-and-tiling,
+//        toggle-overview (a native screenshot action would follow, but this
+//        config spawns instead so none appears).
+//   2. Then every bind that has a custom hotkey-overlay-title WHOSE ACTION IS
+//      NOT already in that block, in THIS FILE's order (dedup is by action).
+//   3. Then any Mod/Super `spawn` bind, in file order (all ours are titled or
+//      null, so none surface here).
+//
+// Two consequences drive the layout below:
+//   - A custom title on a bind whose action is in the fixed block only
+//     RELABELS its row; it cannot move it out of the block. So these are
+//     pinned to niri's slots no matter where they sit here: Focus Column
+//     Left/Right, Move Column Left/Right, Switch Workspace Up/Down, Move
+//     Column to Workspace Up/Down, Switch Column Preset, Maximize Column,
+//     Move Window Between Columns, Toggle Window Floating, Show Overview.
+//   - Only the REMAINING custom-titled binds honour file order. They are laid
+//     out here as window/column/workspace/monitor management first (so the
+//     overlay continues straight out of the fixed window block), then
+//     Launchers & Apps, then System & Utilities.
+//
+// Each directional pair collapses to one overlay row: the titled half supplies
+// the label, the other half is hotkey-overlay-title=null so niri hides it (the
+// +/- column-width pair works the same way). `hide-not-bound true` drops the
+// unbound fixed actions — quit and switch-focus-between-floating-and-tiling,
+// whose old key Mod+Shift+V is repurposed to dictation.
 //
 // Conflicts resolved (niri core wins; the DMS feature is dropped from the
 // overlay, the key keeps working):
 //   Mod+V       toggle-window-floating        (was DMS Clipboard Manager)
 //   Mod+Comma   consume-window-into-column    (was DMS Settings)
 //   Mod+M       maximize-column               (was DMS Task Manager; = Mod+F)
-// Task Manager lives on Ctrl+Alt+Delete; Ctrl+Shift+Escape is hidden (dup).
 //
 // Personal binds use spawn-sh with $HOME so no username is hardcoded.
 
@@ -25,12 +50,118 @@ hotkey-overlay {
 }
 
 binds {
-    // ── Launchers & apps (overlay order) ────────────────────────────────
+    // ── Session ─────────────────────────────────────────────────────────
+    Mod+Slash { show-hotkey-overlay; }
+    Mod+Q repeat=false { close-window; }
+
+    // ── Columns & window sizing ─────────────────────────────────────────
+    Mod+R         hotkey-overlay-title="Switch Column Preset" { switch-preset-column-width; }
+    Mod+M         hotkey-overlay-title="Maximize Column" { maximize-column; }
+    Mod+Minus     hotkey-overlay-title="Decrease/Increase Column Width" { set-column-width "-10%"; }
+    Mod+Equal     hotkey-overlay-title=null { set-column-width "+10%"; }
+    Mod+C         hotkey-overlay-title="Center Column" { center-column; }
+    Mod+BracketLeft  hotkey-overlay-title="Move Window Between Columns Left/Right" { consume-or-expel-window-left; }
+    Mod+BracketRight hotkey-overlay-title=null { consume-or-expel-window-right; }
+    Mod+Comma  { consume-window-into-column; }
+    Mod+Period { expel-window-from-column; }
+    Mod+V { toggle-window-floating; }
+    Mod+W { toggle-column-tabbed-display; }
+    Mod+Shift+F { fullscreen-window; }
+    Mod+Ctrl+F  { maximize-window-to-edges; }
+    Mod+Ctrl+C  { center-visible-columns; }
+    Mod+Ctrl+R  { reset-window-height; }
+    Mod+Shift+Minus { set-window-height "-10%"; }
+    Mod+Shift+Equal { set-window-height "+10%"; }
+
+    // ── Focus ───────────────────────────────────────────────────────────
+    Mod+Left  hotkey-overlay-title="Focus Column Left/Right" { focus-column-left; }
+    Mod+Right hotkey-overlay-title=null { focus-column-right; }
+    Mod+H     { focus-column-left; }
+    Mod+J     hotkey-overlay-title="Focus Window Down/Up" { focus-window-down; }
+    Mod+K     hotkey-overlay-title=null { focus-window-up; }
+    Mod+L     { focus-column-right; }
+
+    Mod+Home hotkey-overlay-title="Focus First/Last Column" { focus-column-first; }
+    Mod+End  hotkey-overlay-title=null { focus-column-last; }
+
+    // ── Move ────────────────────────────────────────────────────────────
+    Mod+Ctrl+Left  hotkey-overlay-title="Move Column Left/Right" { move-column-left; }
+    Mod+Ctrl+Right hotkey-overlay-title=null { move-column-right; }
+    Mod+Ctrl+H     { move-column-left; }
+    Mod+Ctrl+J     hotkey-overlay-title="Move Window Down/Up" { move-window-down; }
+    Mod+Ctrl+K     hotkey-overlay-title=null { move-window-up; }
+    Mod+Ctrl+L     { move-column-right; }
+
+    Mod+Ctrl+Home hotkey-overlay-title="Move Column to First/Last Position" { move-column-to-first; }
+    Mod+Ctrl+End  hotkey-overlay-title=null { move-column-to-last; }
+
+    // ── Workspaces ──────────────────────────────────────────────────────
+    Mod+Up        hotkey-overlay-title="Switch Workspace Up/Down" { focus-workspace-up; }
+    Mod+Down      hotkey-overlay-title=null { focus-workspace-down; }
+    Mod+Ctrl+Up   hotkey-overlay-title="Move Column to Workspace Up/Down" { move-column-to-workspace-up; }
+    Mod+Ctrl+Down hotkey-overlay-title=null { move-column-to-workspace-down; }
+    Mod+Page_Down { focus-workspace-down; }
+    Mod+Page_Up   { focus-workspace-up; }
+    Mod+U         { focus-workspace-down; }
+    Mod+I         { focus-workspace-up; }
+    Mod+Ctrl+Page_Down { move-column-to-workspace-down; }
+    Mod+Ctrl+Page_Up   { move-column-to-workspace-up; }
+    Mod+Ctrl+U         { move-column-to-workspace-down; }
+    Mod+Ctrl+I         { move-column-to-workspace-up; }
+
+    Mod+1 hotkey-overlay-title="Switch to Workspace 1–9" { focus-workspace 1; }
+    Mod+2 hotkey-overlay-title=null { focus-workspace 2; }
+    Mod+3 hotkey-overlay-title=null { focus-workspace 3; }
+    Mod+4 hotkey-overlay-title=null { focus-workspace 4; }
+    Mod+5 hotkey-overlay-title=null { focus-workspace 5; }
+    Mod+6 hotkey-overlay-title=null { focus-workspace 6; }
+    Mod+7 hotkey-overlay-title=null { focus-workspace 7; }
+    Mod+8 hotkey-overlay-title=null { focus-workspace 8; }
+    Mod+9 hotkey-overlay-title=null { focus-workspace 9; }
+
+    Mod+Ctrl+1 hotkey-overlay-title="Move Column to Workspace 1–9" { move-column-to-workspace 1; }
+    Mod+Ctrl+2 hotkey-overlay-title=null { move-column-to-workspace 2; }
+    Mod+Ctrl+3 hotkey-overlay-title=null { move-column-to-workspace 3; }
+    Mod+Ctrl+4 hotkey-overlay-title=null { move-column-to-workspace 4; }
+    Mod+Ctrl+5 hotkey-overlay-title=null { move-column-to-workspace 5; }
+    Mod+Ctrl+6 hotkey-overlay-title=null { move-column-to-workspace 6; }
+    Mod+Ctrl+7 hotkey-overlay-title=null { move-column-to-workspace 7; }
+    Mod+Ctrl+8 hotkey-overlay-title=null { move-column-to-workspace 8; }
+    Mod+Ctrl+9 hotkey-overlay-title=null { move-column-to-workspace 9; }
+
+    Mod+Shift+Page_Down hotkey-overlay-title="Move Workspace Down/Up" { move-workspace-down; }
+    Mod+Shift+Page_Up   hotkey-overlay-title=null { move-workspace-up; }
+    Mod+Shift+U         { move-workspace-down; }
+    Mod+Shift+I         { move-workspace-up; }
+
+    // ── Monitors ────────────────────────────────────────────────────────
+    Mod+Shift+Left  hotkey-overlay-title="Focus Monitor Left/Right" { focus-monitor-left; }
+    Mod+Shift+Right hotkey-overlay-title=null { focus-monitor-right; }
+    Mod+Shift+Down  hotkey-overlay-title="Focus Monitor Down/Up" { focus-monitor-down; }
+    Mod+Shift+Up    hotkey-overlay-title=null { focus-monitor-up; }
+    Mod+Shift+H     { focus-monitor-left; }
+    Mod+Shift+J     { focus-monitor-down; }
+    Mod+Shift+K     { focus-monitor-up; }
+    Mod+Shift+L     { focus-monitor-right; }
+
+    Mod+Shift+Ctrl+Left  hotkey-overlay-title="Move Column to Monitor Left/Right" { move-column-to-monitor-left; }
+    Mod+Shift+Ctrl+Right hotkey-overlay-title=null { move-column-to-monitor-right; }
+    Mod+Shift+Ctrl+Down  hotkey-overlay-title="Move Column to Monitor Down/Up" { move-column-to-monitor-down; }
+    Mod+Shift+Ctrl+Up    hotkey-overlay-title=null { move-column-to-monitor-up; }
+    Mod+Shift+Ctrl+H     { move-column-to-monitor-left; }
+    Mod+Shift+Ctrl+J     { move-column-to-monitor-down; }
+    Mod+Shift+Ctrl+K     { move-column-to-monitor-up; }
+    Mod+Shift+Ctrl+L     { move-column-to-monitor-right; }
+
+    // ── Overview (bridges into apps) ────────────────────────────────────
+    Mod+O repeat=false hotkey-overlay-title="Show Overview" { toggle-overview; }
+
+    // ── Launchers & apps ────────────────────────────────────────────────
+    Mod+T hotkey-overlay-title="Open a Terminal" { spawn "xdg-terminal-exec"; }
     Mod+Space hotkey-overlay-title="Application Launcher" {
         spawn "dms" "ipc" "call" "spotlight" "toggle";
     }
-    Mod+T hotkey-overlay-title="Open a Terminal" { spawn "xdg-terminal-exec"; }
-    Mod+E hotkey-overlay-title="Open File Manager" { spawn "nautilus"; }
+    Mod+F hotkey-overlay-title="Open File Manager" { spawn "nautilus"; }
     Mod+Shift+P hotkey-overlay-title="Projects" {
         spawn-sh "foot --working-directory=$HOME --title=Projects --app-id=dev-terminal $HOME/.local/bin/workstation-dev --shell";
     }
@@ -43,19 +174,16 @@ binds {
     Mod+Shift+D hotkey-overlay-title="Lazydocker" {
         spawn-sh "foot --working-directory=$HOME --title=Lazydocker --app-id=lazydocker /home/linuxbrew/.linuxbrew/bin/lazydocker";
     }
-    Mod+Shift+T hotkey-overlay-title="Activity (btop)" {
+    Ctrl+Alt+Delete hotkey-overlay-title="Task Manager and Activity (btop)" {
         spawn-sh "foot --working-directory=$HOME --title=Activity --app-id=btop /usr/bin/btop";
     }
 
-    // ── System & utilities (overlay order) ──────────────────────────────
+    // ── System & utilities ──────────────────────────────────────────────
     Mod+N hotkey-overlay-title="Notification Center" {
         spawn "dms" "ipc" "call" "notifications" "toggle";
     }
     Mod+Shift+N hotkey-overlay-title="Notepad" {
         spawn "dms" "ipc" "call" "notepad" "toggle";
-    }
-    Ctrl+Alt+Delete hotkey-overlay-title="Task Manager" {
-        spawn "dms" "ipc" "call" "processlist" "toggle";
     }
     Mod+Shift+S hotkey-overlay-title="Take a Screenshot" {
         spawn "dms" "ipc" "call" "niri" "screenshot";
@@ -70,115 +198,6 @@ binds {
     Ctrl+Alt+Space hotkey-overlay-title="Switch Keyboard Language" {
         spawn-sh "$HOME/.local/bin/workstation-cycle-keyboard-layout";
     }
-
-    // ── Window layout (titled; appear in niri's hardcoded section) ───────
-    Mod+M         hotkey-overlay-title="Maximize Column"            { maximize-column; }
-    Mod+Up        hotkey-overlay-title="Switch Workspace Up"        { focus-workspace-up; }
-    Mod+Down      hotkey-overlay-title="Switch Workspace Down"      { focus-workspace-down; }
-    Mod+Ctrl+Up   hotkey-overlay-title="Move Column to Workspace Up"   { move-column-to-workspace-up; }
-    Mod+Ctrl+Down hotkey-overlay-title="Move Column to Workspace Down" { move-column-to-workspace-down; }
-
-    // ── Session ─────────────────────────────────────────────────────────
-    Mod+Slash { show-hotkey-overlay; }
-    Mod+O repeat=false { toggle-overview; }
-    Mod+Q repeat=false { close-window; }
-    Mod+Shift+E { quit; }
-
-    // ── Window layout (untitled) ────────────────────────────────────────
-    Mod+F { maximize-column; }
-    Mod+Shift+F { fullscreen-window; }
-    Mod+Ctrl+F { maximize-window-to-edges; }
-    Mod+C { center-column; }
-    Mod+Ctrl+C { center-visible-columns; }
-    Mod+R { switch-preset-column-width; }
-    Mod+Ctrl+R { reset-window-height; }
-    Mod+V { toggle-window-floating; }
-    Mod+W { toggle-column-tabbed-display; }
-
-    // ── Focus ───────────────────────────────────────────────────────────
-    Mod+Left  { focus-column-left; }
-    Mod+Right { focus-column-right; }
-    Mod+H     { focus-column-left; }
-    Mod+J     { focus-window-down; }
-    Mod+K     { focus-window-up; }
-    Mod+L     { focus-column-right; }
-
-    Mod+Home { focus-column-first; }
-    Mod+End  { focus-column-last; }
-
-    Mod+Shift+Left  { focus-monitor-left; }
-    Mod+Shift+Down  { focus-monitor-down; }
-    Mod+Shift+Up    { focus-monitor-up; }
-    Mod+Shift+Right { focus-monitor-right; }
-    Mod+Shift+H     { focus-monitor-left; }
-    Mod+Shift+J     { focus-monitor-down; }
-    Mod+Shift+K     { focus-monitor-up; }
-    Mod+Shift+L     { focus-monitor-right; }
-
-    // ── Move ────────────────────────────────────────────────────────────
-    Mod+Ctrl+Left  { move-column-left; }
-    Mod+Ctrl+Right { move-column-right; }
-    Mod+Ctrl+H     { move-column-left; }
-    Mod+Ctrl+J     { move-window-down; }
-    Mod+Ctrl+K     { move-window-up; }
-    Mod+Ctrl+L     { move-column-right; }
-
-    Mod+Ctrl+Home { move-column-to-first; }
-    Mod+Ctrl+End  { move-column-to-last; }
-
-    Mod+Shift+Ctrl+Left  { move-column-to-monitor-left; }
-    Mod+Shift+Ctrl+Down  { move-column-to-monitor-down; }
-    Mod+Shift+Ctrl+Up    { move-column-to-monitor-up; }
-    Mod+Shift+Ctrl+Right { move-column-to-monitor-right; }
-    Mod+Shift+Ctrl+H     { move-column-to-monitor-left; }
-    Mod+Shift+Ctrl+J     { move-column-to-monitor-down; }
-    Mod+Shift+Ctrl+K     { move-column-to-monitor-up; }
-    Mod+Shift+Ctrl+L     { move-column-to-monitor-right; }
-
-    // ── Workspaces ──────────────────────────────────────────────────────
-    Mod+Page_Down      { focus-workspace-down; }
-    Mod+Page_Up        { focus-workspace-up; }
-    Mod+U              { focus-workspace-down; }
-    Mod+I              { focus-workspace-up; }
-    Mod+Ctrl+Page_Down { move-column-to-workspace-down; }
-    Mod+Ctrl+Page_Up   { move-column-to-workspace-up; }
-    Mod+Ctrl+U         { move-column-to-workspace-down; }
-    Mod+Ctrl+I         { move-column-to-workspace-up; }
-
-    Mod+Shift+Page_Down { move-workspace-down; }
-    Mod+Shift+Page_Up   { move-workspace-up; }
-    Mod+Shift+U         { move-workspace-down; }
-    Mod+Shift+I         { move-workspace-up; }
-
-    Mod+1 { focus-workspace 1; }
-    Mod+2 { focus-workspace 2; }
-    Mod+3 { focus-workspace 3; }
-    Mod+4 { focus-workspace 4; }
-    Mod+5 { focus-workspace 5; }
-    Mod+6 { focus-workspace 6; }
-    Mod+7 { focus-workspace 7; }
-    Mod+8 { focus-workspace 8; }
-    Mod+9 { focus-workspace 9; }
-    Mod+Ctrl+1 { move-column-to-workspace 1; }
-    Mod+Ctrl+2 { move-column-to-workspace 2; }
-    Mod+Ctrl+3 { move-column-to-workspace 3; }
-    Mod+Ctrl+4 { move-column-to-workspace 4; }
-    Mod+Ctrl+5 { move-column-to-workspace 5; }
-    Mod+Ctrl+6 { move-column-to-workspace 6; }
-    Mod+Ctrl+7 { move-column-to-workspace 7; }
-    Mod+Ctrl+8 { move-column-to-workspace 8; }
-    Mod+Ctrl+9 { move-column-to-workspace 9; }
-
-    // ── Columns ─────────────────────────────────────────────────────────
-    Mod+BracketLeft  { consume-or-expel-window-left; }
-    Mod+BracketRight { consume-or-expel-window-right; }
-    Mod+Comma  { consume-window-into-column; }
-    Mod+Period { expel-window-from-column; }
-
-    Mod+Minus { set-column-width "-10%"; }
-    Mod+Equal { set-column-width "+10%"; }
-    Mod+Shift+Minus { set-window-height "-10%"; }
-    Mod+Shift+Equal { set-window-height "+10%"; }
 
     // ── Scroll ──────────────────────────────────────────────────────────
     Mod+WheelScrollDown      cooldown-ms=150 { focus-workspace-down; }
@@ -215,9 +234,6 @@ binds {
     Mod+Alt+Shift+S hotkey-overlay-title=null { spawn "zocr" "screenshot"; }
 
     // ── Hidden from overlay (null-titled; keys still work) ───────────────
-    Ctrl+Shift+Escape hotkey-overlay-title=null {
-        spawn "dms" "ipc" "call" "processlist" "toggle";
-    }
     Mod+Y hotkey-overlay-title=null { spawn "dms" "ipc" "call" "dankdash" "wallpaper"; }
     Mod+Alt+L hotkey-overlay-title=null { spawn "dms" "ipc" "call" "lock" "lock"; }
 
