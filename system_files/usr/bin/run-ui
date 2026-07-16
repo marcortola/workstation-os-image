@@ -1,0 +1,13 @@
+#!/bin/sh
+# Start the Niri graphical session on the current virtual terminal. Meant to be
+# typed after logging in as another user on a spare VT (README "Switch user") --
+# an easy-to-remember front for 'niri-session', which it simply execs.
+set -eu
+
+if [ -n "${WAYLAND_DISPLAY:-}" ] || [ -n "${DISPLAY:-}" ]; then
+    echo "run-ui: a graphical session is already running here." >&2
+    echo "Run it from a plain text console (e.g. Ctrl+Alt+F3) after logging in." >&2
+    exit 1
+fi
+
+exec niri-session "$@"

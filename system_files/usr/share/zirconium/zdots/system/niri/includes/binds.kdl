@@ -135,18 +135,18 @@ binds {
     Mod+Shift+I         { move-workspace-up; }
 
     // ── Monitors ────────────────────────────────────────────────────────
-    Mod+Shift+Left  hotkey-overlay-title="Focus Monitor Left/Right" { focus-monitor-left; }
+    Mod+Shift+Left  hotkey-overlay-title=null { focus-monitor-left; }
     Mod+Shift+Right hotkey-overlay-title=null { focus-monitor-right; }
-    Mod+Shift+Down  hotkey-overlay-title="Focus Monitor Down/Up" { focus-monitor-down; }
+    Mod+Shift+Down  hotkey-overlay-title=null { focus-monitor-down; }
     Mod+Shift+Up    hotkey-overlay-title=null { focus-monitor-up; }
     Mod+Shift+H     { focus-monitor-left; }
     Mod+Shift+J     { focus-monitor-down; }
     Mod+Shift+K     { focus-monitor-up; }
     Mod+Shift+L     { focus-monitor-right; }
 
-    Mod+Shift+Ctrl+Left  hotkey-overlay-title="Move Column to Monitor Left/Right" { move-column-to-monitor-left; }
+    Mod+Shift+Ctrl+Left  hotkey-overlay-title=null { move-column-to-monitor-left; }
     Mod+Shift+Ctrl+Right hotkey-overlay-title=null { move-column-to-monitor-right; }
-    Mod+Shift+Ctrl+Down  hotkey-overlay-title="Move Column to Monitor Down/Up" { move-column-to-monitor-down; }
+    Mod+Shift+Ctrl+Down  hotkey-overlay-title=null { move-column-to-monitor-down; }
     Mod+Shift+Ctrl+Up    hotkey-overlay-title=null { move-column-to-monitor-up; }
     Mod+Shift+Ctrl+H     { move-column-to-monitor-left; }
     Mod+Shift+Ctrl+J     { move-column-to-monitor-down; }
@@ -157,21 +157,21 @@ binds {
     Mod+O repeat=false hotkey-overlay-title="Show Overview" { toggle-overview; }
 
     // ── Launchers & apps ────────────────────────────────────────────────
-    Mod+T hotkey-overlay-title="Open a Terminal" { spawn "xdg-terminal-exec"; }
     Mod+Space hotkey-overlay-title="Application Launcher" {
         spawn "dms" "ipc" "call" "spotlight" "toggle";
     }
-    Mod+F hotkey-overlay-title="Open File Manager" { spawn "nautilus"; }
+    Mod+T hotkey-overlay-title="Terminal" { spawn "xdg-terminal-exec"; }
+    Mod+F hotkey-overlay-title="File Manager" { spawn "nautilus"; }
     Mod+Shift+P hotkey-overlay-title="Projects" {
         spawn-sh "foot --working-directory=$HOME --title=Projects --app-id=dev-terminal $HOME/.local/bin/workstation-dev --shell";
     }
     Mod+Shift+O hotkey-overlay-title="OpenCode" {
         spawn-sh "foot --working-directory=$HOME --title=OpenCode --app-id=opencode /home/linuxbrew/.linuxbrew/bin/opencode";
     }
-    Mod+Shift+G hotkey-overlay-title="Lazygit" {
+    Mod+Shift+G hotkey-overlay-title=null {
         spawn-sh "foot --working-directory=$HOME --title=Lazygit --app-id=lazygit /home/linuxbrew/.linuxbrew/bin/lazygit";
     }
-    Mod+Shift+D hotkey-overlay-title="Lazydocker" {
+    Mod+Shift+D hotkey-overlay-title="Monitor Docker Containers (lazydocker)" {
         spawn-sh "foot --working-directory=$HOME --title=Lazydocker --app-id=lazydocker /home/linuxbrew/.linuxbrew/bin/lazydocker";
     }
     Ctrl+Alt+Delete hotkey-overlay-title="Task Manager and Activity (btop)" {
@@ -179,6 +179,9 @@ binds {
     }
 
     // ── System & utilities ──────────────────────────────────────────────
+    Ctrl+Alt+U hotkey-overlay-title="Switch User" {
+        spawn "/usr/libexec/workstation-switch-user";
+    }
     Mod+N hotkey-overlay-title="Notification Center" {
         spawn "dms" "ipc" "call" "notifications" "toggle";
     }

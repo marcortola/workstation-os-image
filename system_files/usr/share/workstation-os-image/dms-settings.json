@@ -106,6 +106,15 @@
   "monoFontFamily": "FiraCode Nerd Font Mono",
   "muxType": "tmux",
   "niriLayoutBorderSize": 1,
+  "powerMenuActions": [
+    "reboot",
+    "logout",
+    "switchuser",
+    "poweroff",
+    "lock",
+    "suspend",
+    "restart"
+  ],
   "runningAppsCurrentWorkspace": false,
   "showCpuTemp": false,
   "showCpuUsage": false,
