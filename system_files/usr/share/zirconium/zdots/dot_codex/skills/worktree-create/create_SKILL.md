@@ -82,6 +82,7 @@ created it in the IDE, run Tools → External Tools → **Sync worktree files**.
 
 ### 4. Confirm
 
+**If you used `workmux add` (tmux path):**
 ```
 Worktree created via workmux!
 
@@ -89,6 +90,16 @@ Branch: <branch-name>
 Window: wm-<branch-name>
 
 Switch between worktrees: Ctrl-s 1/2/3... or Ctrl-s n/p
+Merge when done:          workmux merge <branch-name>
+Remove without merging:   workmux remove <branch-name>
+```
+
+**If you used the JetBrains / no-tmux flow (3b):** there is no tmux window —
+report the path instead:
+```
+Worktree created at <repo>__worktrees/<branch-name> (open it in the IDE).
+
+Branch: <branch-name>
 Merge when done:          workmux merge <branch-name>
 Remove without merging:   workmux remove <branch-name>
 ```

@@ -98,6 +98,7 @@ mkdir -p "$worktree_path/.claude/tasks/<task-name>/research"
 
 ### 5. Confirm
 
+**If you used `workmux add` (tmux path):**
 ```
 Worktree created via workmux!
 
@@ -107,6 +108,16 @@ Window: wm-<branch-name>
 Switch between worktrees: Ctrl-s 1/2/3... or Ctrl-s n/p
 Merge when done: wm merge <branch-name>
 Remove without merge: wm remove <branch-name>
+```
+
+**If you used the JetBrains / no-tmux flow (3b):** there is no tmux window —
+report the path instead:
+```
+Worktree created at <repo>__worktrees/<branch-name> (open it in the IDE).
+
+Branch: <branch-name>
+Merge when done:      workmux merge <branch-name>
+Remove without merge: workmux remove <branch-name>
 ```
 
 ## Important Notes

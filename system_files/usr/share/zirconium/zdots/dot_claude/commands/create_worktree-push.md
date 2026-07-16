@@ -23,7 +23,7 @@ git rev-parse --git-common-dir
 ```bash
 echo "BRANCH=$(git rev-parse --abbrev-ref HEAD)"
 echo "WORKTREE_PATH=$(pwd)"
-echo "MAIN_PATH=$(git worktree list --porcelain | head -2 | tail -1 | awk '{print $2}')"
+echo "MAIN_PATH=$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')"
 ```
 
 ### 3. Show Summary and Confirm
@@ -40,7 +40,7 @@ Steps:
 3. Open a PR
 4. Migrate tasks
 5. Merge the PR
-6. Done — close window manually
+6. Done — remove the worktree later from the main checkout
 
 Proceed?
 ```
@@ -78,8 +78,9 @@ gh pr create --fill --base main
 ls -d .claude/tasks/*/ 2>/dev/null | grep -v "DONE-"
 ```
 
-If tasks exist, move them to main:
+If tasks exist, move them to main (MAIN_PATH is the value printed in Step 2):
 ```bash
+mkdir -p "<MAIN_PATH>/.claude/tasks"
 mv .claude/tasks/<task> "<MAIN_PATH>/.claude/tasks/DONE-<task>"
 ```
 
