@@ -27,27 +27,50 @@ Target branch (optional): **$ARGUMENTS**
    branch="<branch-name>"
    worktree_path="<absolute-path>"
 
-   # git cherry returns "+" for commits not in main (patch-equivalents show as "-").
-   unmerged=$(git cherry main "$branch" | grep -c '^+' || true)
-   dirty=$(git -C "$worktree_path" status --porcelain | wc -l | tr -d ' ')
+   # Resolve the real default branch — never hardcode "main".
+   base=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||')
+   if [ -z "$base" ]; then
+     for c in main master trunk; do
+       git rev-parse --verify --quiet "$c" >/dev/null && base=$c && break
+     done
+   fi
+
+   # Fail CLOSED: a check that cannot run cleanly is "risky", not 0.
+   if [ -z "$base" ] || ! git rev-parse --verify --quiet "$base" >/dev/null; then
+     unmerged=risky
+   elif ! cherry=$(git cherry "$base" "$branch" 2>/dev/null); then
+     unmerged=risky
+   else
+     unmerged=$(printf '%s\n' "$cherry" | grep -c '^+')
+   fi
+   if ! status=$(git -C "$worktree_path" status --porcelain 2>/dev/null); then
+     dirty=risky
+   else
+     dirty=$(printf '%s' "$status" | grep -c .)
+   fi
    ```
    - `unmerged=0` AND `dirty=0` → safe removal (even if workmux shows `●`).
-   - otherwise → real risk of data loss.
+   - anything else (including a `risky` value from a check that could not
+     complete) → real risk of data loss; never auto-`--force`.
 
 3. **Confirm**, tailoring the message to the actual state (safe vs. unmerged/dirty),
    and wait for an explicit "yes". For the risky case, state clearly that unmerged
    commits and uncommitted changes will be LOST and the action cannot be undone.
 
-4. **Remove via workmux.** Pipe `yes` so workmux's own prompt for unmerged branches
-   does not re-ask:
+4. **Remove via workmux.** In the confirmed-safe case (`unmerged=0` and `dirty=0`),
+   pipe `yes` so workmux's own prompt for unmerged branches does not re-ask:
    ```bash
    yes | workmux remove "$branch"
    ```
+   In any risky or unverified case, run it interactively (`workmux remove "$branch"`)
+   so workmux's own unmerged-branch guard still fires.
    If workmux fails (a manually created worktree), fall back to:
    ```bash
-   git worktree remove "$worktree_path"    # add --force if needed
-   git branch -D "$branch"
+   git worktree remove "$worktree_path"    # refuses if the worktree is dirty
+   git branch -D "$branch"                 # force-deletes the (already-merged) branch
    ```
+   A refusal means uncommitted changes exist — do not add `--force` (it discards
+   them) without re-checking merge/dirty state and explicit user confirmation.
 
 5. **Clean up the nvim session:**
    ```bash

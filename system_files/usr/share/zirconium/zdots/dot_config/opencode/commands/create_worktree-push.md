@@ -20,10 +20,15 @@ clean up.
 1. **Validate.** If the git common dir above is `.git`, you are in the main repo and
    this command does not apply — stop and say so. Otherwise proceed.
 
-2. **Commit.** If there are staged or unstaged changes, commit them with a clear
+2. **Show the plan and confirm.** Print the plan (`<branch> → main`: commit, sync
+   main, open a PR, merge, then hand off cleanup) and wait for an explicit "yes"
+   before changing anything. This squash-merges and deletes the branch — do not
+   proceed autonomously.
+
+3. **Commit.** If there are staged or unstaged changes, commit them with a clear
    message. If the tree is clean and there are no new commits, skip.
 
-3. **Sync main.** Worktrees can outlive `main` by days; sync before the PR so the
+4. **Sync main.** Worktrees can outlive `main` by days; sync before the PR so the
    merge is clean:
    ```bash
    git fetch origin main:main
@@ -33,21 +38,21 @@ clean up.
    (`git commit --no-edit`). If there are conflicts you cannot resolve confidently,
    STOP and let the user inspect before resuming.
 
-4. **Open a PR:**
+5. **Open a PR:**
    ```bash
    git push -u origin "$(git rev-parse --abbrev-ref HEAD)"
    gh pr create --fill --base main
    ```
    If a PR already exists, skip. Note the PR number.
 
-5. **Merge the PR:**
+6. **Merge the PR:**
    ```bash
    gh pr merge <PR_NUMBER> --squash --delete-branch
    ```
    After this, the shell's working directory may be removed — do not run any more
    shell commands from the worktree.
 
-6. **Report** and stop:
+7. **Report** and stop:
    ```
    SHIPPED SUCCESSFULLY
 

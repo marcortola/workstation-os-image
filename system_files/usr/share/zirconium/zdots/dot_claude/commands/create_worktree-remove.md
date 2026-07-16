@@ -27,16 +27,38 @@ If no argument provided, ask user which worktree to remove.
 branch="<branch-name>"
 worktree_path="<absolute-path>"
 
-# 2a. Unmerged commits? `git cherry` returns "+" for commits not in main
-#     (including patch-equivalent detection, so squash merges show as "-").
-unmerged=$(git cherry main "$branch" | grep -c '^+' || true)
+# Resolve the real default branch — never hardcode "main".
+base=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||')
+if [ -z "$base" ]; then
+  for c in main master trunk; do
+    git rev-parse --verify --quiet "$c" >/dev/null && base=$c && break
+  done
+fi
+
+# Fail CLOSED: if a check cannot run cleanly, mark it "risky" — never let an
+# errored command report 0 and greenlight a force-delete.
+# 2a. Unmerged commits? `git cherry` lists "+" for commits not in base
+#     (patch-equivalents show as "-", so squash merges read as merged).
+if [ -z "$base" ] || ! git rev-parse --verify --quiet "$base" >/dev/null; then
+  unmerged=risky
+elif ! cherry=$(git cherry "$base" "$branch" 2>/dev/null); then
+  unmerged=risky
+else
+  unmerged=$(printf '%s\n' "$cherry" | grep -c '^+')
+fi
 
 # 2b. Uncommitted changes in the worktree?
-dirty=$(git -C "$worktree_path" status --porcelain | wc -l | tr -d ' ')
+if ! status=$(git -C "$worktree_path" status --porcelain 2>/dev/null); then
+  dirty=risky
+else
+  dirty=$(printf '%s' "$status" | grep -c .)
+fi
 ```
 
 - `unmerged=0` AND `dirty=0` → **safe removal** (even if workmux shows `●`)
-- otherwise → **real risk of data loss**
+- anything else — including a `risky` value from a check that could not
+  complete (missing base branch, bad path) → **real risk of data loss**; never
+  auto-`--force`, get explicit user confirmation
 
 ### 3. Show Info and Confirm
 
@@ -67,19 +89,27 @@ Proceed? (yes/no)
 
 ### 4. Remove via Workmux
 
-Once the user has confirmed, pipe `yes` so workmux's own interactive prompt for unmerged branches doesn't re-ask:
+- **Confirmed-safe case** (`unmerged=0` and `dirty=0`): pipe `yes` so workmux's own prompt for unmerged branches doesn't re-ask:
 
-```bash
-yes | workmux remove "$branch"
-```
+  ```bash
+  yes | workmux remove "$branch"
+  ```
+
+- **Risky or unverified case** (any `risky` / non-zero value): run it interactively so workmux's own unmerged-branch guard still fires as a last-line defense:
+
+  ```bash
+  workmux remove "$branch"
+  ```
 
 **If workmux fails** (worktree was created manually):
 ```bash
-git worktree remove "$worktree_path"
-# If needed:
-git worktree remove --force "$worktree_path"
-git branch -D "$branch"
+git worktree remove "$worktree_path"   # refuses if the worktree is dirty
+git branch -D "$branch"                # force-deletes the (already-merged) branch
 ```
+A `git worktree remove` refusal means the worktree has **uncommitted changes** — do
+not reflexively add `--force`, which discards them. Re-run the step-2 merge/dirty
+check and get explicit user confirmation before escalating to
+`git worktree remove --force`.
 
 ### 4b. JetBrains / no-tmux
 

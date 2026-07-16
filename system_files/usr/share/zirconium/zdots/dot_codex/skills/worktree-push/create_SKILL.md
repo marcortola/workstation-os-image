@@ -23,7 +23,6 @@ git rev-parse --git-common-dir
 ```bash
 echo "BRANCH=$(git rev-parse --abbrev-ref HEAD)"
 echo "WORKTREE_PATH=$(pwd)"
-echo "MAIN_PATH=$(git worktree list --porcelain | head -2 | tail -1 | awk '{print $2}')"
 ```
 
 ### 3. Show a summary and confirm
@@ -39,7 +38,7 @@ Steps:
 2. Sync main into the branch
 3. Open a PR
 4. Merge the PR
-5. Done — close the window manually
+5. Done — remove the worktree later from the main checkout
 
 Proceed?
 ```
