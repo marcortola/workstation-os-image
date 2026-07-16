@@ -1,6 +1,6 @@
 ---
-name: rm-worktree
-description: Remove a git worktree, its tmux window, and its local branch via workmux, with squash-merge-aware safety checks. Use when the user wants to delete or clean up a workmux worktree, or invokes $rm-worktree.
+name: worktree-remove
+description: Remove a git worktree, its tmux window, and its local branch via workmux, with squash-merge-aware safety checks. Use when the user wants to delete or clean up a workmux worktree, or invokes $worktree-remove.
 ---
 
 # Remove Git Worktree
