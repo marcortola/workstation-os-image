@@ -40,6 +40,9 @@ ghcr.io/marcortola/workstation-os-image:latest
   worktree under `<repo>__worktrees/`, driven by matching `worktree-create` /
   `worktree-push` / `worktree-remove` helpers seeded for Claude Code (commands),
   Codex (skills) and OpenCode (commands).
+- New worktrees inherit a repo's untracked files (`.env`, `.idea`, ...) from a
+  committed `.worktreeinclude`, applied identically by `ga`, workmux, Claude Code
+  and the JetBrains IDE (see [Worktree file propagation](#worktree-file-propagation)).
 - Brewfile and Flatpak restoration, JetBrains Toolbox, personal fonts and the
   accepted Microsoft-font installer.
 - Private video codecs (RPM Fusion), RAR extraction, `pandoc`, `mkcert`,
@@ -82,6 +85,38 @@ The `devcontainer` CLI (installed via Homebrew) uses Docker, which is already
 configured rootful and passwordless. Each project pins its own runtime versions
 in a `.devcontainer/devcontainer.json`. This is the same workflow used by VS
 Code Dev Containers and GitHub Codespaces.
+
+### Worktree file propagation
+
+A git worktree is a fresh checkout, so the untracked files a project needs to run
+— `.env*`, `.idea/`, `.claude/settings.local.json` — do not come along. Each repo
+declares them once in a committed **`.worktreeinclude`** (gitignore syntax; only
+files git already ignores are copied, never tracked ones), and every worktree
+creation path reads that single inventory:
+
+- **workmux** (`worktree-create`) applies it from its `post_create` hook.
+- **`ga`** applies it after `git worktree add`.
+- **Claude Code** (`--worktree`, subagent isolation) reads `.worktreeinclude`
+  natively.
+- **JetBrains** "New Worktree" fires a git `post-checkout` hook that applies it;
+  `init.templateDir` seeds that hook into new clones. A **Sync worktree files**
+  External Tool (Tools → External Tools) is the manual fallback for repos whose
+  own hooks path (Husky, lefthook) bypasses the hook.
+
+The copy is `git worktreeinclude` (Homebrew), wrapped by
+`workstation-worktree-sync` so it is a no-op outside a linked worktree and never
+blocks creation. Onboard a repository — install the hook and generate a starter
+`.worktreeinclude` — with:
+
+```bash
+just worktree-init            # the current repo
+just worktree-init --all      # every repo under ~/projects
+```
+
+Dependencies (`node_modules`, `vendor`) are deliberately not copied — add an
+install step or a symlink in a per-repo `.workmux.yaml` instead. The JetBrains
+index is per-worktree and always rebuilds; copying `.idea/` carries settings and
+run configs, not the index.
 
 ## Architecture
 

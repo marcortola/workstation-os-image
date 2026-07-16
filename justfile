@@ -60,6 +60,11 @@ validate:
 brew-apply:
     brew bundle install --file "${XDG_CONFIG_HOME:-$HOME/.config}/homebrew/Brewfile"
 
+# Install the worktree post-checkout hook and a starter .worktreeinclude into a
+# repo (cwd), the given repos, or every repo under ~/projects with --all.
+worktree-init *args:
+    ./scripts/worktree-init {{ args }}
+
 # Build and lint the complete bootc image locally.
 build:
     podman build --pull=always --tag workstation-os-image:review -f Containerfile .
