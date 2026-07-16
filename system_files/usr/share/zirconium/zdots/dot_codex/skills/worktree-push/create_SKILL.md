@@ -1,6 +1,6 @@
 ---
-name: ship-worktree
-description: Ship a worktree's branch to main by committing, syncing main, opening a PR, merging, and handing off cleanup. Use when the user is inside a workmux worktree and wants to finish and merge the work, or invokes $ship-worktree.
+name: worktree-push
+description: Ship a worktree's branch to main by committing, syncing main, opening a PR, merging, and handing off cleanup. Use when the user is inside a workmux worktree and wants to finish and merge the work, or invokes $worktree-push.
 ---
 
 # Ship Worktree

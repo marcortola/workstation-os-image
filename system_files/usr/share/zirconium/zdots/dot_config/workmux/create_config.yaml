@@ -8,7 +8,7 @@
 agent: claude
 
 # `workmux merge` squashes by default, matching the PR-based squash-merge flow
-# the ship-worktree command uses. The --rebase / --merge CLI flags override.
+# the worktree-push command uses. The --rebase / --merge CLI flags override.
 merge_strategy: squash
 
 # Pane layout for each worktree window: agent | editor | shell.
