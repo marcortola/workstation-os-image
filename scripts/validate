@@ -37,6 +37,7 @@ grep -q 'satococoa/tap/git-worktreeinclude' \
     system_files/usr/share/zirconium/zdots/dot_config/homebrew/create_Brewfile
 grep -q 'templateDir' system_files/usr/share/zirconium/zdots/dot_config/git/create_config
 [[ -x scripts/worktree-init ]]
+scripts/test-worktree-init
 
 scripts/validate-dms-overlay
 jq -n -e \

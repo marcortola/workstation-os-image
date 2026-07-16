@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# workstation-worktree-init: managed post-checkout hook v1
 # post-checkout — populate new git worktrees with their .worktreeinclude-listed
 # gitignored files. Seeded into every repository's .git/hooks by init.templateDir
 # (new clones) and by `just worktree-init` (existing repos). Because the IDE and

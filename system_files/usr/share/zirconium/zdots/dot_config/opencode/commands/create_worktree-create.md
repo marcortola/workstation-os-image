@@ -67,9 +67,9 @@ Worktree** UI (the git `post-checkout` hook copies the `.worktreeinclude` files
 automatically), or create it here without tmux:
 
 ```bash
-git fetch origin main:main 2>/dev/null || true
+git fetch origin +refs/heads/main:refs/remotes/origin/main
 dir="$(git rev-parse --show-toplevel)__worktrees/<branch-name>"
-git worktree add "$dir" -b <branch-name> main
+git worktree add "$dir" -b <branch-name> origin/main
 ( cd "$dir" && workstation-worktree-sync )   # copy .env, .idea, ... from main
 ```
 

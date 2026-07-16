@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+worktree_init="$repo_root/scripts/worktree-init"
+hook_seed="$repo_root/system_files/usr/share/zirconium/zdots/dot_config/git/template/hooks/create_executable_post-checkout"
+managed_marker="# workstation-worktree-init: managed post-checkout hook v1"
+workdir="$(mktemp -d)"
+trap 'rm -rf -- "$workdir"' EXIT
+
+export HOME="$workdir/home"
+export XDG_CONFIG_HOME="$HOME/.config"
+export GIT_CONFIG_NOSYSTEM=1
+export GIT_AUTHOR_NAME="Worktree Init Test"
+export GIT_AUTHOR_EMAIL="worktree-init@example.invalid"
+export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME"
+export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+mkdir -p "$HOME"
+
+fail() {
+    echo "worktree-init test: $*" >&2
+    exit 1
+}
+
+new_repo() {
+    local repo="$1"
+    git init -q --initial-branch=main "$repo"
+    git -C "$repo" commit -q --allow-empty -m initial
+}
+
+# Every IDE/no-tmux recipe must fetch the remote-tracking ref and use that
+# fetched commit as the new branch's base. Updating local main can fail when it
+# is checked out in another worktree.
+ide_recipes=(
+    "$repo_root/system_files/usr/share/zirconium/zdots/dot_claude/commands/create_worktree-create.md"
+    "$repo_root/system_files/usr/share/zirconium/zdots/dot_codex/skills/worktree-create/create_SKILL.md"
+    "$repo_root/system_files/usr/share/zirconium/zdots/dot_config/opencode/commands/create_worktree-create.md"
+)
+for recipe in "${ide_recipes[@]}"; do
+    grep -Fq 'git fetch origin +refs/heads/main:refs/remotes/origin/main' "$recipe" \
+        || fail "IDE recipe does not fetch origin/main: $recipe"
+    grep -Eq '^git worktree add .* origin/main$' "$recipe" \
+        || fail "IDE recipe does not branch from origin/main: $recipe"
+done
+
+# Supplying a linked checkout must still create the shared inventory in the
+# primary/source checkout, where git-worktreeinclude looks for it by default.
+primary="$workdir/primary"
+linked="$workdir/linked"
+new_repo "$primary"
+git -C "$primary" worktree add -q -b linked "$linked"
+"$worktree_init" "$linked" >/dev/null
+[[ -f $primary/.worktreeinclude ]] \
+    || fail "linked checkout did not generate the primary inventory"
+[[ ! -e $linked/.worktreeinclude ]] \
+    || fail "linked checkout received a private inventory"
+
+hook="$primary/.git/hooks/post-checkout"
+cmp -s "$hook_seed" "$hook" || fail "installed hook differs from its seed"
+grep -Fqx "$managed_marker" "$hook" || fail "installed hook has no ownership sentinel"
+
+# A tool may compose extra commands into the managed hook. The sentinel alone
+# must not authorize replacement: only byte-for-byte current content is safe to
+# treat as unchanged.
+printf '\n# composed hook command\nprintf "preserved" >/dev/null\n' >> "$hook"
+before="$(sha256sum "$hook")"
+output="$("$worktree_init" "$linked")"
+after="$(sha256sum "$hook")"
+[[ $before == "$after" ]] || fail "locally composed hook was overwritten"
+grep -Fq 'hook: skip (managed hook has local changes)' <<< "$output" \
+    || fail "locally composed hook was not reported as preserved"
+
+# An inventory redirection failure must produce a failing exit status and must
+# never be followed by a generated-success message.
+inventory_failure="$workdir/inventory-failure"
+new_repo "$inventory_failure"
+ln -s "$workdir/missing/inventory" "$inventory_failure/.worktreeinclude"
+if inventory_output="$("$worktree_init" "$inventory_failure" 2>&1)"; then
+    fail "inventory write failure returned success"
+fi
+grep -Fq 'wti:  failed to generate' <<< "$inventory_output" \
+    || fail "inventory write failure was not reported"
+if grep -Fq 'wti:  generated' <<< "$inventory_output"; then
+    fail "inventory write failure reported successful generation"
+fi
+
+# Hook-install failures must also return nonzero without suppressing inventory
+# generation. Bulk mode continues to healthy repositories but retains the
+# aggregate failure status.
+projects="$workdir/projects"
+broken_hook="$projects/01-broken-hook"
+healthy="$projects/02-healthy"
+new_repo "$broken_hook"
+rm -rf -- "$broken_hook/.git/hooks"
+printf 'not a directory\n' > "$broken_hook/.git/hooks"
+if hook_output="$("$worktree_init" "$broken_hook" 2>&1)"; then
+    fail "hook write failure returned success"
+fi
+grep -Fq 'hook: failed to create' <<< "$hook_output" \
+    || fail "hook write failure was not reported"
+if grep -Fq 'hook: installed' <<< "$hook_output"; then
+    fail "hook write failure reported successful installation"
+fi
+[[ -f $broken_hook/.worktreeinclude ]] \
+    || fail "hook failure prevented inventory generation"
+
+new_repo "$healthy"
+if all_output="$(
+    WORKSTATION_PROJECTS_ROOT="$projects" "$worktree_init" --all 2>&1
+)"; then
+    fail "bulk onboarding discarded a repository failure"
+fi
+grep -Fq "$broken_hook" <<< "$all_output" \
+    || fail "bulk onboarding skipped the broken repository"
+grep -Fq "$healthy" <<< "$all_output" \
+    || fail "bulk onboarding stopped before the healthy repository"
+[[ -x $healthy/.git/hooks/post-checkout ]] \
+    || fail "bulk onboarding did not install the healthy repository hook"
+[[ -f $healthy/.worktreeinclude ]] \
+    || fail "bulk onboarding did not generate the healthy repository inventory"
+
+echo "Worktree onboarding tests passed."

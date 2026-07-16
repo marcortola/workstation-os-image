@@ -17,7 +17,7 @@
 #   scripts/worktree-init --all           # every repo under WORKSTATION_PROJECTS_ROOT
 #
 # Idempotent and non-destructive: it never overwrites an existing
-# .worktreeinclude, and never replaces a post-checkout hook it did not write.
+# .worktreeinclude, and never replaces an unmanaged or locally modified hook.
 set -uo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -25,7 +25,7 @@ repo_root="$(cd "$script_dir/.." && pwd)"
 hook_seed="$repo_root/system_files/usr/share/zirconium/zdots/dot_config/git/template/hooks/create_executable_post-checkout"
 hook_live="${XDG_CONFIG_HOME:-$HOME/.config}/git/template/hooks/post-checkout"
 projects_root="${WORKSTATION_PROJECTS_ROOT:-$HOME/projects}"
-marker="workstation-worktree-sync"
+managed_marker="# workstation-worktree-init: managed post-checkout hook v1"
 
 if [[ -r $hook_seed ]]; then
     hook_src="$hook_seed"
@@ -38,18 +38,35 @@ fi
 
 install_hook() {
     local repo="$1" common dest
-    common="$(git -C "$repo" rev-parse --git-common-dir 2>/dev/null)" || return 0
+    if ! common="$(git -C "$repo" rev-parse --git-common-dir 2>/dev/null)"; then
+        echo "  hook: failed to resolve the common Git directory" >&2
+        return 1
+    fi
     case "$common" in
         /*) : ;;
         *) common="$repo/$common" ;;
     esac
     dest="$common/hooks/post-checkout"
-    if [[ -e $dest ]] && ! grep -q "$marker" "$dest" 2>/dev/null; then
+    if [[ -e $dest ]]; then
+        if cmp -s "$hook_src" "$dest"; then
+            echo "  hook: current"
+            return 0
+        fi
+        if grep -Fqx "$managed_marker" "$dest" 2>/dev/null; then
+            echo "  hook: skip (managed hook has local changes)"
+            return 0
+        fi
         echo "  hook: skip (a different post-checkout hook is already installed)"
         return 0
     fi
-    mkdir -p "$common/hooks"
-    install -m 0755 "$hook_src" "$dest"
+    if ! mkdir -p "$common/hooks"; then
+        echo "  hook: failed to create $common/hooks" >&2
+        return 1
+    fi
+    if ! install -m 0755 "$hook_src" "$dest"; then
+        echo "  hook: failed to install $dest" >&2
+        return 1
+    fi
     echo "  hook: installed"
 }
 
@@ -59,7 +76,7 @@ generate_worktreeinclude() {
         echo "  wti:  skip (already present)"
         return 0
     fi
-    {
+    if {
         echo "# Untracked files to copy into new git worktrees (gitignore syntax)."
         echo "# Only files git IGNORES and that match here are copied; tracked files"
         echo "# never are. Read by Claude Code, workmux, the post-checkout hook, and the"
@@ -77,20 +94,46 @@ generate_worktreeinclude() {
             echo "*.tfvars"
             echo "*.tfvars.json"
         fi
-    } >"$file"
-    echo "  wti:  generated"
+    } >"$file"; then
+        echo "  wti:  generated"
+        return 0
+    fi
+    echo "  wti:  failed to generate $file" >&2
+    return 1
+}
+
+primary_worktree() {
+    local repo="$1" record
+    # The first porcelain record is Git's primary/source worktree. Use NUL
+    # delimiters so spaces and other quoted path characters remain literal.
+    if ! IFS= read -r -d '' record < <(
+        git -C "$repo" worktree list --porcelain -z 2>/dev/null
+    ); then
+        echo "worktree-init: cannot resolve the primary worktree for $repo" >&2
+        return 1
+    fi
+    if [[ $record != 'worktree '* ]]; then
+        echo "worktree-init: invalid worktree metadata for $repo" >&2
+        return 1
+    fi
+    printf '%s\n' "${record#worktree }"
 }
 
 process() {
-    local repo="$1"
+    local repo="$1" primary status=0
     if ! git -C "$repo" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
         echo "skip (not a git work tree): $repo"
         return 0
     fi
-    repo="$(git -C "$repo" rev-parse --show-toplevel)"
-    echo "$repo"
-    install_hook "$repo"
-    generate_worktreeinclude "$repo"
+    if ! repo="$(git -C "$repo" rev-parse --show-toplevel)"; then
+        echo "worktree-init: cannot resolve the worktree root for $repo" >&2
+        return 1
+    fi
+    primary="$(primary_worktree "$repo")" || return 1
+    echo "$primary"
+    install_hook "$primary" || status=1
+    generate_worktreeinclude "$primary" || status=1
+    return "$status"
 }
 
 targets=()
@@ -111,6 +154,8 @@ if [[ ${#targets[@]} -eq 0 ]]; then
     exit 0
 fi
 
+status=0
 for repo in "${targets[@]}"; do
-    process "$repo"
+    process "$repo" || status=1
 done
+exit "$status"

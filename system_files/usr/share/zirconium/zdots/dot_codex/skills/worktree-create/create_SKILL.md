@@ -71,9 +71,9 @@ opens a tmux window you won't use. Either create the worktree from the IDE's
 files automatically), or create it here without tmux and open it in the IDE:
 
 ```bash
-git fetch origin main:main 2>/dev/null || true
+git fetch origin +refs/heads/main:refs/remotes/origin/main
 dir="$(git rev-parse --show-toplevel)__worktrees/{branch-name}"
-git worktree add "$dir" -b {branch-name} main
+git worktree add "$dir" -b {branch-name} origin/main
 ( cd "$dir" && workstation-worktree-sync )   # copy .env, .idea, ... from main
 ```
 
