@@ -29,6 +29,8 @@ ghcr.io/marcortola/workstation-os-image:latest
   browser is layered into the image; Ahrefs needs a one-time
   `claude mcp login ahrefs`.
 - Screen recording via `wf-recorder` on `Mod+Shift+R`.
+- `Ctrl+Alt+U`, or the power menu's **Switch User**, moves between logged-in
+  users (see [Switch user](#switch-user)).
 - `dev` to select a repository and change the current shell into it;
   `Mod+Shift+P` opens the same picker in a new Foot terminal.
 - `ga <branch>` / `gd` create and remove a per-branch git worktree at
@@ -48,6 +50,20 @@ ghcr.io/marcortola/workstation-os-image:latest
   Niri/DMS changes and captured DMS preferences.
 - Containerfile and workflow linting (`hadolint`, `actionlint`) and secret
   scanning (`gitleaks`), enforced by both local validation and CI.
+
+## Switch user
+
+The login manager (greetd) runs one graphical session at a time, so a second
+user logs in on a spare virtual terminal and you hop between them:
+
+1. Press `Ctrl+Alt+F3` to reach a free console and log in as the other user.
+2. Run `run-ui` there to start their desktop (an easy-to-remember front for
+   `niri-session`).
+3. Move between sessions with `Ctrl+Alt+F1` (you) and `Ctrl+Alt+F3` (them), or
+   press `Ctrl+Alt+U` to jump to the other running session. The power menu's
+   **Switch User** entry lists the same sessions.
+
+To go back to a single session, log out (power menu → **Log Out**).
 
 ## Development environments
 

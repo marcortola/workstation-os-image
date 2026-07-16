@@ -1,0 +1,27 @@
+#!/bin/sh
+# Jump the active virtual terminal to another logged-in user's session on this
+# seat (README "Switch user"). greetd runs one graphical session at a time, so a
+# second user logs in on a spare VT; this flips straight to the other running
+# session. If nobody else is logged in, it explains how to start a second one.
+set -eu
+
+target=""
+for id in $(loginctl list-sessions --no-legend 2>/dev/null | awk '{print $1}'); do
+    [ "$id" = "${XDG_SESSION_ID:-}" ] && continue
+    if [ "$(loginctl show-session "$id" -p Class --value 2>/dev/null || true)" != "user" ]; then
+        continue
+    fi
+    if [ "$(loginctl show-session "$id" -p State --value 2>/dev/null || true)" = "closing" ]; then
+        continue
+    fi
+    target="$id"
+    break
+done
+
+if [ -n "$target" ]; then
+    exec loginctl activate "$target"
+fi
+
+notify-send --app-name="Switch user" "No other session open" \
+    "Reach a free console with Ctrl+Alt+F3, log in as the other user and run 'run-ui', then use this shortcut to switch between sessions." \
+    2>/dev/null || true
