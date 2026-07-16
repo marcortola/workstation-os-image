@@ -22,11 +22,14 @@ panes:
   - split: vertical
     size: 12
 
-# Best-effort file operations when a worktree is created (missing files are
-# skipped). Gitignored env files must be unique per worktree, so copy them
-# rather than symlink. Add language-specific symlinks (e.g. node_modules) and
-# install hooks in the per-project .workmux.yaml, not here.
-files:
-  copy:
-    - .env
-    - .env.local
+# Populate each new worktree with the untracked files declared in the repo's
+# committed .worktreeinclude (env files, .idea, etc.) — the same inventory the
+# Claude Code and JetBrains flows read, so every path stays in sync from one
+# list. `workstation-worktree-sync` is a no-op when the tool or a
+# .worktreeinclude is absent, so it never blocks worktree creation.
+#
+# A per-project .workmux.yaml that sets its own post_create must include
+# "<global>" to keep this step, e.g. add `npm ci` or a node_modules symlink
+# alongside it there (language installs/symlinks do not belong in this file).
+post_create:
+  - workstation-worktree-sync

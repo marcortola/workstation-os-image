@@ -1,0 +1,13 @@
+# Untracked files to copy into new git worktrees (gitignore syntax).
+# Only files git IGNORES and that match here are copied; tracked files
+# never are. Read by Claude Code, workmux, the post-checkout hook, and the
+# JetBrains 'Sync worktree files' External Tool. Commit to share with the
+# team. node_modules/vendor/.venv belong in a per-project install step, not
+# here — copying them per worktree is the wrong tool.
+
+.env
+.env.local
+.env.*.local
+.idea/
+.vscode/
+.claude/settings.local.json

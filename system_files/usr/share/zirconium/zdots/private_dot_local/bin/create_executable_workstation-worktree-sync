@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# workstation-worktree-sync — copy a repository's .worktreeinclude-listed
+# gitignored files (.env, .idea, ...) from the main worktree into the current
+# linked worktree. Shared by the workmux post_create hook, the `ga` fish helper,
+# and the git post-checkout hook so every worktree-creation path behaves the
+# same from one committed inventory.
+#
+# Safe by construction: no-op outside a git work tree, no-op in the main
+# checkout, no-op when git-worktreeinclude or a .worktreeinclude is absent, and
+# it never exits non-zero — it must never abort the surrounding worktree or
+# checkout operation. PATH is resolved explicitly because a GUI-launched IDE may
+# run git hooks with a minimal environment.
+
+# Must be inside a work tree.
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0
+
+# Act only in a LINKED worktree, never the main checkout: the post-checkout hook
+# also fires on every branch switch, and the main checkout has nothing to
+# populate. In the main checkout --git-dir equals --git-common-dir.
+if [ "$(git rev-parse --git-dir 2>/dev/null)" = "$(git rev-parse --git-common-dir 2>/dev/null)" ]; then
+    exit 0
+fi
+
+# Resolve git-worktreeinclude without depending on PATH.
+gwi=""
+for cand in git-worktreeinclude \
+    /home/linuxbrew/.linuxbrew/bin/git-worktreeinclude \
+    "$HOME/.linuxbrew/bin/git-worktreeinclude"; do
+    if command -v "$cand" >/dev/null 2>&1; then
+        gwi="$cand"
+        break
+    fi
+done
+[ -n "$gwi" ] || exit 0
+
+# Copy from the auto-selected main worktree into this one. git-worktreeinclude
+# never overwrites existing files, never touches tracked files, and is a no-op
+# when .worktreeinclude is missing. Swallow any non-zero (e.g. copy conflicts on
+# a re-run) so we never abort the operation that invoked us.
+"$gwi" apply || true
+exit 0

@@ -84,6 +84,12 @@ files. `CLAUDE.md` imports this file for Claude Code.
   after deploy to install newly added entries.
 - Do not capture `fish_variables`, mutable DMS JSON, Neovim state/cache, or
   configuration backup files.
+- Worktree untracked-file propagation is driven by each repo's committed
+  `.worktreeinclude`; every creation path reads that one inventory — workmux
+  `post_create`, `ga`, Claude Code's native `--worktree`, the git `post-checkout`
+  hook seeded by `init.templateDir`, and the JetBrains "Sync worktree files"
+  External Tool (all via `workstation-worktree-sync`). Do not add a second copy
+  list such as workmux `files.copy`.
 
 ## Change workflow
 
@@ -108,6 +114,7 @@ files. `CLAUDE.md` imports this file for Claude Code.
 - `just sync`: copy manifest-listed live files into create-only image seeds.
 - `just capture`: sync, validate, and show the resulting Git status/diff.
 - `just brew-apply`: install not-yet-installed Brewfile entries (brew, cask, Flatpak).
+- `just worktree-init`: install the worktree hook and a starter `.worktreeinclude` into a repo (or `--all` repos under `~/projects`).
 - `just dms-capture`: interactively promote portable live DMS preferences.
 - `just dms-remove`: interactively stop tracking selected DMS preferences.
 - `just dms-apply`: explicitly restore the tracked overlay into the live account.

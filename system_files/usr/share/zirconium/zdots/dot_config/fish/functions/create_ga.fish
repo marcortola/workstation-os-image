@@ -21,4 +21,9 @@ function ga --description 'Add a git worktree for BRANCH at ../<repo>--<branch> 
         git worktree add $dir -b $branch; or return
     end
     cd $dir
+    # Populate the new worktree with .worktreeinclude-listed gitignored files
+    # (.env, .idea, ...) from the main worktree, matching the workmux/IDE flows.
+    if type -q workstation-worktree-sync
+        workstation-worktree-sync
+    end
 end
