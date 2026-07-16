@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+# worktree-init — make git-worktree file propagation work in a repository:
+#   1. install the post-checkout hook into .git/hooks so worktrees created by
+#      the JetBrains IDE (or any raw `git worktree add`) copy their untracked
+#      files, and
+#   2. drop a starter .worktreeinclude when the repo has none, so all four
+#      creation paths (workmux, Claude Code, the hook, the IDE External Tool)
+#      have an inventory to read.
+#
+# init.templateDir already seeds the hook into freshly cloned repos; this is the
+# retrofit for repos that already exist, and the bulk bootstrap for every repo
+# under the projects root.
+#
+# Usage:
+#   scripts/worktree-init                 # the current repo (cwd)
+#   scripts/worktree-init PATH [PATH...]  # specific repos
+#   scripts/worktree-init --all           # every repo under WORKSTATION_PROJECTS_ROOT
+#
+# Idempotent and non-destructive: it never overwrites an existing
+# .worktreeinclude, and never replaces a post-checkout hook it did not write.
+set -uo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(cd "$script_dir/.." && pwd)"
+hook_seed="$repo_root/system_files/usr/share/zirconium/zdots/dot_config/git/template/hooks/create_executable_post-checkout"
+hook_live="${XDG_CONFIG_HOME:-$HOME/.config}/git/template/hooks/post-checkout"
+projects_root="${WORKSTATION_PROJECTS_ROOT:-$HOME/projects}"
+marker="workstation-worktree-sync"
+
+if [[ -r $hook_seed ]]; then
+    hook_src="$hook_seed"
+elif [[ -r $hook_live ]]; then
+    hook_src="$hook_live"
+else
+    echo "worktree-init: cannot find the post-checkout hook source" >&2
+    exit 1
+fi
+
+install_hook() {
+    local repo="$1" common dest
+    common="$(git -C "$repo" rev-parse --git-common-dir 2>/dev/null)" || return 0
+    case "$common" in
+        /*) : ;;
+        *) common="$repo/$common" ;;
+    esac
+    dest="$common/hooks/post-checkout"
+    if [[ -e $dest ]] && ! grep -q "$marker" "$dest" 2>/dev/null; then
+        echo "  hook: skip (a different post-checkout hook is already installed)"
+        return 0
+    fi
+    mkdir -p "$common/hooks"
+    install -m 0755 "$hook_src" "$dest"
+    echo "  hook: installed"
+}
+
+generate_worktreeinclude() {
+    local repo="$1" file="$1/.worktreeinclude"
+    if [[ -e $file ]]; then
+        echo "  wti:  skip (already present)"
+        return 0
+    fi
+    {
+        echo "# Untracked files to copy into new git worktrees (gitignore syntax)."
+        echo "# Only files git IGNORES and that match here are copied; tracked files"
+        echo "# never are. Read by Claude Code, workmux, the post-checkout hook, and the"
+        echo "# JetBrains 'Sync worktree files' External Tool. Commit to share with the"
+        echo "# team. node_modules/vendor/.venv belong in a per-project install step, not"
+        echo "# here — copying them per worktree is the wrong tool."
+        echo
+        echo ".env"
+        echo ".env.local"
+        echo ".env.*.local"
+        echo ".idea/"
+        echo ".vscode/"
+        echo ".claude/settings.local.json"
+        if compgen -G "$repo/*.tf" >/dev/null 2>&1 || [[ -d $repo/terraform ]]; then
+            echo "*.tfvars"
+            echo "*.tfvars.json"
+        fi
+    } >"$file"
+    echo "  wti:  generated"
+}
+
+process() {
+    local repo="$1"
+    if ! git -C "$repo" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        echo "skip (not a git work tree): $repo"
+        return 0
+    fi
+    repo="$(git -C "$repo" rev-parse --show-toplevel)"
+    echo "$repo"
+    install_hook "$repo"
+    generate_worktreeinclude "$repo"
+}
+
+targets=()
+if [[ ${1:-} == --all ]]; then
+    while IFS= read -r gitdir; do
+        targets+=("${gitdir%/.git}")
+    done < <(find "$projects_root" -maxdepth 4 -type d -name .git \
+        -not -path '*/node_modules/*' -not -path '*__worktrees*' \
+        -not -path '*/vendor/*' 2>/dev/null | sort)
+elif [[ $# -gt 0 ]]; then
+    targets=("$@")
+else
+    targets=(".")
+fi
+
+if [[ ${#targets[@]} -eq 0 ]]; then
+    echo "worktree-init: no git repositories found under $projects_root" >&2
+    exit 0
+fi
+
+for repo in "${targets[@]}"; do
+    process "$repo"
+done

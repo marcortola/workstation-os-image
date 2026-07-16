@@ -1,0 +1,9 @@
+<toolSet name="External Tools">
+  <tool name="Sync worktree files" description="Copy .worktreeinclude-listed gitignored files (.env, .idea, ...) from the main worktree into this one" showInMainMenu="true" showInEditor="false" showInProject="true" showInSearchPopup="true" disabled="false" useConsole="true" showConsoleOnStdOut="false" showConsoleOnStdErr="true" synchronizeAfterRun="true">
+    <exec>
+      <option name="COMMAND" value="git" />
+      <option name="PARAMETERS" value="worktreeinclude apply" />
+      <option name="WORKING_DIRECTORY" value="$ProjectFileDir$" />
+    </exec>
+  </tool>
+</toolSet>

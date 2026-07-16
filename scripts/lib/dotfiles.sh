@@ -63,13 +63,15 @@ workstation_jetbrains_allowlist() {
 
 # Files embedded in _shared/ from upstream or authored by hand rather than captured
 # from a live IDE, so promote-jetbrains-shared must preserve them: the colour
-# schemes vendored from upstream, and the shared plugin list. apply writes the
-# colour schemes into the IDEs; plugins.list drives apply-jetbrains-plugins and is
-# never written into an IDE configuration directory.
+# schemes vendored from upstream, the "Sync worktree files" External Tool, and the
+# shared plugin list. apply writes the colour schemes and the External Tool into
+# the IDEs; plugins.list drives apply-jetbrains-plugins and is never written into
+# an IDE configuration directory.
 workstation_jetbrains_vendored() {
     printf '%s\n' \
         'colors/Photon - Light.icls' \
         'colors/Photon - Dark.icls' \
+        'tools/External Tools.xml' \
         plugins.list
 }
 

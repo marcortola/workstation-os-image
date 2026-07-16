@@ -27,6 +27,17 @@ gitleaks dir . --no-banner --redact
 [[ $(< CLAUDE.md) == '@AGENTS.md' ]]
 (( $(wc -l < AGENTS.md) <= 200 ))
 
+# Worktree untracked-file propagation: every creation path (workmux, Claude
+# Code, the post-checkout hook, the JetBrains External Tool) must read the same
+# committed .worktreeinclude, so assert the wiring that keeps them in sync.
+workmux_seed=system_files/usr/share/zirconium/zdots/dot_config/workmux/create_config.yaml
+grep -q '^post_create:' "$workmux_seed"
+grep -q 'workstation-worktree-sync' "$workmux_seed"
+grep -q 'satococoa/tap/git-worktreeinclude' \
+    system_files/usr/share/zirconium/zdots/dot_config/homebrew/create_Brewfile
+grep -q 'templateDir' system_files/usr/share/zirconium/zdots/dot_config/git/create_config
+[[ -x scripts/worktree-init ]]
+
 scripts/validate-dms-overlay
 jq -n -e \
     --slurpfile defaults <(scripts/dms-settings-defaults) \
@@ -87,6 +98,7 @@ for target in \
     .config/foot/workstation.ini \
     .config/DankMaterialShell/themes/tokyoNightDark/theme.json \
     .config/git/config \
+    .config/git/template/hooks/post-checkout \
     .config/niri/config.kdl \
     .config/niri/local.kdl \
     .config/homebrew/Brewfile; do

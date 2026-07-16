@@ -42,9 +42,10 @@ Task/feature name: **$ARGUMENTS**
    workmux add {feat|fix|refactor|docs|chore}-{task-name}
    ```
    Workmux creates the worktree in `<repo>__worktrees/<branch-name>/`, opens a tmux
-   window with the configured pane layout, copies the files listed in `.workmux.yaml`
-   (for example `.env`, `.env.local`, agent config), symlinks `node_modules`, runs the
-   post-create install command, and switches to the new window.
+   window with the configured pane layout, copies the untracked files listed in the
+   repo's `.worktreeinclude` (`.env`, `.idea`, ...) via its `post_create` hook, and
+   switches to the new window. (Dependencies like `node_modules`/`vendor` are not
+   copied — add an install step or symlink in the repo's `.workmux.yaml` if needed.)
 
 4. Confirm:
    ```
@@ -57,6 +58,23 @@ Task/feature name: **$ARGUMENTS**
    Merge when done:          workmux merge <branch-name>
    Remove without merging:   workmux remove <branch-name>
    ```
+
+## JetBrains / no-tmux flow
+
+If you're working in a JetBrains IDE (no tmux, no nvim), skip `workmux add` — it
+opens a tmux window you won't use. Either create the worktree from the IDE's **New
+Worktree** UI (the git `post-checkout` hook copies the `.worktreeinclude` files
+automatically), or create it here without tmux:
+
+```bash
+git fetch origin main:main 2>/dev/null || true
+dir="$(git rev-parse --show-toplevel)__worktrees/<branch-name>"
+git worktree add "$dir" -b <branch-name> main
+( cd "$dir" && workstation-worktree-sync )   # copy .env, .idea, ... from main
+```
+
+Then open `$dir` with the IDE launcher (`webstorm`/`phpstorm`/`idea "$dir"`), or run
+Tools → External Tools → **Sync worktree files** if you created it in the IDE.
 
 ## Notes
 

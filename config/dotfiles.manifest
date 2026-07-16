@@ -16,6 +16,7 @@ copy|.config/opencode/commands/worktree-push.md|dot_config/opencode/commands/cre
 copy|.config/opencode/commands/worktree-remove.md|dot_config/opencode/commands/create_worktree-remove.md|-
 copy|.config/workmux/config.yaml|dot_config/workmux/create_config.yaml|-
 copy|.config/git/config|dot_config/git/create_config|-
+copy|.config/git/template/hooks/post-checkout|dot_config/git/template/hooks/create_executable_post-checkout|-
 copy|.config/fish/config.fish|dot_config/fish/create_config.fish|-
 directory|.config/fish/conf.d|dot_config/fish/conf.d|*.fish
 directory|.config/fish/functions|dot_config/fish/functions|*.fish
@@ -40,6 +41,7 @@ copy|.local/bin/workstation-dev|private_dot_local/bin/create_executable_workstat
 copy|.local/bin/workstation-dictate|private_dot_local/bin/create_executable_workstation-dictate|-
 copy|.local/bin/workstation-openai-key|private_dot_local/bin/create_executable_workstation-openai-key|-
 copy|.local/bin/workstation-cycle-keyboard-layout|private_dot_local/bin/create_executable_workstation-cycle-keyboard-layout|-
+copy|.local/bin/workstation-worktree-sync|private_dot_local/bin/create_executable_workstation-worktree-sync|-
 copy|.config/nvim/init.lua|dot_config/nvim/create_init.lua|-
 copy|.config/nvim/lazy-lock.json|dot_config/nvim/create_lazy-lock.json|-
 copy|.config/nvim/lazyvim.json|dot_config/nvim/create_lazyvim.json|-

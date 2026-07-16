@@ -20,6 +20,8 @@ brew "gh"
 brew "git-delta"
 # Audit git repos for secrets
 brew "gitleaks"
+# Copy .worktreeinclude-listed gitignored files into new git worktrees
+brew "satococoa/tap/git-worktreeinclude"
 # Open-source GitLab command-line tool
 brew "glab"
 # Render markdown on the CLI

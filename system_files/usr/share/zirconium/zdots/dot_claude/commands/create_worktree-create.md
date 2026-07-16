@@ -51,10 +51,30 @@ workmux add {feat|fix|refactor|docs|chore}-{task-name}
 Workmux automatically:
 - Creates git worktree in `<repo>__worktrees/<branch-name>/`
 - Creates tmux window with configured pane layout (claude | nvim | terminal)
-- Copies `.env`, `.env.local`, `.claude` directory
-- Symlinks `node_modules`
-- Runs `npm install`
+- Copies the untracked files listed in the repo's `.worktreeinclude` (`.env`,
+  `.idea`, ...) via its `post_create` hook — tracked files are already present
 - Switches to the new window
+
+(Dependencies like `node_modules`/`vendor` are not copied — add an install step
+or a `node_modules` symlink in the repo's `.workmux.yaml` if the branch needs them.)
+
+### 3b. JetBrains / no-tmux flow
+
+If you're driving a JetBrains IDE (no tmux, no nvim), skip `workmux add` — it
+opens a tmux window you won't use. Either create the worktree from the IDE's
+**New Worktree** UI (the git `post-checkout` hook copies the `.worktreeinclude`
+files automatically), or create it here without tmux and open it in the IDE:
+
+```bash
+git fetch origin main:main 2>/dev/null || true
+dir="$(git rev-parse --show-toplevel)__worktrees/{branch-name}"
+git worktree add "$dir" -b {branch-name} main
+( cd "$dir" && workstation-worktree-sync )   # copy .env, .idea, ... from main
+```
+
+Then open `$dir` in the IDE (`webstorm`/`phpstorm`/`idea "$dir"`). If you created
+it from the IDE and the files did not copy, run Tools → External Tools → **Sync
+worktree files**.
 
 ### 4. Post-Creation: Task Handling
 
@@ -63,7 +83,7 @@ After workmux finishes, handle task migration if needed:
 **Case A: Active task exists in main repo**
 If there's an active task in `.claude/tasks/` related to the current conversation:
 ```bash
-# .claude was already copied by workmux, check if task exists
+# shared .claude is in the checkout; check if the task exists
 worktree_path=$(git worktree list --porcelain | grep "worktree.*{branch-name}" | awk '{print $2}')
 ls "$worktree_path/.claude/tasks/" 2>/dev/null
 ```

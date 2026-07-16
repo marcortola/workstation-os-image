@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# post-checkout — populate new git worktrees with their .worktreeinclude-listed
+# gitignored files. Seeded into every repository's .git/hooks by init.templateDir
+# (new clones) and by `just worktree-init` (existing repos). Because the IDE and
+# workmux both shell out to the git binary, this fires for `git worktree add`
+# from any client, including the JetBrains "New Worktree" UI.
+#
+# Args: $1 previous HEAD, $2 new HEAD, $3 branch-checkout flag (1 branch, 0 file).
+
+# Only branch checkouts (git worktree add / git switch), never file checkouts.
+[ "${3:-}" = "1" ] || exit 0
+
+# Delegate to the shared helper, resolved without relying on PATH (a
+# GUI-launched IDE may run hooks with a minimal environment). Its own guards
+# make it a no-op unless this is a linked worktree with files to copy.
+for cand in workstation-worktree-sync "$HOME/.local/bin/workstation-worktree-sync"; do
+    if command -v "$cand" >/dev/null 2>&1; then
+        exec "$cand"
+    fi
+done
+exit 0
