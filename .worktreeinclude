@@ -5,9 +5,17 @@
 # team. node_modules/vendor/.venv belong in a per-project install step, not
 # here — copying them per worktree is the wrong tool.
 
+# Local environment & secrets
 .env
 .env.local
 .env.*.local
+
+# IDE / editor local config
 .idea/
 .vscode/
+
+# Claude Code local (machine-specific) settings
 .claude/settings.local.json
+
+# Machine-specific Claude local memory (gitignored)
+CLAUDE.local.md
