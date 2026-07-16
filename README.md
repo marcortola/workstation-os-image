@@ -35,8 +35,8 @@ ghcr.io/marcortola/workstation-os-image:latest
   `../<repo>--<branch>`, keeping parallel branches — and the AI agents working
   them — in separate directories.
 - `workmux` for heavier parallel work: each branch gets its own tmux window and
-  worktree under `<repo>__worktrees/`, driven by matching `worktree` /
-  `ship-worktree` / `rm-worktree` helpers seeded for Claude Code (commands),
+  worktree under `<repo>__worktrees/`, driven by matching `worktree-create` /
+  `worktree-push` / `worktree-remove` helpers seeded for Claude Code (commands),
   Codex (skills) and OpenCode (commands).
 - Brewfile and Flatpak restoration, JetBrains Toolbox, personal fonts and the
   accepted Microsoft-font installer.

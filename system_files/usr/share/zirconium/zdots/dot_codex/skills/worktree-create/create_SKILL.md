@@ -1,6 +1,6 @@
 ---
-name: worktree
-description: Create an isolated git worktree with its own tmux window using workmux, for parallel development. Use when the user wants to start a new task or feature on a fresh branch in a separate worktree, run agents in parallel without switching branches, or invokes $worktree.
+name: worktree-create
+description: Create an isolated git worktree with its own tmux window using workmux, for parallel development. Use when the user wants to start a new task or feature on a fresh branch in a separate worktree, run agents in parallel without switching branches, or invokes $worktree-create.
 ---
 
 # Git Worktree
