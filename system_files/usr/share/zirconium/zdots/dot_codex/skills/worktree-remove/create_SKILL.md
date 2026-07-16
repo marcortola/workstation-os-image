@@ -86,6 +86,15 @@ git worktree remove --force "$worktree_path"
 git branch -D "$branch"
 ```
 
+### 4b. JetBrains / no-tmux
+
+If you created the worktree from a JetBrains IDE (no tmux window ever existed),
+`workmux remove` still removes the worktree and its branch cleanly — it just skips
+the absent tmux window. Or use the `git worktree remove` fallback above (then
+`git branch -D "$branch"`). Close the worktree's project in the IDE first so it is
+not left pointing at a deleted directory; the nvim-session cleanup in step 5 is a
+harmless no-op for you.
+
 ### 5. Clean up the nvim session
 
 ```bash

@@ -58,6 +58,15 @@ Target branch (optional): **$ARGUMENTS**
 
 6. **Verify** with `git worktree list --porcelain` and report the remaining count.
 
+## JetBrains / no-tmux
+
+If you created the worktree from a JetBrains IDE (no tmux window ever existed),
+`workmux remove` still removes the worktree and its branch cleanly — it just skips
+the absent tmux window. Or use the `git worktree remove` fallback in step 4 (then
+`git branch -D "$branch"`). Close the worktree's project in the IDE first so it is
+not left pointing at a deleted directory; the nvim-session cleanup in step 5 is a
+harmless no-op for you.
+
 ## When removing the current working directory
 
 If you are running from inside the worktree being removed, print success immediately

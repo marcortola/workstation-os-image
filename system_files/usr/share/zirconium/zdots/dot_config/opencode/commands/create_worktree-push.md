@@ -53,9 +53,12 @@ clean up.
 
    Code merged to main via PR #<N>.
 
-   This window stays alive — review or keep working here.
-   When you are done, switch to the main window (Ctrl-s + number) and run:
-     workmux remove <branch>
+   This session stays alive — review or keep working here.
+   When you are done, remove the worktree from the main checkout:
+     - tmux / workmux: switch to the main window (Ctrl-s + number), then
+         `workmux remove <branch>`
+     - JetBrains / no-tmux: close the project, then `workmux remove <branch>`
+         (or `git worktree remove <path> && git branch -D <branch>`)
    ```
 
 ## Error handling

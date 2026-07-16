@@ -101,13 +101,15 @@ SHIPPED SUCCESSFULLY
 Code merged to main via PR #<N>
 Issue: #<N> closed (if applicable)
 
-This window stays alive — feel free to review or continue the conversation.
+This session stays alive — feel free to review or continue the conversation.
 
-When you're truly done:
-  1. Switch to the main window (ctrl-s + number)
-  2. From there, run: workmux remove <branch>
+When you're truly done, remove the worktree from the main checkout:
+  - tmux / workmux: switch to the main window (ctrl-s + number), then
+      `workmux remove <branch>`
+  - JetBrains / no-tmux: close the project, then `workmux remove <branch>`
+      (or `git worktree remove <path> && git branch -D <branch>`)
 
-That removes the worktree, the local branch, and this tmux window.
+Either path removes the worktree and its local branch (and the tmux window if one exists).
 ```
 
 **STOP HERE.** Do not attempt cleanup, window management, or any further Bash commands.
