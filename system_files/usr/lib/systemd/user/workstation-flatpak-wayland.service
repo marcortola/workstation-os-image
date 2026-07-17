@@ -1,0 +1,21 @@
+[Unit]
+Description=Prefer native Wayland for Electron/Chromium Flatpaks
+Documentation=https://github.com/marcortola/workstation-os-image
+Documentation=https://github.com/Supreeeme/xwayland-satellite/issues/133
+# niri delegates X11 to xwayland-satellite, which does not bridge drag-and-drop
+# across the X11<->Wayland boundary. Flatpak Electron/Chromium apps default to
+# XWayland, so DnD to/from native Wayland apps (Nautilus, Chrome) silently fails.
+# --socket=wayland grants the Wayland socket to apps whose manifest omits it
+# (e.g. Postman ships sockets=x11 only), and ELECTRON_OZONE_PLATFORM_HINT=auto
+# then makes Electron pick Wayland, so they run as native Wayland clients and
+# sidestep the gap. Set as a global Flatpak override rather than editing
+# Zirconium's base-owned overrides/global file. Re-asserted every login so it
+# survives any base rewrite; idempotent.
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/flatpak override --user --socket=wayland --env=ELECTRON_OZONE_PLATFORM_HINT=auto
+
+[Install]
+WantedBy=default.target

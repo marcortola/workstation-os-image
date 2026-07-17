@@ -150,6 +150,25 @@ it then replaces the remote cache. Changes that do not affect `Containerfile`,
 `system_files/` or the build workflow still run their tests but skip the image
 job. The build context contains only `Containerfile` and `system_files/`.
 
+### XWayland interop
+
+niri has no built-in XWayland; it routes X11 clients through `xwayland-satellite`,
+which does not bridge two cross-boundary interactions:
+
+- **Clipboard** — `workstation-x11-clipsync.service` mirrors the Xwayland
+  CLIPBOARD selection into the Wayland clipboard.
+- **Drag-and-drop** — cannot be bridged by a helper. Instead
+  `workstation-flatpak-wayland.service` sets a global Flatpak override
+  (`--socket=wayland --env=ELECTRON_OZONE_PLATFORM_HINT=auto`) so
+  Electron/Chromium Flatpaks (Typora, Postman, …) run as native Wayland clients
+  and never cross the boundary. The socket grant covers apps whose manifest
+  omits `wayland` (e.g. Postman ships `x11` only). Genuinely X11-only apps (no
+  Wayland backend) still cannot drag-and-drop with Wayland apps until upstream
+  lands support.
+
+Tracked upstream at
+[Supreeeme/xwayland-satellite#133](https://github.com/Supreeeme/xwayland-satellite/issues/133).
+
 ## Working with AI agents
 
 `AGENTS.md` is the canonical maintenance policy. `CLAUDE.md` imports it, and

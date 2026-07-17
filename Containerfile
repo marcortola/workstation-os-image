@@ -66,6 +66,7 @@ RUN /usr/libexec/workstation-patch-zdots && \
       /usr/lib/systemd/user/workstation-bootstrap.service \
       /usr/lib/systemd/user/workstation-claude-mcp-seed.service \
       /usr/lib/systemd/user/workstation-dms-settings.service \
+      /usr/lib/systemd/user/workstation-flatpak-wayland.service \
       /usr/lib/systemd/user/workstation-invoice-bookmarks.service \
       /usr/lib/systemd/user/workstation-microsoft-fonts.service \
       /usr/lib/systemd/user/workstation-x11-clipsync.service \
@@ -77,6 +78,7 @@ RUN /usr/libexec/workstation-patch-zdots && \
       workstation-bootstrap.service \
       workstation-claude-mcp-seed.service \
       workstation-dms-settings.service \
+      workstation-flatpak-wayland.service \
       workstation-invoice-bookmarks.timer \
       workstation-microsoft-fonts.service \
       workstation-x11-clipsync.service && \
