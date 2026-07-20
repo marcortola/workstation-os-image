@@ -1,9 +1,40 @@
+# Global git config for user marc. The workstation runs Homebrew's git, which
+# reads ~/.config/git/config (this file, seeded by chezmoi) but NOT /etc/gitconfig,
+# so every git customization lives here — this is the single source of truth.
+
 [user]
     name = marcortola
     email = 15958009+marcortola@users.noreply.github.com
 
 [core]
     pager = delta
+    autocrlf = input
+
+[init]
+    defaultBranch = main
+    templateDir = ~/.config/git/template
+
+[alias]
+    st = status
+    ci = commit
+    co = checkout
+    br = branch
+    unstage = reset HEAD --
+    last = log -1 HEAD
+
+[pull]
+    rebase = true
+
+[push]
+    autoSetupRemote = true
+
+[commit]
+    verbose = true
+
+[diff]
+    algorithm = histogram
+    colorMoved = default
+    mnemonicPrefix = true
 
 [interactive]
     diffFilter = delta --color-only
@@ -16,5 +47,15 @@
 [merge]
     conflictStyle = zdiff3
 
-[init]
-    templateDir = ~/.config/git/template
+[rerere]
+    enabled = true
+    autoupdate = true
+
+[branch]
+    sort = -committerdate
+
+[tag]
+    sort = -version:refname
+
+[column]
+    ui = auto

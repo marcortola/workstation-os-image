@@ -16,6 +16,7 @@ copy|.config/opencode/commands/worktree-push.md|dot_config/opencode/commands/cre
 copy|.config/opencode/commands/worktree-remove.md|dot_config/opencode/commands/create_worktree-remove.md|-
 copy|.config/workmux/config.yaml|dot_config/workmux/create_config.yaml|-
 copy|.config/git/config|dot_config/git/create_config|-
+copy|.config/git/ignore|dot_config/git/create_ignore|-
 copy|.config/git/template/hooks/post-checkout|dot_config/git/template/hooks/create_executable_post-checkout|-
 copy|.config/fish/config.fish|dot_config/fish/create_config.fish|-
 directory|.config/fish/conf.d|dot_config/fish/conf.d|*.fish
