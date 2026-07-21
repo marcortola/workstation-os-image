@@ -14,6 +14,28 @@ RUN dnf -y install --setopt=install_weak_deps=False \
     dnf clean all && \
     rm -rf /var/cache/libdnf5 /var/lib/dnf
 
+FROM ${BASE_IMAGE} AS keyd-builder
+
+# keyd (keyboard remapper) is not packaged in Fedora, and the Zirconium base
+# dropped the Terra repo that used to provide it, so build it from pinned
+# upstream source. Only the daemon, its unit, and its sysusers group are kept;
+# the docs/man/layouts that `make install` would add are intentionally omitted.
+ARG KEYD_VERSION=2.6.0
+ARG KEYD_SHA256=697089681915b89d9e98caf93d870dbd4abce768af8a647d54650a6a90744e26
+RUN curl -fsSL -o /tmp/keyd.tar.gz \
+      "https://github.com/rvaiya/keyd/archive/refs/tags/v${KEYD_VERSION}.tar.gz" && \
+    echo "${KEYD_SHA256}  /tmp/keyd.tar.gz" > /tmp/keyd.sha256 && \
+    sha256sum -c /tmp/keyd.sha256 && \
+    tar -xzf /tmp/keyd.tar.gz -C /tmp && \
+    make -C "/tmp/keyd-${KEYD_VERSION}" COMMIT="v${KEYD_VERSION}" PREFIX=/usr && \
+    install -Dm755 "/tmp/keyd-${KEYD_VERSION}/bin/keyd" /staging/usr/bin/keyd && \
+    sed 's#@PREFIX@#/usr#' "/tmp/keyd-${KEYD_VERSION}/keyd.service.in" \
+      > /tmp/keyd.service && \
+    install -Dm644 /tmp/keyd.service \
+      /staging/usr/lib/systemd/system/keyd.service && \
+    install -Dm644 "/tmp/keyd-${KEYD_VERSION}/data/sysusers.d" \
+      /staging/usr/lib/sysusers.d/keyd.conf
+
 FROM ${BASE_IMAGE}
 
 LABEL org.opencontainers.image.source="https://github.com/marcortola/workstation-os-image"
@@ -40,7 +62,6 @@ RUN rpm --import https://d2t3ff60b2tol4.cloudfront.net/repomd.xml.key && \
       fontconfig \
       gstreamer1-plugins-ugly \
       insync \
-      keyd \
       libavcodec-freeworld \
       mkcert \
       shadow-utils \
@@ -55,6 +76,7 @@ COPY system_files/ /
 COPY --from=workstation-x11-clipsync-builder \
   /usr/libexec/workstation-x11-clipsync \
   /usr/libexec/workstation-x11-clipsync
+COPY --from=keyd-builder /staging/ /
 
 RUN /usr/libexec/workstation-patch-zdots && \
     dockerd --validate \
