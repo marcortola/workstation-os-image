@@ -1,0 +1,16 @@
+# gitleaks configuration.
+#
+# The CI secret scan runs `gitleaks dir .`, which auto-loads this file. It
+# extends the default ruleset (does not replace it) and allowlists a single
+# false positive: the keyd source tarball's SHA-256 pinned in the Containerfile.
+# gitleaks' generic-api-key rule matches it only because the ARG name contains
+# "key" (from "keyd") adjacent to a high-entropy value; it is a public build
+# checksum, not a secret.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "keyd source tarball SHA-256 (public build checksum, not a secret)"
+paths = ['''^Containerfile$''']
+regexes = ['''697089681915b89d9e98caf93d870dbd4abce768af8a647d54650a6a90744e26''']
