@@ -106,10 +106,19 @@
   "monoFontFamily": "FiraCode Nerd Font Mono",
   "muxType": "tmux",
   "niriLayoutBorderSize": 1,
+  "notificationRules": [
+    {
+      "action": "mute",
+      "enabled": true,
+      "field": "appName",
+      "matchType": "exact",
+      "pattern": "Insync",
+      "urgency": "default"
+    }
+  ],
   "powerMenuActions": [
     "reboot",
     "logout",
-    "switchuser",
     "poweroff",
     "lock",
     "suspend",
