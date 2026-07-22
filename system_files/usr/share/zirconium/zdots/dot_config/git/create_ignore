@@ -29,5 +29,9 @@ $RECYCLE.BIN/
 # Editor swap files
 *.swp
 
+# Dev tooling
+.pnpm-store/
+.playwright-mcp/
+
 # Claude Code local settings
 **/.claude/settings.local.json
