@@ -37,5 +37,10 @@ alias dlog="docker compose logs -f --tail=100"
 alias dtop="lazydocker"
 
 # Coding agents and projects
+# Claude alias credits to Arnau Vendrell
+alias cc="claude"
+alias cco="claude --model opus"
+alias ccs="claude --model sonnet"
+alias ccf="claude --model fable"
 alias oc="opencode"
 alias wjust='just --justfile "$HOME/projects/personal/workstation-os-image/justfile" --working-directory "$HOME/projects/personal/workstation-os-image"'
