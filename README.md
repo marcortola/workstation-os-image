@@ -31,8 +31,11 @@ ghcr.io/marcortola/workstation-os-image:latest
 - Screen recording via `wf-recorder` on `Mod+Shift+R`.
 - `Ctrl+Alt+U`, or the power menu's **Switch User**, moves between logged-in
   users (see [Switch user](#switch-user)).
-- `dev` to select a repository and change the current shell into it;
+- `pro` to select a repository and change the current shell into it;
   `Mod+Shift+P` opens the same picker in a new Foot terminal.
+- `dev [cmd]` runs a command inside the current repo's Dev Container (no args
+  drops into a shell), starting it on demand via the `devcontainer` CLI —
+  e.g. `dev terraform apply`.
 - `ga <branch>` / `gd` create and remove a per-branch git worktree at
   `../<repo>--<branch>`, keeping parallel branches — and the AI agents working
   them — in separate directories.
