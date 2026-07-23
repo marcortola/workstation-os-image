@@ -1,15 +1,36 @@
-function dev --description "Run a command in this project's Dev Container (no args = shell), starting it on demand"
-    # realpath resolves symlinks (e.g. /home -> /var/home) so root and the
-    # relative path below are computed against the same physical prefix.
-    set -l root (realpath (git rev-parse --show-toplevel 2>/dev/null; or pwd))
+function dev --description "Run a command in the nearest Dev Container (no args = shell), starting it on demand"
+    # realpath resolves symlinks (e.g. /home -> /var/home) so every path below
+    # is compared against the same physical prefix.
+    set -l start (realpath .)
 
-    if not test -f "$root/.devcontainer/devcontainer.json"; and not test -f "$root/.devcontainer.json"
-        echo "dev: no .devcontainer found under $root" >&2
+    # Boundary for the upward search: never look above the repo root.
+    set -l gitroot (git -C "$start" rev-parse --show-toplevel 2>/dev/null)
+    if test -n "$gitroot"
+        set gitroot (realpath "$gitroot")
+    end
+
+    # Walk from the current directory up to the repo root and pick the FIRST
+    # (nearest) directory that defines a Dev Container.
+    set -l root
+    set -l dir $start
+    while true
+        if test -f "$dir/.devcontainer/devcontainer.json"; or test -f "$dir/.devcontainer.json"
+            set root $dir
+            break
+        end
+        test "$dir" = "$gitroot"; and break   # checked the repo root, stop
+        set -l parent (dirname "$dir")
+        test "$parent" = "$dir"; and break     # hit the filesystem root (no repo)
+        set dir $parent
+    end
+
+    if test -z "$root"
+        echo "dev: no .devcontainer found from (pwd) up to the repo root" >&2
         return 1
     end
 
-    # devcontainer exec always starts in the workspace (repo) root, so mirror the
-    # caller's subdirectory inside the container with a relative cd.
+    # devcontainer exec always starts in the workspace (root) folder, so mirror
+    # the caller's subdirectory inside the container with a relative cd.
     set -l rel (realpath --relative-to="$root" .)
 
     # Idempotent: builds/starts on first call, fast no-op once running.
