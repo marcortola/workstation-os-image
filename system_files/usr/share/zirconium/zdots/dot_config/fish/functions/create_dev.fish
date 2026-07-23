@@ -3,13 +3,18 @@ function dev --description "Run a command in the nearest Dev Container (no args 
     # is compared against the same physical prefix.
     set -l start (realpath .)
 
-    # Boundary for the upward search: never look above the repo root.
+    # Boundary for the upward search: never look above the repo root. Outside a
+    # git repo there is no root to anchor to, so only the current directory is
+    # considered — otherwise a stray ancestor .devcontainer (e.g. in $HOME) would
+    # hijack resolution for any unrelated non-git subtree beneath it.
     set -l gitroot (git -C "$start" rev-parse --show-toplevel 2>/dev/null)
     if test -n "$gitroot"
         set gitroot (realpath "$gitroot")
     end
+    set -l stopdir $gitroot
+    test -z "$stopdir"; and set stopdir $start
 
-    # Walk from the current directory up to the repo root and pick the FIRST
+    # Walk from the current directory up to the boundary and pick the FIRST
     # (nearest) directory that defines a Dev Container.
     set -l root
     set -l dir $start
@@ -18,14 +23,18 @@ function dev --description "Run a command in the nearest Dev Container (no args 
             set root $dir
             break
         end
-        test "$dir" = "$gitroot"; and break   # checked the repo root, stop
+        test "$dir" = "$stopdir"; and break    # reached the boundary, stop
         set -l parent (dirname "$dir")
-        test "$parent" = "$dir"; and break     # hit the filesystem root (no repo)
+        test "$parent" = "$dir"; and break     # hit the filesystem root
         set dir $parent
     end
 
     if test -z "$root"
-        echo "dev: no .devcontainer found from (pwd) up to the repo root" >&2
+        if test -n "$gitroot"
+            echo "dev: no .devcontainer found from (pwd) up to the repo root ($gitroot)" >&2
+        else
+            echo "dev: no .devcontainer in (pwd), and not inside a git repo to search upward from" >&2
+        end
         return 1
     end
 
@@ -41,7 +50,7 @@ function dev --description "Run a command in the nearest Dev Container (no args 
     end
 
     if test (count $argv) -eq 0
-        devcontainer exec --workspace-folder "$root" bash -c 'cd "$1"; exec bash' -- "$rel"
+        devcontainer exec --workspace-folder "$root" bash -c 'cd "$1" || exit; exec bash' -- "$rel"
     else
         devcontainer exec --workspace-folder "$root" bash -c 'cd "$1" || exit; shift; exec "$@"' -- "$rel" $argv
     end
