@@ -1,5 +1,7 @@
 function dev --description "Run a command in this project's Dev Container (no args = shell), starting it on demand"
-    set -l root (git rev-parse --show-toplevel 2>/dev/null; or pwd)
+    # realpath resolves symlinks (e.g. /home -> /var/home) so root and the
+    # relative path below are computed against the same physical prefix.
+    set -l root (realpath (git rev-parse --show-toplevel 2>/dev/null; or pwd))
 
     if not test -f "$root/.devcontainer/devcontainer.json"; and not test -f "$root/.devcontainer.json"
         echo "dev: no .devcontainer found under $root" >&2
@@ -8,11 +10,7 @@ function dev --description "Run a command in this project's Dev Container (no ar
 
     # devcontainer exec always starts in the workspace (repo) root, so mirror the
     # caller's subdirectory inside the container with a relative cd.
-    set -l cwd (pwd)
-    set -l rel .
-    if test "$cwd" != "$root"
-        set rel (string replace -- "$root/" "" "$cwd")
-    end
+    set -l rel (realpath --relative-to="$root" .)
 
     # Idempotent: builds/starts on first call, fast no-op once running.
     if not devcontainer up --workspace-folder "$root" >/dev/null 2>&1
