@@ -40,7 +40,7 @@ alias dtop="lazydocker"
 # Claude alias credits to Arnau Vendrell
 alias cc="claude --permission-mode auto"
 alias cco="claude --model opus --permission-mode auto"
-alias ccou="claude --model opus --effort ultracode --permission-mode auto"
+alias ccp="claude --model opus --effort ultracode --permission-mode plan"
 alias ccs="claude --model sonnet --permission-mode auto"
 alias ccf="claude --model fable --permission-mode auto"
 alias oc="opencode"
