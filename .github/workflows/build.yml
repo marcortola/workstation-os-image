@@ -99,6 +99,22 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: echo "$GHCR_TOKEN" | buildah login --username "$GITHUB_ACTOR" --password-stdin ghcr.io
 
+      - name: Pull base image
+        run: |
+          # GHCR occasionally returns "manifest unknown" for a valid public
+          # tag during transient registry issues or mid-push windows. Pre-pull
+          # with retries so buildah bud finds the image in the local store and
+          # never needs to re-fetch it.
+          for attempt in 1 2 3; do
+            buildah pull "$BASE_IMAGE" && break
+            if [[ "$attempt" -eq 3 ]]; then
+              echo "::error::Cannot pull base image after 3 attempts: $BASE_IMAGE"
+              exit 1
+            fi
+            echo "Pull attempt $attempt failed; retrying in $((attempt * 15))s..."
+            sleep $((attempt * 15))
+          done
+
       - name: Build image with registry cache
         env:
           EVENT_NAME: ${{ github.event_name }}
