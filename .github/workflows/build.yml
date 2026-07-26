@@ -99,25 +99,65 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: echo "$GHCR_TOKEN" | buildah login --username "$GITHUB_ACTOR" --password-stdin ghcr.io
 
-      - name: Pull base image
+      - name: Resolve and pull base image
+        id: base
         run: |
-          # GHCR occasionally returns "manifest unknown" for a valid public
-          # tag during transient registry issues or mid-push windows. Pre-pull
-          # with retries so buildah bud finds the image in the local store and
-          # never needs to re-fetch it.
+          # Upstream publishes the floating ":latest" tag alongside dated
+          # "latest.<YYYYMMDD>" snapshots in one multiarch push. The floating
+          # tag has gone missing while the snapshots from the same publish
+          # survive, which breaks every build here with "manifest unknown".
+          # Prefer the configured ref, then fall back to the newest dated
+          # snapshot so builds keep tracking upstream instead of failing.
+          repo="${BASE_IMAGE%:*}"
+          tag="${BASE_IMAGE##*:}"
+
+          # Only the configured ref is worth retrying, and only while the
+          # registry still reports a fetchable manifest: a "manifest unknown"
+          # never recovers, so retrying it just burns runner minutes. Fallback
+          # candidates get a single attempt each so a fully broken repository
+          # fails fast with diagnostics instead of sleeping through every tag.
+          resolved=""
           for attempt in 1 2 3; do
-            buildah pull "$BASE_IMAGE" && break
-            if [[ "$attempt" -eq 3 ]]; then
-              echo "::error::Cannot pull base image after 3 attempts: $BASE_IMAGE"
-              exit 1
+            if buildah pull "$BASE_IMAGE"; then
+              resolved="$BASE_IMAGE"
+              break
             fi
-            echo "Pull attempt $attempt failed; retrying in $((attempt * 15))s..."
-            sleep $((attempt * 15))
+            [[ "$attempt" -eq 3 ]] && break
+            skopeo inspect --raw "docker://$BASE_IMAGE" >/dev/null 2>&1 || break
+            echo "Transient failure pulling $BASE_IMAGE; retrying in $((attempt * 5))s..."
+            sleep $((attempt * 5))
           done
+
+          # Only a floating tag may drift to a dated snapshot. An explicitly
+          # pinned one (BASE_IMAGE repository variable) must fail instead.
+          if [[ -z "$resolved" && "$tag" != *.* ]]; then
+            echo "::warning::$BASE_IMAGE did not resolve; trying $tag.<date> snapshots"
+            for candidate in $(skopeo list-tags "docker://$repo" |
+                jq -r --arg t "$tag" \
+                  '.Tags[] | select(startswith($t + ".") and (endswith(".sig") | not))' |
+                sort -r | head -5); do
+              if buildah pull "$repo:$candidate"; then
+                resolved="$repo:$candidate"
+                echo "::warning::Base image fell back to $resolved"
+                break
+              fi
+            done
+          fi
+
+          if [[ -z "$resolved" ]]; then
+            echo "::error::No usable base image tag under $repo"
+            echo "Recent tags:"
+            skopeo list-tags "docker://$repo" |
+              jq -r '.Tags[] | select(endswith(".sig") | not)' | sort -r | head -30
+            exit 1
+          fi
+
+          echo "ref=$resolved" >> "$GITHUB_OUTPUT"
 
       - name: Build image with registry cache
         env:
           EVENT_NAME: ${{ github.event_name }}
+          BASE_IMAGE: ${{ steps.base.outputs.ref }}
         run: |
           cache_args=(--layers)
 
