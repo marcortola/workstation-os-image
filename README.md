@@ -163,10 +163,22 @@ by deleting `~/.config/opencode/context7-key` and re-running.
 just ai-tools-uninstall && just ai-reset --force
 ```
 
-**Share to a non-image machine:** the self-contained `tooling/portable/ai-cli-setup/` bundle
+**Share to a non-image machine:** the self-contained `tooling/ai/ai-cli-setup/` bundle
 does the same install with its own `install.sh` — see its README.
 
 ## Architecture
+
+The top level separates the image payload from the host-side tooling that
+manages a live machine:
+
+| Directory | Holds | In the image? |
+| --- | --- | --- |
+| `rootfs/` | OS image payload copied into `/` (`COPY rootfs/ /`): systemd units, helpers, factory defaults, and the chezmoi seeds under `usr/share/zirconium/zdots/`. | Yes — the only tree in the build context |
+| `config/` | Repo-owned declarative source the tooling reads: the `dotfiles.manifest` inventory, JetBrains canonical settings, the AI-CLI MCP fragment, and policy deny-lists. | No — drives `just`/scripts |
+| `tooling/` | Host-side management scripts (audit/sync/validate/jetbrains/worktree), plus `ai/` (the AI-CLI machinery: the exportable `ai-cli-setup` bundle and the install/build/reset scripts) and `fixtures/` (test data). | No |
+
+Root files (`Containerfile`, `justfile`, `README.md`, `AGENTS.md`) stay at the
+top level.
 
 ```text
 Zirconium image ──> Containerfile + rootfs ──> GHCR image ──> bootc A/B OS

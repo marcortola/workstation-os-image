@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Generate the portable tooling/portable/ai-cli-setup/ config tree from the repository seeds
+# Generate the portable tooling/ai/ai-cli-setup/ config tree from the repository seeds
 # so the standalone installer stays a projection of the one canonical source
 # (the create_ seeds inventoried by config/dotfiles.manifest). Only config/ and
 # the opencode mcp fragment are generated here; install.sh, reset.sh, README.md,
@@ -9,13 +9,13 @@
 # bundle instead of writing, so validate can assert the bundle is in sync.
 set -euo pipefail
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=tooling/lib/dotfiles.sh
 source "$repo_root/tooling/lib/dotfiles.sh"
 
 manifest="$repo_root/config/dotfiles.manifest"
 seed_root="$repo_root/rootfs/usr/share/zirconium/zdots"
-bundle="$repo_root/tooling/portable/ai-cli-setup"
+bundle="$repo_root/tooling/ai/ai-cli-setup"
 
 check=false
 [[ ${1:-} == --check ]] && check=true
@@ -86,10 +86,10 @@ install -D -m 0644 "$repo_root/config/ai-tools/opencode-mcp-fragment.json" \
 if $check; then
     if ! diff -rq "$config_out" "$bundle/config" \
         || ! diff -q "$fragment_out" "$bundle/opencode-mcp-fragment.json"; then
-        echo "tooling/portable/ai-cli-setup is stale: run 'just ai-bundle' and commit." >&2
+        echo "tooling/ai/ai-cli-setup is stale: run 'just ai-bundle' and commit." >&2
         exit 1
     fi
-    echo "tooling/portable/ai-cli-setup is in sync with the seeds."
+    echo "tooling/ai/ai-cli-setup is in sync with the seeds."
 else
     echo "Regenerated $config_out and opencode-mcp-fragment.json from seeds."
 fi

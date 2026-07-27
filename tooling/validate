@@ -12,7 +12,7 @@ mapfile -t shell_files < <(
     find rootfs/usr/share/zirconium/zdots -type f \
         -name 'create_executable_*' -print | sort
     # Bundle scripts only (maxdepth 1 skips the vendored Node installer).
-    find tooling/portable/ai-cli-setup -maxdepth 1 -name '*.sh' -print | sort
+    find tooling/ai/ai-cli-setup -maxdepth 1 -name '*.sh' -print | sort
 )
 bash -n "${shell_files[@]}"
 shellcheck "${shell_files[@]}"
@@ -67,9 +67,9 @@ assert_absent \
 # The portable bundle is a projection of the seeds; it too must carry no key,
 # no Help Scout association, and no absolute home path.
 if grep -rIliE 'ctx7sk-|helpscout|help-scout|/home/[a-z]' \
-    tooling/portable/ai-cli-setup/config tooling/portable/ai-cli-setup/opencode-mcp-fragment.json \
+    tooling/ai/ai-cli-setup/config tooling/ai/ai-cli-setup/opencode-mcp-fragment.json \
     >/dev/null 2>&1; then
-    echo "Secret or absolute home path leaked into tooling/portable/ai-cli-setup" >&2
+    echo "Secret or absolute home path leaked into tooling/ai/ai-cli-setup" >&2
     exit 1
 fi
 
@@ -104,7 +104,7 @@ fish --no-execute \
 tooling/validate-manifest
 tooling/validate-jetbrains-settings
 tooling/test-reset-ai-cli
-tooling/build-ai-cli-bundle --check
+tooling/ai/build-ai-cli-bundle --check
 
 tmp="$(mktemp -d)"
 trap 'rm -rf -- "$tmp"' EXIT
