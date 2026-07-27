@@ -55,21 +55,22 @@ else
 fi
 
 # --- playwright-cli: token-lean browser automation ----------------------------
-# Install the CLI only. The image ships the Flatpak-over-CDP wrapper
-# (/usr/bin/playwright-cli + workstation-playwright-chrome), so we deliberately do
-# NOT run `playwright-cli install` (which downloads a chromium the wrapper makes
-# unnecessary). We just place the skill that ships inside the package.
+# The image already ships the binary as the Flatpak-over-CDP wrapper
+# (/usr/bin/playwright-cli + workstation-playwright-chrome), so we do NOT install
+# the CLI here (`npm install -g` also fails on brew-managed node, whose global
+# dir is not user-writable). We only place the skill that ships inside the
+# package, sourced from the npx cache -- no global install, no chromium download.
 step "playwright-cli"
-npm install -g @playwright/cli
-pw_skill="$(find "$(npm root -g)" -path '*cli-client/skill' -type d 2>/dev/null | head -1)"
+npx -y @playwright/cli@latest --version >/dev/null 2>&1 || true
+pw_skill="$(find "$HOME/.npm/_npx" -path '*cli-client/skill' -type d 2>/dev/null | head -1)"
 if [[ -n ${pw_skill:-} && -d $pw_skill ]]; then
     for agent in claude codex; do
         rm -rf "$HOME/.$agent/skills/playwright-cli"
         cp -rL "$pw_skill" "$HOME/.$agent/skills/playwright-cli"
     done
-    echo "  placed playwright-cli skill (no chromium download; wrapper uses the Flatpak)"
+    echo "  placed playwright-cli skill (binary is the image wrapper)"
 else
-    echo "  could not locate the playwright-cli skill in the global install." >&2
+    echo "  could not locate the playwright-cli skill from the npx cache." >&2
 fi
 
 printf '\nDone. Restart each CLI so it reloads config.\n'

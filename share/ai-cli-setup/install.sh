@@ -105,13 +105,28 @@ else
 fi
 
 echo "== playwright-cli =="
-if have npm; then
-    npm install -g @playwright/cli
-    # Off-image there is no Flatpak wrapper, so let the CLI manage its own
-    # chromium and place its skill.
-    have playwright-cli && playwright-cli install --skills || true
+if have npx; then
+    # A user-space npx wrapper avoids `npm install -g` (which fails on
+    # brew-managed node, whose global dir is not user-writable) and needs no root.
+    mkdir -p "$HOME/.local/bin"
+    cat > "$HOME/.local/bin/playwright-cli" <<'WRAP'
+#!/usr/bin/env bash
+exec npx -y @playwright/cli@latest "$@"
+WRAP
+    chmod +x "$HOME/.local/bin/playwright-cli"
+    npx -y @playwright/cli@latest --version >/dev/null 2>&1 || true
+    pw_skill="$(find "$HOME/.npm/_npx" -path '*cli-client/skill' -type d 2>/dev/null | head -1)"
+    if [[ -n ${pw_skill:-} ]]; then
+        for agent in claude codex; do
+            rm -rf "$HOME/.$agent/skills/playwright-cli"
+            cp -rL "$pw_skill" "$HOME/.$agent/skills/playwright-cli"
+        done
+    fi
+    # Off-image the CLI manages its own chromium; fetch it now (non-fatal).
+    PATH="$HOME/.local/bin:$PATH" playwright-cli install-browser chromium >/dev/null 2>&1 || true
+    echo "  installed playwright-cli wrapper + skill (ensure ~/.local/bin is on PATH)"
 else
-    echo "  npm required for playwright-cli; see @playwright/cli on npm" >&2
+    echo "  npx (Node) required for playwright-cli" >&2
 fi
 
 # --- 3. Secrets ---------------------------------------------------------------
