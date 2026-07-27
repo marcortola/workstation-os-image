@@ -36,28 +36,35 @@ gitleaks dir . --no-banner --redact
 # (e.g. the dash-broken context7 key gitleaks does not flag).
 ai_seeds=system_files/usr/share/zirconium/zdots
 assert_absent() {
-    # Fail if the extended-regexp $1 matches anywhere in file $2. A plain
-    # `! grep` would be exempt from errexit and silently pass, so branch.
-    if grep -qE "$1" "$2"; then
+    # Fail if the extended-regexp $1 matches (case-insensitively) anywhere in
+    # file $2. A plain `! grep` would be exempt from errexit and silently pass,
+    # so branch.
+    if grep -qiE "$1" "$2"; then
         echo "Secret/machine-state leaked into $2 (matched: $1)" >&2
         exit 1
     fi
 }
-jq -e 'has("env") | not' \
-    "$ai_seeds/dot_claude/create_settings.json" >/dev/null
-assert_absent 'HELPSCOUT' "$ai_seeds/dot_claude/create_settings.json"
+claude_settings="$ai_seeds/dot_claude/create_settings.json"
+jq -e 'has("env") | not' "$claude_settings" >/dev/null
+# Help Scout leaks as the env-var values (HELPSCOUT_APP_*) AND as the lowercase
+# plugin/marketplace identifiers (helpscout-navigator, help-scout-mcp).
+assert_absent 'helpscout|help-scout' "$claude_settings"
+assert_absent 'enabledPlugins|extraKnownMarketplaces' "$claude_settings"
+assert_absent '/(var/)?home/' "$claude_settings"
 jq -e '(.mcp.context7 == null)
     or (.mcp.context7.headers.CONTEXT7_API_KEY
         | . == null or startswith("{file:") or startswith("{env:"))' \
     "$ai_seeds/dot_config/opencode/create_opencode.json" >/dev/null
-assert_absent '^\[(projects|tui)' "$ai_seeds/dot_codex/create_config.toml"
+# The codex seed is top-level keys only; ANY [table] means machine/runtime state
+# (trust, nux, mcp_servers, ...) leaked past the scrub -- fail closed.
+assert_absent '^\[' "$ai_seeds/dot_codex/create_config.toml"
 assert_absent '/(var/)?home/' "$ai_seeds/dot_codex/create_config.toml"
 assert_absent \
     '(\.local/share/opencode/auth\.json|\.codex/auth\.json|\.claude/\.credentials\.json)' \
     config/dotfiles.manifest
 # The portable bundle is a projection of the seeds; it too must carry no key,
-# no Help Scout secret, and no absolute home path.
-if grep -rIlE 'ctx7sk-|HELPSCOUT|/home/[a-z]' \
+# no Help Scout association, and no absolute home path.
+if grep -rIliE 'ctx7sk-|helpscout|help-scout|/home/[a-z]' \
     share/ai-cli-setup/config share/ai-cli-setup/opencode-mcp-fragment.json \
     >/dev/null 2>&1; then
     echo "Secret or absolute home path leaked into share/ai-cli-setup" >&2

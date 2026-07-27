@@ -47,16 +47,30 @@ have() { command -v "$1" >/dev/null 2>&1; }
 copy_create_only() {
     local src=$1 dest=$2 f rel mode
     [[ -d $src ]] || return 0
-    while IFS= read -r -d '' f; do
+    while IFS= read -r f; do
         rel="${f#"$src/"}"
         if [[ -e $dest/$rel ]]; then
             printf '  keep     %s\n' "$rel"
         else
-            mode="$(stat -c %a "$f" 2>/dev/null || echo 644)"
-            install -D -m "$mode" "$f" "$dest/$rel"
+            # GNU stat -c / BSD stat -f; portable install (BSD install has no -D).
+            mode="$(stat -c %a "$f" 2>/dev/null || stat -f %Lp "$f" 2>/dev/null || echo 644)"
+            mkdir -p "$(dirname "$dest/$rel")"
+            install -m "$mode" "$f" "$dest/$rel"
             printf '  install  %s\n' "$rel"
         fi
-    done < <(find "$src" -type f -print0 | sort -z)
+    done < <(find "$src" -type f | LC_ALL=C sort)
+}
+
+# Create-only install of a single file (the dir helper no-ops on a file arg).
+install_file_create_only() {
+    local src=$1 dest=$2
+    if [[ -e $dest ]]; then
+        printf '  keep     %s\n' "${dest##*/}"
+    else
+        mkdir -p "$(dirname "$dest")"
+        install -m 0644 "$src" "$dest"
+        printf '  install  %s\n' "${dest##*/}"
+    fi
 }
 
 node_major_ok() {
@@ -77,8 +91,7 @@ echo "== opencode (profile: $profile) =="
 if [[ $profile == opencode-go ]]; then
     copy_create_only "$cfg/opencode" "$HOME/.config/opencode"
 else
-    copy_create_only "$cfg/opencode/AGENTS.md" "$HOME/.config/opencode" 2>/dev/null || \
-        install -D -m 0644 "$cfg/opencode/AGENTS.md" "$HOME/.config/opencode/AGENTS.md"
+    install_file_create_only "$cfg/opencode/AGENTS.md" "$HOME/.config/opencode/AGENTS.md"
     if ! node_major_ok; then
         echo "  Node >= 20.12 is required to configure a non-opencode-go profile." >&2
         echo "  Install Node and re-run, or use --profile opencode-go." >&2
@@ -112,9 +125,6 @@ cat <<'EOF'
 
   Context7 (opencode MCP): put the key in ~/.config/opencode/context7-key (0600)
     printf %s 'YOUR_KEY' > ~/.config/opencode/context7-key && chmod 600 ~/.config/opencode/context7-key
-
-  Help Scout (claude, optional/work-specific): add to ~/.claude/settings.json
-    "env": { "HELPSCOUT_APP_ID": "...", "HELPSCOUT_APP_SECRET": "..." }
 
 Restart each CLI so it reloads config. Reset later with ./reset.sh (dry run) / ./reset.sh --force.
 EOF

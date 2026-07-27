@@ -106,11 +106,17 @@ merge_seed() {
     local id=$1 live=$2 seed=$3
     case "$id" in
         codex-config)
-            # Canonical head from the seed, then everything from the first
-            # machine table onward copied verbatim (exact whitespace) so a no-op
-            # reset stays byte-identical and preserves project-trust grants.
+            # Canonical head from the seed, then the live [projects.*]/[tui.*]
+            # machine tables copied verbatim, per-table (symmetric with the scrub
+            # filter). Copying only these blocks -- not the whole tail -- keeps a
+            # no-op reset byte-identical and never redefines a portable table that
+            # happens to sit after them (which would make the TOML unparseable).
             cat "$seed"
-            awk 'f || /^\[(projects|tui)([.]|\])/ { f = 1; print }' "$live"
+            awk '
+                /^\[(projects|tui)([.]|\])/ { k = 1; print; next }
+                /^\[/                       { k = 0 }
+                k                           { print }
+            ' "$live"
             ;;
         claude-settings)
             # Seed wins on shared keys; live-only keys (env, enabledPlugins,
@@ -118,14 +124,17 @@ merge_seed() {
             jq -s '.[0] * .[1]' "$live" "$seed"
             ;;
         opencode)
-            # Canonical seed, but restore the live context7 key over the seed's
-            # {file:} placeholder so a reset never clobbers the working key.
+            # Canonical seed, but restore a genuine live context7 key over the
+            # seed's {file:} placeholder so a reset never clobbers a working key.
+            # An empty string is truthy in jq, so guard against it (and against a
+            # live value that is itself a {file:} placeholder) or the reset would
+            # overwrite the canonical placeholder with "".
             jq -s '
                 .[0] as $live | .[1] as $seed
+                | ($live.mcp.context7.headers.CONTEXT7_API_KEY // "") as $k
                 | $seed
-                | if $live.mcp.context7.headers.CONTEXT7_API_KEY
-                  then .mcp.context7.headers.CONTEXT7_API_KEY
-                       = $live.mcp.context7.headers.CONTEXT7_API_KEY
+                | if $k != "" and ($k | startswith("{file:") | not)
+                  then .mcp.context7.headers.CONTEXT7_API_KEY = $k
                   else . end
             ' "$live" "$seed"
             ;;

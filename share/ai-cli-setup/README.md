@@ -50,8 +50,6 @@ Nothing secret ships here. After install:
 - **Context7 key** (opencode MCP): `opencode.json` references
   `{file:~/.config/opencode/context7-key}` — put your key in that 0600 file
   (install.sh offers to do this interactively).
-- **Help Scout** (claude, optional/work-specific): add an `env` block to
-  `~/.claude/settings.json` per `secrets.example`.
 
 ## Reset
 

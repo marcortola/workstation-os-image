@@ -98,4 +98,36 @@ grep -q 'drift' <<<"$out" || fail "--diff did not report drift"
 grep -q '^model = "gpt-DRIFT"' "$home/.codex/config.toml" \
     || fail "--diff modified live config.toml"
 
+# 8. A portable table after a machine table must not be duplicated (would make
+#    the TOML unparseable) -- the merge copies machine tables per-table only.
+home="$tmp/codextable"; rm -rf -- "$home"
+install -D -m 0644 /dev/stdin "$home/.codex/config.toml" <<'EOF'
+model = "gpt-DRIFT"
+[projects."/tmp/p"]
+trust_level = "trusted"
+[history]
+persistence = "none"
+EOF
+run "$home" --tool codex --force >/dev/null
+got="$home/.codex/config.toml"
+grep -q '^model = "gpt-5.6-sol"' "$got" || fail "canonical head not restored (table case)"
+[[ $(grep -c '^\[projects."/tmp/p"\]' "$got") -eq 1 ]] \
+    || fail "projects table not preserved exactly once"
+[[ $(grep -c '^\[history\]' "$got") -eq 0 ]] \
+    || fail "non-machine table should be dropped on reset, never duplicated"
+if command -v python3 >/dev/null 2>&1 && python3 -c 'import tomllib' 2>/dev/null; then
+    python3 -c 'import tomllib,sys; tomllib.load(open(sys.argv[1],"rb"))' "$got" \
+        || fail "reset produced unparseable TOML"
+fi
+
+# 9. An empty live context7 key must not clobber the seed's {file:} placeholder.
+home="$tmp/emptykey"; rm -rf -- "$home"
+install -D -m 0644 /dev/stdin "$home/.config/opencode/opencode.json" <<'EOF'
+{ "model": "DRIFT", "mcp": { "context7": { "headers": { "CONTEXT7_API_KEY": "" } } } }
+EOF
+run "$home" --tool opencode --force >/dev/null
+jq -e '.mcp.context7.headers.CONTEXT7_API_KEY | startswith("{file:")' \
+    "$home/.config/opencode/opencode.json" >/dev/null \
+    || fail "empty live context7 key clobbered the {file:} placeholder"
+
 echo "reset-ai-cli tests passed."

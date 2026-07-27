@@ -72,8 +72,15 @@ merge_seed() {
     local id=$1 live=$2 seed=$3
     case "$id" in
         codex/config.toml)
+            # Per-table copy of the machine tables (symmetric with capture); do
+            # not copy the whole tail, or a portable table after them redefines
+            # and breaks the TOML.
             cat "$seed"
-            awk 'f || /^\[(projects|tui)([.]|\])/ { f = 1; print }' "$live"
+            awk '
+                /^\[(projects|tui)([.]|\])/ { k = 1; print; next }
+                /^\[/                       { k = 0 }
+                k                           { print }
+            ' "$live"
             ;;
         claude/settings.json)
             jq -s '.[0] * .[1]' "$live" "$seed"
@@ -81,10 +88,10 @@ merge_seed() {
         opencode/opencode.json)
             jq -s '
                 .[0] as $live | .[1] as $seed
+                | ($live.mcp.context7.headers.CONTEXT7_API_KEY // "") as $k
                 | $seed
-                | if $live.mcp.context7.headers.CONTEXT7_API_KEY
-                  then .mcp.context7.headers.CONTEXT7_API_KEY
-                       = $live.mcp.context7.headers.CONTEXT7_API_KEY
+                | if $k != "" and ($k | startswith("{file:") | not)
+                  then .mcp.context7.headers.CONTEXT7_API_KEY = $k
                   else . end
             ' "$live" "$seed"
             ;;
@@ -103,11 +110,17 @@ apply_content() {
     [[ -f $live ]] && cmp -s "$src" "$live" && return 0
     printf '  %-9s %s\n' reset "$disp"
     if $force; then
+        local mode
         if [[ -f $live ]]; then
             ensure_backup_root
-            install -D -m "$(stat -c %a "$live")" "$live" "$backup_root/$disp"
+            # GNU stat -c / BSD stat -f; fall back to 0644.
+            mode="$(stat -c %a "$live" 2>/dev/null \
+                || stat -f %Lp "$live" 2>/dev/null || echo 644)"
+            mkdir -p "$(dirname "$backup_root/$disp")"
+            install -m "$mode" "$live" "$backup_root/$disp"
         fi
-        install -D -m 0644 "$src" "$live"
+        mkdir -p "$(dirname "$live")"
+        install -m 0644 "$src" "$live"
     fi
 }
 
@@ -129,7 +142,7 @@ for t in "${tools[@]}"; do
     tool_cfg="$cfg/$t"
     [[ -d $tool_cfg ]] || continue
     root="$(live_root "$t")"
-    while IFS= read -r -d '' seed; do
+    while IFS= read -r seed; do
         rel="${seed#"$tool_cfg/"}"
         live="$root/$rel"
         src="$tmp/${t}_${rel//\//_}"
@@ -139,7 +152,7 @@ for t in "${tools[@]}"; do
             cp "$seed" "$src"
         fi
         apply_content "$live" "$t/$rel" "$src"
-    done < <(find "$tool_cfg" -type f -print0 | sort -z)
+    done < <(find "$tool_cfg" -type f | LC_ALL=C sort)
 done
 
 if $force && [[ -n $backup_root ]]; then echo "Backup written to $backup_root"; fi

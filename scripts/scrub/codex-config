@@ -5,11 +5,14 @@
 # Reads the live config on stdin, writes the secret-free seed to stdout.
 set -euo pipefail
 
+# Portable codex config is the top-level key block only; every [table]
+# (projects trust, tui nux, and any future machine/runtime table such as
+# mcp_servers/history) is machine state and is dropped. Keeping the seed
+# table-free means no table can ever smuggle a value into git, and capture
+# stays symmetric with the reset merge, which re-adds only the trust/nux tables.
 awk '
-    /^\[(projects|tui)([.]|\])/ { skip = 1; next }
-    /^\[/                       { skip = 0 }
-    skip                        { next }
-                                { lines[n++] = $0 }
+    /^\[/  { stop = 1 }
+    !stop  { lines[n++] = $0 }
     END {
         end = n
         while (end > 0 && lines[end - 1] ~ /^[[:space:]]*$/) end--
