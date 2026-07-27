@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Exercise tooling/reset-ai-cli against the real repository seeds with a throwaway
+# Exercise tooling/ai/reset-ai-cli against the real repository seeds with a throwaway
 # $HOME, asserting the merge model: canonical portable keys are restored while
 # machine-local state (codex trust tables, claude env, the live context7 key) is
 # preserved, dry-run writes nothing, --replace drops machine state, and a backup
@@ -7,7 +7,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-reset="$repo_root/tooling/reset-ai-cli"
+reset="$repo_root/tooling/ai/reset-ai-cli"
 
 tmp="$(mktemp -d)"
 trap 'rm -rf -- "$tmp"' EXIT

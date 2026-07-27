@@ -8,7 +8,7 @@
 # Prereqs: node >= 20.12, npm, npx; rtk from the Brewfile (`just brew-apply`).
 set -euo pipefail
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 have() { command -v "$1" >/dev/null 2>&1; }
 

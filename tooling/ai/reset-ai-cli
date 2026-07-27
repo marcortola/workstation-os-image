@@ -12,7 +12,7 @@
 # so an explicit out-of-band reset is the sanctioned bridge (as for JetBrains).
 set -euo pipefail
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=tooling/lib/dotfiles.sh
 source "$repo_root/tooling/lib/dotfiles.sh"
 

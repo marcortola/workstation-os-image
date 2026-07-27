@@ -5,7 +5,7 @@
 # canonical portable keys are restored while machine state is preserved (codex
 # trust tables, the live context7 key, claude's env/plugin blocks); --replace
 # hard-overwrites instead. Never touches auth stores, histories, or databases.
-# Requires jq. Mirrors the workstation repo's tooling/reset-ai-cli.
+# Requires jq. Mirrors the workstation repo's tooling/ai/reset-ai-cli.
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
