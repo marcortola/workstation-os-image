@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# playwright-cli against the image's Flatpak Chrome.
+#
+# The upstream @playwright/cli `open` command launches a downloaded chromium,
+# which this image deliberately avoids. Instead we ensure the Flatpak Chrome is
+# up with a CDP endpoint and translate `open [url]` into
+# `attach --cdp=<endpoint>` (+ goto), so the upstream skill works unchanged and
+# no second browser is layered in. Every other subcommand passes straight
+# through to the CLI, which reuses the attached session.
+set -euo pipefail
+
+npx=/home/linuxbrew/.linuxbrew/bin/npx
+
+pw() { "$npx" -y @playwright/cli@latest "$@"; }
+
+if [[ "${1:-}" == open ]]; then
+    endpoint="$(/usr/libexec/workstation-playwright-chrome)"
+    shift
+    url=""
+    for arg in "$@"; do
+        [[ $arg == -* ]] || { url="$arg"; break; }
+    done
+    pw attach --cdp="$endpoint"
+    if [[ -n $url ]]; then
+        pw goto "$url"
+    fi
+else
+    pw "$@"
+fi

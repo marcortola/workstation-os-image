@@ -1,0 +1,224 @@
+#!/usr/bin/env bash
+# Reset live codex / claude / opencode configuration to the repository canonical
+# (the create_ seeds under system_files/.../zdots), walking the one manifest that
+# already inventories them. Modelled on apply-jetbrains-settings' guards
+# (dry-run default, --force gate, timestamped backup, running-process refusal)
+# but with dms-apply's merge safety for the three mixed files: their canonical
+# portable keys are restored while machine-local state the seed intentionally
+# omits (codex project-trust tables, the live context7 key, claude's env/plugin
+# blocks) is preserved. --replace opts into a hard overwrite instead.
+#
+# chezmoi cannot do this: create_ targets are never rewritten once they exist,
+# so an explicit out-of-band reset is the sanctioned bridge (as for JetBrains).
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/lib/dotfiles.sh
+source "$repo_root/scripts/lib/dotfiles.sh"
+
+manifest="$repo_root/config/dotfiles.manifest"
+seed_root="$repo_root/system_files/usr/share/zirconium/zdots"
+
+force=false
+diff_only=false
+replace=false
+tools=()
+
+usage() {
+    cat <<'EOF'
+Usage: reset-ai-cli [--diff] [--force] [--replace] [--tool codex|claude|opencode]...
+
+  (default)   dry run: print what would change, write nothing
+  --force     apply the reset (timestamped backup first)
+  --diff      report drift vs canonical, read-only (implies no write)
+  --replace   hard-overwrite the mixed files with the seed, dropping preserved
+              machine state (project trust grants, live keys); default merges
+  --tool T    limit to one tool (repeatable); default is all three
+
+Never touches auth stores, credential files, histories, sessions, databases,
+or any path not in config/dotfiles.manifest.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --force) force=true ;;
+        --diff) diff_only=true ;;
+        --replace) replace=true ;;
+        --tool)
+            shift
+            [[ $# -gt 0 ]] || { echo "--tool needs a value" >&2; exit 2; }
+            tools+=("$1")
+            ;;
+        codex | claude | opencode) tools+=("$1") ;;
+        -h | --help) usage; exit 0 ;;
+        *) echo "unknown argument: $1" >&2; usage >&2; exit 2 ;;
+    esac
+    shift
+done
+[[ ${#tools[@]} -eq 0 ]] && tools=(codex claude opencode)
+
+tool_prefix() {
+    case "$1" in
+        codex) printf '.codex/' ;;
+        claude) printf '.claude/' ;;
+        opencode) printf '.config/opencode/' ;;
+        *) echo "unknown tool: $1" >&2; exit 2 ;;
+    esac
+}
+
+tool_proc() {
+    # Best-effort process names for the running-tool guard.
+    case "$1" in
+        codex) printf 'codex' ;;
+        claude) printf 'claude' ;;
+        opencode) printf 'opencode' ;;
+    esac
+}
+
+in_scope() {
+    local live_rel=$1 t
+    for t in "${tools[@]}"; do
+        [[ $live_rel == "$(tool_prefix "$t")"* ]] && return 0
+    done
+    return 1
+}
+
+tmp="$(mktemp -d)"
+trap 'rm -rf -- "$tmp"' EXIT
+
+backup_root=""
+ensure_backup_root() {
+    [[ -n $backup_root ]] && return
+    local state_home="${XDG_STATE_HOME:-$HOME/.local/state}"
+    backup_root="$state_home/workstation-os-image/ai-cli-reset-backup/$(date +%Y%m%d-%H%M%S)"
+}
+
+backup_live() {
+    local live=$1 rel=$2
+    [[ -f $live ]] || return 0
+    ensure_backup_root
+    install -D -m "$(stat -c %a "$live")" "$live" "$backup_root/$rel"
+}
+
+# Merge a mixed file's live state with the seed. Prints the desired content.
+merge_seed() {
+    local id=$1 live=$2 seed=$3
+    case "$id" in
+        codex-config)
+            # Canonical head from the seed, then the live [projects.*]/[tui.*]
+            # machine tables copied verbatim, per-table (symmetric with the scrub
+            # filter). Copying only these blocks -- not the whole tail -- keeps a
+            # no-op reset byte-identical and never redefines a portable table that
+            # happens to sit after them (which would make the TOML unparseable).
+            cat "$seed"
+            awk '
+                /^\[(projects|tui)([.]|\])/ { k = 1; print; next }
+                /^\[/                       { k = 0 }
+                k                           { print }
+            ' "$live"
+            ;;
+        claude-settings)
+            # Seed wins on shared keys; live-only keys (env, enabledPlugins,
+            # extraKnownMarketplaces) are absent from the seed and thus kept.
+            jq -s '.[0] * .[1]' "$live" "$seed"
+            ;;
+        *) cat "$seed" ;;
+    esac
+}
+
+status=0
+
+# Reconcile one live file against desired content in $src.
+apply_content() {
+    local live=$1 rel=$2 src=$3
+    if $diff_only; then
+        if [[ ! -f $live ]]; then
+            printf '  %-9s %s\n' "absent" "$rel"
+            status=1
+        elif ! cmp -s "$src" "$live"; then
+            printf '  %-9s %s\n' "drift" "$rel"
+            status=1
+        fi
+        return
+    fi
+    [[ -f $live ]] && cmp -s "$src" "$live" && return 0
+    printf '  %-9s %s\n' "reset" "$rel"
+    if $force; then
+        backup_live "$live" "$rel"
+        install -D -m 0644 "$src" "$live"
+    fi
+}
+
+handle_file() {
+    local kind=$1 live_rel=$2 source_path=$3 filter=$4
+    local live="$HOME/$live_rel" seed="$seed_root/$source_path"
+    if [[ ! -f $seed ]]; then
+        echo "  missing-seed $source_path" >&2
+        status=1
+        return
+    fi
+    local src="$tmp/${live_rel//\//_}"
+    if [[ $kind == scrub && -f $live ]] && ! $replace; then
+        merge_seed "$filter" "$live" "$seed" > "$src"
+    else
+        cp "$seed" "$src"
+    fi
+    apply_content "$live" "$live_rel" "$src"
+}
+
+handle_tree() {
+    local kind=$1 live_rel=$2 source_path=$3
+    local seed_dir="$seed_root/$source_path" live_dir="$HOME/$live_rel"
+    [[ -d $seed_dir ]] || return
+    local maxdepth=()
+    [[ $kind == directory ]] && maxdepth=(-maxdepth 1)
+    local seed seedrel liverel
+    while IFS= read -r -d '' seed; do
+        seedrel="${seed#"$seed_dir/"}"
+        liverel="$(workstation_live_relative "$seedrel")"
+        apply_content "$live_dir/$liverel" "$live_rel/$liverel" "$seed"
+    done < <(find "$seed_dir" "${maxdepth[@]}" -type f -name 'create_*' \
+        -print0 | sort -z)
+}
+
+# Refuse while a target tool is running: it rewrites its own config on exit and
+# would silently clobber the reset. Skippable only by the test harness.
+if ! $diff_only && [[ -z ${RESET_AI_CLI_SKIP_PROC_GUARD:-} ]]; then
+    for t in "${tools[@]}"; do
+        if pgrep -x "$(tool_proc "$t")" >/dev/null 2>&1; then
+            echo "Refusing: $t is running (it rewrites its config on exit)." >&2
+            echo "Quit it and retry, or scope to the other tools with --tool." >&2
+            exit 1
+        fi
+    done
+fi
+
+if $diff_only; then
+    echo "AI CLI config drift vs canonical (tools: ${tools[*]}):"
+elif $force; then
+    printf 'Resetting AI CLI config to canonical (tools: %s%s):\n' \
+        "${tools[*]}" "$($replace && echo ', replace')"
+else
+    echo "AI CLI config reset -- DRY RUN, pass --force to write (tools: ${tools[*]}):"
+fi
+
+while IFS='|' read -r kind live_path source_path pattern; do
+    [[ -z $kind || $kind == \#* ]] && continue
+    in_scope "$live_path" || continue
+    case "$kind" in
+        copy) handle_file copy "$live_path" "$source_path" "" ;;
+        scrub) handle_file scrub "$live_path" "$source_path" "$pattern" ;;
+        tree | directory) handle_tree "$kind" "$live_path" "$source_path" ;;
+        template) : ;;
+        *) echo "reset does not handle manifest kind: $kind" >&2; exit 2 ;;
+    esac
+done < "$manifest"
+
+if $force && [[ -n $backup_root ]]; then
+    echo "Backup written to $backup_root"
+fi
+if ! $diff_only && ! $force; then
+    echo "(dry run -- nothing written; pass --force to apply)"
+fi
+exit "$status"
