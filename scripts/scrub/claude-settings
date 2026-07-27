@@ -8,4 +8,4 @@
 set -euo pipefail
 
 jq --sort-keys \
-    'del(.env, .enabledPlugins, .extraKnownMarketplaces) | .model = "opus[1m]"'
+    'del(.env, .enabledPlugins, .extraKnownMarketplaces, .hooks) | .model = "opus[1m]"'

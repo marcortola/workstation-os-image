@@ -42,6 +42,10 @@ jetbrains-apply *args:
 jetbrains-plugins *args:
     ./scripts/apply-jetbrains-plugins {{ args }}
 
+# Install the AI CLI tools (caveman, rtk, opencode-fusion, playwright-cli) via their official installers; run once after deploy like brew-apply.
+ai-tools-install:
+    ./scripts/install-ai-tools
+
 # Regenerate the portable share/ai-cli-setup/ bundle from the repo seeds.
 ai-bundle:
     ./scripts/build-ai-cli-bundle

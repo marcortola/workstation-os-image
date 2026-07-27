@@ -5,19 +5,6 @@
     "sessionUrl": false
   },
   "effortLevel": "high",
-  "hooks": {
-    "PreToolUse": [
-      {
-        "hooks": [
-          {
-            "command": "rtk hook claude",
-            "type": "command"
-          }
-        ],
-        "matcher": "Bash"
-      }
-    ]
-  },
   "model": "opus[1m]",
   "skipWorkflowUsageWarning": true,
   "theme": "auto",

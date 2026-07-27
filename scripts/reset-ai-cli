@@ -123,21 +123,6 @@ merge_seed() {
             # extraKnownMarketplaces) are absent from the seed and thus kept.
             jq -s '.[0] * .[1]' "$live" "$seed"
             ;;
-        opencode)
-            # Canonical seed, but restore a genuine live context7 key over the
-            # seed's {file:} placeholder so a reset never clobbers a working key.
-            # An empty string is truthy in jq, so guard against it (and against a
-            # live value that is itself a {file:} placeholder) or the reset would
-            # overwrite the canonical placeholder with "".
-            jq -s '
-                .[0] as $live | .[1] as $seed
-                | ($live.mcp.context7.headers.CONTEXT7_API_KEY // "") as $k
-                | $seed
-                | if $k != "" and ($k | startswith("{file:") | not)
-                  then .mcp.context7.headers.CONTEXT7_API_KEY = $k
-                  else . end
-            ' "$live" "$seed"
-            ;;
         *) cat "$seed" ;;
     esac
 }

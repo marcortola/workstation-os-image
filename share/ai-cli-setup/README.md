@@ -1,61 +1,55 @@
 # ai-cli-setup
 
-A portable, deterministic setup for three AI coding CLIs — **codex**, **Claude
-Code**, and **opencode** (with the [opencode-fusion](https://github.com/mihneaptu/opencode-fusion)
-main/sidekick team) — that you can drop onto any Linux/macOS account. No
-workstation image, chezmoi, or Zirconium required.
+A portable setup for three AI coding CLIs — **codex**, **Claude Code**, and
+**opencode** — that you can drop onto any Linux/macOS account. No workstation
+image, chezmoi, or Zirconium required.
 
-The config here is **secret-free by construction**: no API keys, tokens, or
-machine-specific paths. You supply secrets locally after install via each CLI's
-own `auth login` and a couple of local key files (see `secrets.example`).
+`install.sh` does two things: lays down this repo's **personal config**
+(secret-free — no keys, tokens, or machine paths) create-only, then installs the
+**AI tools via their own official installers** (nothing third-party is vendored
+here). You supply secrets afterwards via each CLI's `auth login` and a local
+context7 key file (see `secrets.example`).
 
 ## Prerequisites
 
-- The CLIs you want: `codex`, `claude`, `opencode` (install whichever you use).
-- **Node ≥ 20.12** — only needed if you pick an opencode profile other than the
-  default `opencode-go` (the fusion installer runs under Node).
+- The CLIs you use: `codex`, `claude`, `opencode`.
+- **Node ≥ 20.12** and `npm`/`npx` (for caveman, opencode-fusion, playwright-cli).
+- `jq` (for `reset.sh`). Optionally Homebrew (for rtk; else a curl fallback).
 
 ## Install
 
 ```bash
-./install.sh                 # default opencode-go profile
-./install.sh --profile chatgpt   # regenerate opencode models for your subscription
-./install.sh --yes           # non-interactive (skips the context7 key prompt)
+./install.sh                     # default opencode-go fusion profile
+./install.sh --profile chatgpt   # different opencode-fusion subscription profile
+./install.sh --yes               # non-interactive (skips the context7 key prompt)
 ```
 
 Existing files in `~/.codex`, `~/.claude`, `~/.config/opencode` are **never
-overwritten** — install is create-only. Then do the one-time secret/auth steps
-it prints (also in `secrets.example`) and restart each CLI.
-
-Available opencode profiles: `opencode-go` `opencode-zen` `opencode-zen-free`
-`chatgpt` `github-copilot`. A non-`opencode-go` profile re-runs the vendored
-fusion installer (`vendor/fusion-setup/scripts/install.js`) so the model
-assignments match your subscription; the agent prompts are identical either way.
+overwritten**. Then do the one-time secret/auth steps it prints and restart each CLI.
 
 ## What it installs
 
-- **codex** → `~/.codex/`: `AGENTS.md`, `config.toml` (portable defaults; your
-  project-trust grants are yours to add), skills.
-- **claude** → `~/.claude/`: `CLAUDE.md`, `settings.json` (no secrets),
-  `rules/`, `skills/`, worktree commands.
-- **opencode** → `~/.config/opencode/`: fusion agents (build/plan/sidekick/
-  explore/research/design/reviewer), fusion commands, audit plugin, `AGENTS.md`,
-  and `opencode.json` wiring models + the context7/playwright MCP servers.
+**Personal config** (create-only): codex `AGENTS.md`/`config.toml`/skills; claude
+`CLAUDE.md`/`settings.json`/`rules`/`skills`/worktree commands; opencode `AGENTS.md`
++ worktree commands.
 
-Token-optimization tooling is included: the **caveman** skills (~65% output
-reduction, toggle with `/caveman`) and **rtk** (a Bash-output compressor wired
-as a Claude `PreToolUse` hook + an opencode plugin). install.sh installs the rtk
-binary because the shipped Claude hook needs it on PATH; remove the hook from
-`~/.claude/settings.json` if you don't want it. rtk's codex integration is
-instruction-based (`~/.codex/RTK.md` referenced from `AGENTS.md`), not an
-auto-rewrite hook.
+**Tools, via their official installers:**
+- [**opencode-fusion**](https://github.com/mihneaptu/opencode-fusion) — main/sidekick
+  agent team; `skills add` + its `install.js` with your profile and our context7
+  MCP fragment, which generates `opencode.json`.
+- [**caveman**](https://github.com/JuliusBrussee/caveman) — ~65% output-token
+  reduction skills (`skills add`; toggle `/caveman`).
+- [**rtk**](https://github.com/rtk-ai/rtk) — Bash-output compressor; `rtk init`
+  wires the Claude hook, opencode plugin, and codex reference.
+- **@playwright/cli** — token-lean browser automation (`npm i -g` + its skill;
+  off-image it manages its own chromium).
 
 ## Secrets
 
 Nothing secret ships here. After install:
 
 - **Auth**: `codex login`; run `claude` then `/login`; `opencode auth login`.
-- **Context7 key** (opencode MCP): `opencode.json` references
+- **Context7 key** (opencode MCP): the config references
   `{file:~/.config/opencode/context7-key}` — put your key in that 0600 file
   (install.sh offers to do this interactively).
 
@@ -63,20 +57,19 @@ Nothing secret ships here. After install:
 
 ```bash
 ./reset.sh                   # dry run: show what would change
-./reset.sh --force           # restore config to canonical (timestamped backup first)
+./reset.sh --force           # restore personal config to canonical (backup first)
 ./reset.sh --force --replace # also drop preserved machine state (trust grants, live keys)
 ./reset.sh --diff --tool codex
 ```
 
-Reset **merges**: it restores the canonical portable settings while preserving
-machine-local state the shipped config omits — codex project-trust tables, your
-live context7 key, and claude's `env`/plugin blocks. It refuses while a target
-CLI is running, and never touches auth stores, histories, sessions, or
-databases. Requires `jq`.
+Reset restores the **personal config** (merging, so it preserves codex
+project-trust tables and claude's `env` block); it does not touch the installed
+tools — re-run `./install.sh` for those. It refuses while a target CLI is
+running and never touches auth stores, histories, sessions, or databases.
 
 ## Provenance
 
 `config/` and `opencode-mcp-fragment.json` are **generated** from the workstation
-repository's canonical seeds by `scripts/build-ai-cli-bundle` (`just ai-bundle`)
-— don't hand-edit them; change the seeds and regenerate. `install.sh`,
-`reset.sh`, `secrets.example`, and `vendor/` are maintained here directly.
+repo's canonical seeds by `just ai-bundle` — don't hand-edit them; change the
+seeds and regenerate. `install.sh`, `reset.sh`, and `secrets.example` are
+maintained here directly.

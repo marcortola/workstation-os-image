@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# Install the third-party AI CLI tools via their OFFICIAL installers, idempotently.
+# Run once after deploy, like `just brew-apply` -- this is a manual apply step, not
+# an auto-updater. chezmoi deploys your personal config; this only installs and
+# wires the tools themselves (caveman, rtk, opencode-fusion, playwright-cli), so
+# none of their files are vendored into this repo.
+#
+# Prereqs: node >= 20.12, npm, npx; rtk from the Brewfile (`just brew-apply`).
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+step() { printf '\n== %s ==\n' "$1"; }
+
+# --- rtk: bash-output compressor (binary from the Brewfile) --------------------
+step "rtk"
+if have rtk; then
+    rtk init -g --auto-patch   # Claude Code PreToolUse hook + RTK.md + @RTK.md
+    rtk init -g --opencode     # opencode plugin (~/.config/opencode/plugins/rtk.ts)
+    rtk init -g --codex        # codex ~/.codex/RTK.md + AGENTS.md reference
+    # rtk writes an absolute @/home/.../RTK.md ref for codex; normalise it to a
+    # relative @RTK.md so it matches the captured seed (no spurious drift) and the
+    # Claude side.
+    sed -i "s#^@$HOME/.codex/RTK.md\$#@RTK.md#" "$HOME/.codex/AGENTS.md" 2>/dev/null || true
+else
+    echo "rtk not found; run 'just brew-apply' first (Brewfile ships brew \"rtk\")." >&2
+fi
+
+# --- caveman: ~65% output-token reduction skills ------------------------------
+step "caveman"
+npx -y skills add JuliusBrussee/caveman -a claude-code -a codex -a opencode -y
+
+# --- opencode-fusion: main/sidekick agent team --------------------------------
+step "opencode-fusion"
+npx -y skills add mihneaptu/opencode-fusion --skill fusion-setup -g -a opencode -y
+fusion_installer="$HOME/.agents/skills/fusion-setup/scripts/install.js"
+if [[ -f $fusion_installer ]]; then
+    # opencode-go profile + our context7 MCP fragment (secret-free {file:} key).
+    node "$fusion_installer" apply \
+        --profile opencode-go \
+        --config "$repo_root/config/ai-tools/opencode-mcp-fragment.json" \
+        --extras commands,plugin
+else
+    echo "fusion installer missing after skills add; check the network/install." >&2
+fi
+
+# --- playwright-cli: token-lean browser automation ----------------------------
+# Install the CLI only. The image ships the Flatpak-over-CDP wrapper
+# (/usr/bin/playwright-cli + workstation-playwright-chrome), so we deliberately do
+# NOT run `playwright-cli install` (which downloads a chromium the wrapper makes
+# unnecessary). We just place the skill that ships inside the package.
+step "playwright-cli"
+npm install -g @playwright/cli
+pw_skill="$(find "$(npm root -g)" -path '*cli-client/skill' -type d 2>/dev/null | head -1)"
+if [[ -n ${pw_skill:-} && -d $pw_skill ]]; then
+    for agent in claude codex; do
+        rm -rf "$HOME/.$agent/skills/playwright-cli"
+        cp -rL "$pw_skill" "$HOME/.$agent/skills/playwright-cli"
+    done
+    echo "  placed playwright-cli skill (no chromium download; wrapper uses the Flatpak)"
+else
+    echo "  could not locate the playwright-cli skill in the global install." >&2
+fi
+
+printf '\nDone. Restart each CLI so it reloads config.\n'
+printf 'Provider auth: codex login; run claude then /login; opencode auth login.\n'
+printf 'Context7 key: printf %%s KEY > ~/.config/opencode/context7-key && chmod 600 that file.\n'
