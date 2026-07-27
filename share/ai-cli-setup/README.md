@@ -46,7 +46,9 @@ Token-optimization tooling is included: the **caveman** skills (~65% output
 reduction, toggle with `/caveman`) and **rtk** (a Bash-output compressor wired
 as a Claude `PreToolUse` hook + an opencode plugin). install.sh installs the rtk
 binary because the shipped Claude hook needs it on PATH; remove the hook from
-`~/.claude/settings.json` if you don't want it. rtk has no codex integration.
+`~/.claude/settings.json` if you don't want it. rtk's codex integration is
+instruction-based (`~/.codex/RTK.md` referenced from `AGENTS.md`), not an
+auto-rewrite hook.
 
 ## Secrets
 

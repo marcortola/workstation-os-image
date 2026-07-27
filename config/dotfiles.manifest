@@ -1,5 +1,6 @@
 # kind|live path relative to $HOME|chezmoi source path|file pattern
 copy|.codex/AGENTS.md|dot_codex/create_AGENTS.md|-
+copy|.codex/RTK.md|dot_codex/create_RTK.md|-
 scrub|.codex/config.toml|dot_codex/create_config.toml|codex-config
 copy|.claude/CLAUDE.md|dot_claude/create_CLAUDE.md|-
 copy|.claude/RTK.md|dot_claude/create_RTK.md|-
