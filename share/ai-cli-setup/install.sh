@@ -69,6 +69,8 @@ copy_create_only "$cfg/claude" "$HOME/.claude"
 copy_create_only "$cfg/opencode" "$HOME/.config/opencode"
 
 # --- 2. Tools via their official installers -----------------------------------
+# Run installers from $HOME so skills.sh/npm don't drop files in the CWD.
+cd "$HOME"
 echo "== rtk =="
 if ! have rtk; then
     if have brew; then brew install rtk
@@ -96,7 +98,8 @@ if node_major_ok; then
     node "$HOME/.agents/skills/fusion-setup/scripts/install.js" apply \
         --profile "$profile" \
         --config "$here/opencode-mcp-fragment.json" \
-        --extras commands,plugin
+        --extras commands,plugin \
+        --adopt-config
 else
     echo "  Node >= 20.12 required for opencode-fusion; skipped." >&2
 fi

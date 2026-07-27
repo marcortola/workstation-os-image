@@ -14,6 +14,10 @@ have() { command -v "$1" >/dev/null 2>&1; }
 
 step() { printf '\n== %s ==\n' "$1"; }
 
+# The tool installers (skills.sh, npm) drop files in the CWD; run from $HOME so
+# they never land in a repo. Config/fragment paths above are already absolute.
+cd "$HOME"
+
 # --- rtk: bash-output compressor (binary from the Brewfile) --------------------
 step "rtk"
 if have rtk; then
@@ -38,10 +42,14 @@ npx -y skills add mihneaptu/opencode-fusion --skill fusion-setup -g -a opencode 
 fusion_installer="$HOME/.agents/skills/fusion-setup/scripts/install.js"
 if [[ -f $fusion_installer ]]; then
     # opencode-go profile + our context7 MCP fragment (secret-free {file:} key).
+    # --adopt-config makes re-runs idempotent: it accepts an opencode.json edited
+    # since the last install (or created by chezmoi) as the baseline, still
+    # merging the fragment. Harmless on a first install.
     node "$fusion_installer" apply \
         --profile opencode-go \
         --config "$repo_root/config/ai-tools/opencode-mcp-fragment.json" \
-        --extras commands,plugin
+        --extras commands,plugin \
+        --adopt-config
 else
     echo "fusion installer missing after skills add; check the network/install." >&2
 fi
