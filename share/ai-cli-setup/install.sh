@@ -116,6 +116,19 @@ else
     echo "  Until then, remove the PreToolUse hook from ~/.claude/settings.json to avoid errors." >&2
 fi
 
+# playwright-cli: token-lean browser automation the captured skills reference on
+# PATH. The image wraps it around the Flatpak Chrome over CDP; off-image we
+# install the upstream CLI, which downloads its own chromium on first browser use.
+echo "== playwright-cli (browser automation) =="
+if command -v playwright-cli >/dev/null 2>&1; then
+    echo "  keep     playwright-cli"
+elif command -v npm >/dev/null 2>&1; then
+    npm install -g @playwright/cli \
+        && echo "  installed @playwright/cli (chromium downloads on first use)"
+else
+    echo "  npm not found; install with: npm install -g @playwright/cli" >&2
+fi
+
 # Optional: write the context7 key file the opencode config references.
 if ! $assume_yes && [[ -t 0 ]] && [[ ! -e $HOME/.config/opencode/context7-key ]]; then
     printf '\nContext7 API key (blank to skip, set later): '

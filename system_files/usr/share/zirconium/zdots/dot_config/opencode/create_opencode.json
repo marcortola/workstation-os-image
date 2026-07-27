@@ -49,15 +49,6 @@
       "headers": {
         "CONTEXT7_API_KEY": "{file:~/.config/opencode/context7-key}"
       }
-    },
-    "playwright": {
-      "type": "local",
-      "command": [
-        "npx",
-        "-y",
-        "@playwright/mcp"
-      ],
-      "enabled": true
     }
   }
 }

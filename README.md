@@ -23,11 +23,11 @@ ghcr.io/marcortola/workstation-os-image:latest
 - Fish, Foot, Omarchy-based Tmux, Starship, Neovim and Tokyo Night defaults.
 - OpenCode (`oc` and `Mod+Shift+O`), Caps Lock as Ctrl, and
   `gpt-4o-transcribe` dictation on `Mod+Shift+V`.
-- Default Claude Code MCP servers (`context7`, `playwright`, `ahrefs`) seeded
-  once into the user account; `playwright` drives the per-user Flatpak Google
-  Chrome on demand through a CDP wrapper (`workstation-playwright-mcp`), so no
-  browser is layered into the image; Ahrefs needs a one-time
-  `claude mcp login ahrefs`.
+- Default Claude Code MCP servers (`context7`, `ahrefs`) seeded once into the
+  user account; Ahrefs needs a one-time `claude mcp login ahrefs`. Browser
+  automation is the token-lean `playwright-cli` (not an MCP): it attaches to the
+  per-user Flatpak Google Chrome over CDP (`workstation-playwright-chrome`) and
+  snapshots to disk, so no browser is layered into the image.
 - Screen recording via `wf-recorder` on `Mod+Shift+R`.
 - `Ctrl+Alt+U`, or the power menu's **Switch User**, moves between logged-in
   users (see [Switch user](#switch-user)).

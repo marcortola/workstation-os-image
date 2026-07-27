@@ -8,6 +8,9 @@ copy|.claude/rules/context7.md|dot_claude/rules/create_context7.md|-
 tree|.claude/skills/context7-mcp|dot_claude/skills/context7-mcp|*
 tree|.claude/skills/weekly-summary|dot_claude/skills/weekly-summary|*
 tree|.codex/skills/weekly-summary|dot_codex/skills/weekly-summary|*
+# playwright-cli skill (token-lean browser automation; replaces the playwright MCP)
+tree|.claude/skills/playwright-cli|dot_claude/skills/playwright-cli|*
+tree|.codex/skills/playwright-cli|dot_codex/skills/playwright-cli|*
 # caveman token-optimization skills (skills.sh). Captured per-agent as real dirs
 # (opencode also reads ~/.claude/skills, so it is covered by the claude copies).
 tree|.claude/skills/caveman|dot_claude/skills/caveman|*

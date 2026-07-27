@@ -32,6 +32,7 @@ $RECYCLE.BIN/
 # Dev tooling
 .pnpm-store/
 .playwright-mcp/
+.playwright/
 
 # Claude Code local settings
 **/.claude/settings.local.json
