@@ -103,6 +103,19 @@ else
         --extras commands,plugin
 fi
 
+# rtk: the shipped Claude settings.json carries an `rtk hook claude` PreToolUse
+# hook, so rtk must be on PATH or every Bash call fails with command-not-found.
+echo "== rtk (bash-output token compressor) =="
+if command -v rtk >/dev/null 2>&1; then
+    echo "  keep     rtk $(rtk --version 2>/dev/null | awk '{print $2}')"
+elif command -v brew >/dev/null 2>&1; then
+    brew install rtk && echo "  installed rtk via brew"
+else
+    echo "  rtk is not installed. The Claude hook needs it -- install with:" >&2
+    echo "    brew install rtk   # or:   curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/master/install.sh | sh" >&2
+    echo "  Until then, remove the PreToolUse hook from ~/.claude/settings.json to avoid errors." >&2
+fi
+
 # Optional: write the context7 key file the opencode config references.
 if ! $assume_yes && [[ -t 0 ]] && [[ ! -e $HOME/.config/opencode/context7-key ]]; then
     printf '\nContext7 API key (blank to skip, set later): '

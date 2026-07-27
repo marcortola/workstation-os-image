@@ -2,6 +2,7 @@
 copy|.codex/AGENTS.md|dot_codex/create_AGENTS.md|-
 scrub|.codex/config.toml|dot_codex/create_config.toml|codex-config
 copy|.claude/CLAUDE.md|dot_claude/create_CLAUDE.md|-
+copy|.claude/RTK.md|dot_claude/create_RTK.md|-
 scrub|.claude/settings.json|dot_claude/create_settings.json|claude-settings
 copy|.claude/rules/context7.md|dot_claude/rules/create_context7.md|-
 tree|.claude/skills/context7-mcp|dot_claude/skills/context7-mcp|*
@@ -38,6 +39,8 @@ copy|.config/opencode/commands/worktree-remove.md|dot_config/opencode/commands/c
 copy|.config/opencode/commands/fusion-setup.md|dot_config/opencode/commands/create_fusion-setup.md|-
 copy|.config/opencode/commands/fusion-status.md|dot_config/opencode/commands/create_fusion-status.md|-
 copy|.config/opencode/plugins/fusion-audit.js|dot_config/opencode/plugins/create_fusion-audit.js|-
+copy|.config/opencode/plugins/rtk.ts|dot_config/opencode/plugins/create_rtk.ts|-
+copy|.config/rtk/filters.toml|dot_config/rtk/create_filters.toml|-
 copy|.config/workmux/config.yaml|dot_config/workmux/create_config.yaml|-
 copy|.config/git/config|dot_config/git/create_config|-
 copy|.config/git/ignore|dot_config/git/create_ignore|-

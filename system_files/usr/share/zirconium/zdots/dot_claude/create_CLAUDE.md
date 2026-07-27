@@ -59,3 +59,5 @@ Once I approve a plan, execute with confidence and autonomy. Follow the agreed p
 - Want to be consulted on all non-trivial decisions during planning
 - Expect autonomous execution once a plan is approved
 - Looking for genuine technical dialogue, not validation
+
+@RTK.md
