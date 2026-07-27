@@ -62,6 +62,23 @@ node_major_ok() {
     (( major > 20 )) || { (( major == 20 )) && (( minor >= 12 )); }
 }
 
+# Offer a CLI login: skip if already authed or --yes/non-TTY, else ask before
+# opening the browser flow.
+login_offer() {
+    local name=$1 auth=$2; shift 2
+    if [[ -s $auth ]]; then
+        echo "  $name: already logged in"
+    elif $assume_yes || [[ ! -t 0 ]]; then
+        echo "  $name: not logged in -- run: $*"
+    else
+        read -r -p "  Log in to $name now? [Y/n] " reply
+        case "${reply:-y}" in
+            [Nn]*) echo "  $name: skipped -- run \`$*\` later" ;;
+            *) "$@" || echo "  $name: login did not complete -- run \`$*\` later" ;;
+        esac
+    fi
+}
+
 # --- 1. Personal config (create-only) -----------------------------------------
 echo "== personal config =="
 copy_create_only "$cfg/codex" "$HOME/.codex"
@@ -129,7 +146,13 @@ else
     echo "  npx (Node) required for playwright-cli" >&2
 fi
 
-# --- 3. Secrets ---------------------------------------------------------------
+# --- 3. Logins ----------------------------------------------------------------
+echo "== logins =="
+login_offer codex "$HOME/.codex/auth.json" codex login
+login_offer claude "$HOME/.claude/.credentials.json" claude auth login
+login_offer opencode "$HOME/.local/share/opencode/auth.json" opencode auth login
+
+# --- 4. Context7 key ----------------------------------------------------------
 if ! $assume_yes && [[ -t 0 ]] && [[ ! -e $HOME/.config/opencode/context7-key ]]; then
     printf '\nContext7 API key (blank to skip, set later): '
     read -r -s context7_key
@@ -144,10 +167,8 @@ fi
 
 cat <<'EOF'
 
-== One-time secrets & auth (see ./secrets.example) ==
-  codex:    codex login
-  claude:   run `claude`, then /login
-  opencode: opencode auth login        (select your provider/subscription)
+== If you skipped anything above ==
+  codex login ; claude auth login ; opencode auth login
   Context7 (opencode MCP): put the key in ~/.config/opencode/context7-key (0600)
 
 Restart each CLI so it reloads config.
