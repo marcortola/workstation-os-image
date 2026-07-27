@@ -5,19 +5,17 @@ on:
     branches: [main]
     paths:
       - Containerfile
-      - system_files/**
-      - scripts/**
+      - rootfs/**
+      - tooling/**
       - config/**
-      - tests/**
       - justfile
       - .github/workflows/build.yml
   pull_request:
     paths:
       - Containerfile
-      - system_files/**
-      - scripts/**
+      - rootfs/**
+      - tooling/**
       - config/**
-      - tests/**
       - justfile
       - .github/workflows/build.yml
   schedule:
@@ -58,7 +56,7 @@ jobs:
                 "${{ github.event_name }}" == workflow_dispatch ]]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           elif git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- \
-              Containerfile system_files .github/workflows/build.yml; then
+              Containerfile rootfs .github/workflows/build.yml; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -80,8 +78,8 @@ jobs:
 
       - name: Test DMS preference lifecycle
         env:
-          DMS_SETTINGS_SPEC: ${{ github.workspace }}/tests/fixtures/dms-settings-spec.js
-        run: scripts/test-dms-settings
+          DMS_SETTINGS_SPEC: ${{ github.workspace }}/tooling/fixtures/dms-settings-spec.js
+        run: tooling/test-dms-settings
 
   build:
     needs: [image-inputs, dms-settings-tests]

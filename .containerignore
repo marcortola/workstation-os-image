@@ -1,4 +1,4 @@
 **
 !Containerfile
-!system_files/
-!system_files/**
+!rootfs/
+!rootfs/**
