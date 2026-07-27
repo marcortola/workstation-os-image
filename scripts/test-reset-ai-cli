@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+# Exercise scripts/reset-ai-cli against the real repository seeds with a throwaway
+# $HOME, asserting the merge model: canonical portable keys are restored while
+# machine-local state (codex trust tables, claude env, the live context7 key) is
+# preserved, dry-run writes nothing, --replace drops machine state, and a backup
+# is taken. Run by scripts/validate.
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+reset="$repo_root/scripts/reset-ai-cli"
+
+tmp="$(mktemp -d)"
+trap 'rm -rf -- "$tmp"' EXIT
+
+fail() { echo "test-reset-ai-cli: FAIL: $*" >&2; exit 1; }
+
+# Fresh fake home with drifted live files carrying machine-local state.
+seed_home() {
+    local home=$1
+    rm -rf -- "$home"
+    install -D -m 0644 /dev/stdin "$home/.codex/config.toml" <<'EOF'
+model = "gpt-DRIFT"
+model_reasoning_effort = "low"
+[projects."/tmp/trusted-project"]
+trust_level = "trusted"
+[tui.model_availability_nux]
+"gpt-DRIFT" = 1
+EOF
+    install -D -m 0644 /dev/stdin "$home/.claude/settings.json" <<'EOF'
+{ "theme": "DRIFT", "env": { "HELPSCOUT_APP_SECRET": "live-secret" } }
+EOF
+    install -D -m 0644 /dev/stdin "$home/.config/opencode/opencode.json" <<'EOF'
+{ "model": "DRIFT", "mcp": { "context7": { "headers": { "CONTEXT7_API_KEY": "live-real-key-1234567890" } } } }
+EOF
+}
+
+run() {
+    local home=$1; shift
+    HOME="$home" XDG_STATE_HOME="$home/.local/state" \
+        RESET_AI_CLI_SKIP_PROC_GUARD=1 "$reset" "$@"
+}
+
+# 1. Dry run writes nothing.
+home="$tmp/dry"; seed_home "$home"
+run "$home" --tool codex >/dev/null
+grep -q '^model = "gpt-DRIFT"' "$home/.codex/config.toml" \
+    || fail "dry run modified codex config.toml"
+
+# 2. Merge reset: canonical head restored, machine tables preserved.
+home="$tmp/merge"; seed_home "$home"
+run "$home" --tool codex --force >/dev/null
+grep -q '^model = "gpt-5.6-sol"' "$home/.codex/config.toml" \
+    || fail "codex canonical model not restored"
+grep -q '^model_reasoning_effort = "high"' "$home/.codex/config.toml" \
+    || fail "codex canonical reasoning effort not restored"
+grep -q '\[projects."/tmp/trusted-project"\]' "$home/.codex/config.toml" \
+    || fail "codex project-trust table not preserved"
+grep -q '\[tui.model_availability_nux\]' "$home/.codex/config.toml" \
+    || fail "codex tui table not preserved"
+
+# 3. Claude merge: shared key restored, live env (secret) preserved.
+run "$home" --tool claude --force >/dev/null
+jq -e '.theme == "auto"' "$home/.claude/settings.json" >/dev/null \
+    || fail "claude canonical theme not restored"
+jq -e '.model == "opus[1m]"' "$home/.claude/settings.json" >/dev/null \
+    || fail "claude canonical model not restored"
+jq -e '.env.HELPSCOUT_APP_SECRET == "live-secret"' \
+    "$home/.claude/settings.json" >/dev/null \
+    || fail "claude live env not preserved"
+
+# 4. Opencode merge: canonical model restored, live context7 key preserved.
+run "$home" --tool opencode --force >/dev/null
+jq -e '.model == "opencode-go/kimi-k3"' \
+    "$home/.config/opencode/opencode.json" >/dev/null \
+    || fail "opencode canonical model not restored"
+jq -e '.mcp.context7.headers.CONTEXT7_API_KEY == "live-real-key-1234567890"' \
+    "$home/.config/opencode/opencode.json" >/dev/null \
+    || fail "opencode live context7 key not preserved"
+
+# 5. Backup was taken on the --force runs.
+find "$home/.local/state/workstation-os-image/ai-cli-reset-backup" \
+    -name config.toml -print -quit 2>/dev/null | grep -q . \
+    || fail "no timestamped backup written on --force"
+
+# 6. --replace hard-overwrites: machine tables dropped.
+home="$tmp/replace"; seed_home "$home"
+run "$home" --tool codex --force --replace >/dev/null
+grep -q '^model = "gpt-5.6-sol"' "$home/.codex/config.toml" \
+    || fail "--replace did not restore canonical head"
+if grep -q '\[projects.' "$home/.codex/config.toml"; then
+    fail "--replace kept the project-trust table (should drop it)"
+fi
+
+# 7. --diff is read-only and reports drift.
+home="$tmp/diff"; seed_home "$home"
+out="$(run "$home" --diff --tool codex || true)"
+grep -q 'drift' <<<"$out" || fail "--diff did not report drift"
+grep -q '^model = "gpt-DRIFT"' "$home/.codex/config.toml" \
+    || fail "--diff modified live config.toml"
+
+echo "reset-ai-cli tests passed."

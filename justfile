@@ -42,6 +42,14 @@ jetbrains-apply *args:
 jetbrains-plugins *args:
     ./scripts/apply-jetbrains-plugins {{ args }}
 
+# Reset live codex/claude/opencode config to the repo canonical (dry run without --force).
+ai-reset *args:
+    ./scripts/reset-ai-cli {{ args }}
+
+# Report where live codex/claude/opencode config has drifted from canonical.
+ai-diff *args:
+    ./scripts/reset-ai-cli --diff {{ args }}
+
 # Refresh create-only seeds from manifest-listed live files.
 sync:
     ./scripts/sync-dotfiles

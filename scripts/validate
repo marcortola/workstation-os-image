@@ -84,6 +84,7 @@ fish --no-execute \
 
 scripts/validate-manifest
 scripts/validate-jetbrains-settings
+scripts/test-reset-ai-cli
 
 tmp="$(mktemp -d)"
 trap 'rm -rf -- "$tmp"' EXIT

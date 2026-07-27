@@ -84,6 +84,14 @@ files. `CLAUDE.md` imports this file for Claude Code.
   after deploy to install newly added entries.
 - Do not capture `fish_variables`, mutable DMS JSON, Neovim state/cache, or
   configuration backup files.
+- The three mixed AI-CLI configs (codex `config.toml`, claude `settings.json`,
+  opencode `opencode.json`) are captured through `scripts/scrub/*` filters
+  (manifest `scrub` kind), so their seeds are secret-free by construction and
+  `just sync` cannot reinject the codex trust tables, the claude `env`/plugin
+  blocks, or the context7 key. Never revert them to plain `copy`. `just ai-reset`
+  restores live codex/claude/opencode config to canonical by merging portable
+  keys over preserved machine state (trust grants, live keys); `--replace` hard-
+  overwrites. It never touches auth stores, histories, or databases.
 - Worktree untracked-file propagation is driven by each repo's committed
   `.worktreeinclude`; every creation path reads that one inventory — workmux
   `post_create`, `ga`, Claude Code's native `--worktree`, the git `post-checkout`
@@ -122,6 +130,8 @@ files. `CLAUDE.md` imports this file for Claude Code.
 - `just jetbrains-promote`: refresh `_shared/` from the canonical IDE.
 - `just jetbrains-apply`: write the shared config into the IDEs (dry run without `--force`).
 - `just jetbrains-plugins`: install the shared plugin list into the IDEs (dry run without `--force`).
+- `just ai-diff`: report how live codex/claude/opencode config diverges from canonical.
+- `just ai-reset`: reset live codex/claude/opencode config to canonical (dry run without `--force`; merges, preserving trust grants/keys, unless `--replace`).
 - `just validate`: run repository and effective workstation checks.
 - `just build`: build the complete bootc image locally with Podman.
 
