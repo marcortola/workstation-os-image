@@ -15,9 +15,10 @@ ghcr.io/marcortola/workstation-os-image:latest
 ## What it provides
 
 - Zirconium's Niri and DankMaterialShell desktop, still updated upstream.
-- DankCalendar (`dcal`) tray daemon and DankSearch (`dsearch`) filesystem
-  search, both Zirconium-shipped and enabled here; `dsearch` powers the DMS
-  launcher's `/` file search.
+- DankSearch (`dsearch`) filesystem search, Zirconium-shipped and enabled here;
+  it powers the DMS launcher's `/` file search. (DankCalendar is now delivered
+  by Zirconium as the `com.danklinux.dankcalendar` Flatpak rather than an RPM
+  user service, so it is no longer enabled here.)
 - Rootful Docker with its socket enabled and local users added dynamically to
   the `docker` group, so Docker does not require `sudo` after login.
 - Fish, Foot, Omarchy-based Tmux, Starship, Neovim and Tokyo Night defaults.
