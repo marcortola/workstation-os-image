@@ -18,6 +18,23 @@ step() { printf '\n== %s ==\n' "$1"; }
 # they never land in a repo. Config/fragment paths above are already absolute.
 cd "$HOME"
 
+# Offer to run a CLI's login flow: skip if already authenticated, guide instead
+# of launching when there is no TTY, and ask before opening a browser flow.
+login_offer() {
+    local name=$1 auth=$2; shift 2   # remaining args = the login command
+    if [[ -s $auth ]]; then
+        echo "  $name: already logged in"
+    elif [[ ! -t 0 ]]; then
+        echo "  $name: not logged in -- run: $*"
+    else
+        read -r -p "  Log in to $name now? [Y/n] " reply
+        case "${reply:-y}" in
+            [Nn]*) echo "  $name: skipped -- run \`$*\` later" ;;
+            *) "$@" || echo "  $name: login did not complete -- run \`$*\` later" ;;
+        esac
+    fi
+}
+
 # --- rtk: bash-output compressor (binary from the Brewfile) --------------------
 step "rtk"
 if have rtk; then
@@ -73,6 +90,14 @@ else
     echo "  could not locate the playwright-cli skill from the npx cache." >&2
 fi
 
+# --- Provider logins ----------------------------------------------------------
+# All three have a clean CLI login + an auth file to detect it, so orchestrate
+# them here. Each opens a browser OAuth flow when accepted.
+step "logins"
+login_offer codex "$HOME/.codex/auth.json" codex login
+login_offer claude "$HOME/.claude/.credentials.json" claude auth login
+login_offer opencode "$HOME/.local/share/opencode/auth.json" opencode auth login
+
 # --- Context7 MCP key (opencode) ----------------------------------------------
 # opencode.json references {file:~/.config/opencode/context7-key}. Ask for it
 # interactively (hidden input) when we have a terminal and it is not already set;
@@ -96,4 +121,3 @@ else
 fi
 
 printf '\nDone. Restart each CLI so it reloads config.\n'
-printf 'Provider auth (if needed): codex login; run claude then /login; opencode auth login.\n'
