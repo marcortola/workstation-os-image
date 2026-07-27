@@ -46,6 +46,10 @@ jetbrains-plugins *args:
 ai-tools-install:
     ./scripts/install-ai-tools
 
+# Uninstall the AI CLI tools via their official uninstallers (leaves personal config, auth and history alone).
+ai-tools-uninstall:
+    ./scripts/uninstall-ai-tools
+
 # Regenerate the portable share/ai-cli-setup/ bundle from the repo seeds.
 ai-bundle:
     ./scripts/build-ai-cli-bundle

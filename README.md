@@ -122,6 +122,47 @@ install step or a symlink in a per-repo `.workmux.yaml` instead. The JetBrains
 index is per-worktree and always rebuilds; copying `.idea/` carries settings and
 run configs, not the index.
 
+## AI coding CLIs
+
+Three CLIs — **Claude Code**, **codex**, **opencode** — split into two layers:
+your **personal config** ships in the image (chezmoi lays it down at login,
+secret-free), and four **token-optimization tools** install on top with one
+command. Configs are *captured*; tools are *installed* via their own official
+installers — the same split the Brewfile uses for packages.
+
+The tools: **opencode-fusion** (a main agent that plans/reviews and delegates
+edits to a cheap sidekick), **caveman** (~65% shorter model output), **rtk**
+(compresses shell output before it reaches context), and **@playwright/cli**
+(token-lean browser automation that drives the Flatpak Chrome over CDP).
+
+**First-time setup** (once, after switching to a new image):
+
+```bash
+just brew-apply         # install the rtk binary + any new Brewfile entries
+just ai-tools-install   # install caveman, rtk, opencode-fusion, playwright-cli
+# then authenticate and set the Context7 key:
+codex login             # ; run `claude` then /login ; opencode auth login
+printf %s 'YOUR_CTX7_KEY' > ~/.config/opencode/context7-key && chmod 600 ~/.config/opencode/context7-key
+```
+
+**Everyday commands:**
+
+| Command | What it does |
+| --- | --- |
+| `just ai-diff` | show how live config has drifted from canonical (read-only) |
+| `just ai-reset` | restore config to canonical (dry run; add `--force`) — keeps auth, trust grants and keys |
+| `just ai-tools-install` | (re)install the four tools |
+| `just ai-tools-uninstall` | remove the four tools — leaves config, auth and history alone |
+
+**Reset to a clean base** (canonical config, no tools; keeps your logins and history):
+
+```bash
+just ai-tools-uninstall && just ai-reset --force
+```
+
+**Share to a non-image machine:** the self-contained `share/ai-cli-setup/` bundle
+does the same install with its own `install.sh` — see its README.
+
 ## Architecture
 
 ```text

@@ -142,6 +142,7 @@ files. `CLAUDE.md` imports this file for Claude Code.
 - `just jetbrains-apply`: write the shared config into the IDEs (dry run without `--force`).
 - `just jetbrains-plugins`: install the shared plugin list into the IDEs (dry run without `--force`).
 - `just ai-tools-install`: install the AI CLI tools (fusion, caveman, rtk, playwright-cli) via their official installers; run once after deploy.
+- `just ai-tools-uninstall`: uninstall those tools via their official uninstallers (leaves personal config, auth and history intact).
 - `just ai-bundle`: regenerate the portable `share/ai-cli-setup/` bundle from the seeds.
 - `just ai-diff`: report how live codex/claude/opencode config diverges from canonical.
 - `just ai-reset`: reset live codex/claude/opencode config to canonical (dry run without `--force`; merges, preserving trust grants/keys, unless `--replace`).
