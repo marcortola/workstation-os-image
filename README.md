@@ -139,11 +139,13 @@ edits to a cheap sidekick), **caveman** (~65% shorter model output), **rtk**
 
 ```bash
 just brew-apply         # install the rtk binary + any new Brewfile entries
-just ai-tools-install   # install caveman, rtk, opencode-fusion, playwright-cli
-# then authenticate and set the Context7 key:
-codex login             # ; run `claude` then /login ; opencode auth login
-printf %s 'YOUR_CTX7_KEY' > ~/.config/opencode/context7-key && chmod 600 ~/.config/opencode/context7-key
+just ai-tools-install   # install the tools; prompts for your Context7 key
+codex login             # then authenticate: run `claude` then /login ; opencode auth login
 ```
+
+`ai-tools-install` asks for the Context7 key interactively (hidden input, stored
+0600) — skip the prompt to set it later, or re-enter by deleting
+`~/.config/opencode/context7-key` and re-running.
 
 **Everyday commands:**
 

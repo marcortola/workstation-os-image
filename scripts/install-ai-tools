@@ -73,6 +73,27 @@ else
     echo "  could not locate the playwright-cli skill from the npx cache." >&2
 fi
 
+# --- Context7 MCP key (opencode) ----------------------------------------------
+# opencode.json references {file:~/.config/opencode/context7-key}. Ask for it
+# interactively (hidden input) when we have a terminal and it is not already set;
+# otherwise print how to set it. Never echoes or logs the key.
+step "context7 key"
+ctx7_file="$HOME/.config/opencode/context7-key"
+if [[ -s $ctx7_file ]]; then
+    echo "  already set (~/.config/opencode/context7-key) -- delete it to re-enter"
+elif [[ -t 0 ]]; then
+    read -r -s -p "  Context7 API key (Enter to skip): " ctx7_key
+    printf '\n'
+    if [[ -n $ctx7_key ]]; then
+        install -d -m 0700 "$(dirname "$ctx7_file")"
+        (umask 077; printf '%s\n' "$ctx7_key" > "$ctx7_file")
+        echo "  saved to ~/.config/opencode/context7-key (0600)"
+    else
+        echo "  skipped"
+    fi
+else
+    echo "  non-interactive; set later: printf %s KEY > $ctx7_file && chmod 600 it"
+fi
+
 printf '\nDone. Restart each CLI so it reloads config.\n'
-printf 'Provider auth: codex login; run claude then /login; opencode auth login.\n'
-printf 'Context7 key: printf %%s KEY > ~/.config/opencode/context7-key && chmod 600 that file.\n'
+printf 'Provider auth (if needed): codex login; run claude then /login; opencode auth login.\n'
