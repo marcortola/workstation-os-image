@@ -45,11 +45,11 @@ seed_stdio() {
 # Documentation lookup server; no credentials.
 seed_http context7 https://mcp.context7.com/mcp
 
-# Microsoft's browser-automation server over stdio. It has no credentials and
-# drives the per-user Flatpak Google Chrome on demand through a CDP wrapper
-# (workstation-playwright-mcp): no browser is layered into the image, and Chrome
-# is started only when the MCP server is actually invoked.
-seed_stdio playwright /usr/libexec/workstation-playwright-mcp
+# Browser automation is provided by the `playwright-cli` command (see its
+# captured skill), not an MCP server: it attaches to the per-user Flatpak Chrome
+# over CDP (workstation-playwright-chrome) and snapshots to disk, far cheaper on
+# tokens than an MCP that injects the accessibility tree every step. No
+# playwright MCP is seeded.
 
 # Ahrefs SEO server. Authentication is an interactive browser OAuth login: run
 # `claude mcp login ahrefs` once per account. Requires a paid Ahrefs plan.

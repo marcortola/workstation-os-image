@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# Ensure the image's Flatpak Google Chrome is running with a CDP endpoint on
+# loopback so playwright-cli can attach over CDP -- no second browser is layered
+# into the image. Idempotent: an already-running endpoint is reused. Prints the
+# CDP endpoint on stdout.
+#
+# Chrome is only a Flatpak here (com.google.Chrome); Playwright cannot launch a
+# Flatpak directly, so we start Chrome ourselves with a debugging port and let
+# the CLI connect with `attach --cdp`. (This is the CDP half of the former
+# workstation-playwright-mcp wrapper, now shared by the CLI.)
+#
+# Env: WORKSTATION_PLAYWRIGHT_CDP_PORT (default 9222),
+#      WORKSTATION_PLAYWRIGHT_HEADED (1 for a visible window).
+set -euo pipefail
+
+port="${WORKSTATION_PLAYWRIGHT_CDP_PORT:-9222}"
+runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+state_dir="$runtime_dir/workstation-playwright"
+profile_dir="$state_dir/chrome-profile"
+log_file="$state_dir/chrome.log"
+mkdir -p "$profile_dir"
+
+headless_flag="--headless=new"
+[[ "${WORKSTATION_PLAYWRIGHT_HEADED:-0}" == "1" ]] && headless_flag=""
+
+cdp_endpoint="http://127.0.0.1:${port}"
+
+cdp_up() {
+    curl -fs --connect-timeout 1 "${cdp_endpoint}/json/version" >/dev/null 2>&1
+}
+
+if ! cdp_up; then
+    # Loopback-only debugging port; a throwaway per-boot profile under the tmpfs
+    # runtime dir. nohup (not setsid) keeps Chrome attached to the graphical
+    # session's D-Bus portal while surviving this script's exit, so the next
+    # invocation reuses the same browser.
+    nohup flatpak run com.google.Chrome \
+        ${headless_flag:+"$headless_flag"} \
+        --no-first-run \
+        --no-default-browser-check \
+        --disable-gpu \
+        --user-data-dir="$profile_dir" \
+        --remote-debugging-address=127.0.0.1 \
+        --remote-debugging-port="$port" \
+        about:blank \
+        >"$log_file" 2>&1 &
+
+    for _ in $(seq 1 60); do
+        cdp_up && break
+        sleep 0.5
+    done
+
+    if ! cdp_up; then
+        echo "workstation-playwright-chrome: CDP endpoint ${cdp_endpoint} did not come up." >&2
+        echo "Is the com.google.Chrome Flatpak installed? See ${log_file}." >&2
+        exit 1
+    fi
+fi
+
+printf '%s\n' "$cdp_endpoint"

@@ -6,3 +6,12 @@ CLAUDE.local.md
 .codex-log/
 __pycache__/
 *.pyc
+
+# AI tool installers (skills.sh, playwright-cli install --skills) drop these in
+# the working dir; just ai-tools-install runs from $HOME, this is the backstop.
+.agents/
+.claude/skills/
+.codex/skills/
+skills-lock.json
+.playwright/
+.playwright-cli/

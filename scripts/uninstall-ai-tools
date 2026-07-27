@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Uninstall the AI CLI tools via their official uninstallers -- the mirror of
+# install-ai-tools. Your PERSONAL config, auth (logins) and history are left
+# untouched; reset config separately with `just ai-reset`.
+set -euo pipefail
+
+# Run from $HOME so the tools' installers/uninstallers never touch a repo.
+cd "$HOME"
+
+have() { command -v "$1" >/dev/null 2>&1; }
+step() { printf '\n== %s ==\n' "$1"; }
+
+step "rtk"
+if have rtk; then
+    rtk init -g --uninstall || true   # removes the hook, RTK.md, plugin, refs
+else
+    echo "  not installed"
+fi
+
+step "caveman"
+if have npx; then
+    npx -y github:JuliusBrussee/caveman -- --uninstall || true
+else
+    echo "  npx unavailable; remove ~/.agents/skills/caveman* by hand" >&2
+fi
+
+step "opencode-fusion"
+fusion_undo="$HOME/.agents/skills/fusion-setup/scripts/install.js"
+if [[ -f $fusion_undo ]]; then
+    # undo refuses if opencode.json was hand-edited since install; fall back to
+    # removing the Fusion-owned pieces so the base is clean either way.
+    if ! node "$fusion_undo" undo; then
+        echo "  undo refused; removing Fusion pieces directly"
+        rm -rf "$HOME/.config/opencode/agent" \
+            "$HOME/.config/opencode/plugins/fusion-audit.js" \
+            "$HOME/.config/opencode/commands/fusion-setup.md" \
+            "$HOME/.config/opencode/commands/fusion-status.md" \
+            "$HOME/.config/opencode/.fusion-install.json"
+    fi
+else
+    echo "  not installed"
+fi
+
+step "playwright-cli"
+rm -rf "$HOME/.claude/skills/playwright-cli" "$HOME/.codex/skills/playwright-cli"
+rm -f "$HOME/.local/bin/playwright-cli"
+echo "  removed skill + wrapper"
+
+cat <<'EOF'
+
+Done. Personal config, auth (logins) and history were not touched.
+Next: `just ai-reset --force` to restore config to canonical, then
+`just ai-tools-install` when you want the tools back.
+EOF

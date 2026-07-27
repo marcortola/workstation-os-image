@@ -15,19 +15,20 @@ ghcr.io/marcortola/workstation-os-image:latest
 ## What it provides
 
 - Zirconium's Niri and DankMaterialShell desktop, still updated upstream.
-- DankCalendar (`dcal`) tray daemon and DankSearch (`dsearch`) filesystem
-  search, both Zirconium-shipped and enabled here; `dsearch` powers the DMS
-  launcher's `/` file search.
+- DankSearch (`dsearch`) filesystem search, Zirconium-shipped and enabled here;
+  it powers the DMS launcher's `/` file search. (DankCalendar is now delivered
+  by Zirconium as the `com.danklinux.dankcalendar` Flatpak rather than an RPM
+  user service, so it is no longer enabled here.)
 - Rootful Docker with its socket enabled and local users added dynamically to
   the `docker` group, so Docker does not require `sudo` after login.
 - Fish, Foot, Omarchy-based Tmux, Starship, Neovim and Tokyo Night defaults.
 - OpenCode (`oc` and `Mod+Shift+O`), Caps Lock as Ctrl, and
   `gpt-4o-transcribe` dictation on `Mod+Shift+V`.
-- Default Claude Code MCP servers (`context7`, `playwright`, `ahrefs`) seeded
-  once into the user account; `playwright` drives the per-user Flatpak Google
-  Chrome on demand through a CDP wrapper (`workstation-playwright-mcp`), so no
-  browser is layered into the image; Ahrefs needs a one-time
-  `claude mcp login ahrefs`.
+- Default Claude Code MCP servers (`context7`, `ahrefs`) seeded once into the
+  user account; Ahrefs needs a one-time `claude mcp login ahrefs`. Browser
+  automation is the token-lean `playwright-cli` (not an MCP): it attaches to the
+  per-user Flatpak Google Chrome over CDP (`workstation-playwright-chrome`) and
+  snapshots to disk, so no browser is layered into the image.
 - Screen recording via `wf-recorder` on `Mod+Shift+R`.
 - `Ctrl+Alt+U`, or the power menu's **Switch User**, moves between logged-in
   users (see [Switch user](#switch-user)).
@@ -120,6 +121,47 @@ Dependencies (`node_modules`, `vendor`) are deliberately not copied — add an
 install step or a symlink in a per-repo `.workmux.yaml` instead. The JetBrains
 index is per-worktree and always rebuilds; copying `.idea/` carries settings and
 run configs, not the index.
+
+## AI coding CLIs
+
+Three CLIs — **Claude Code**, **codex**, **opencode** — split into two layers:
+your **personal config** ships in the image (chezmoi lays it down at login,
+secret-free), and four **token-optimization tools** install on top with one
+command. Configs are *captured*; tools are *installed* via their own official
+installers — the same split the Brewfile uses for packages.
+
+The tools: **opencode-fusion** (a main agent that plans/reviews and delegates
+edits to a cheap sidekick), **caveman** (~65% shorter model output), **rtk**
+(compresses shell output before it reaches context), and **@playwright/cli**
+(token-lean browser automation that drives the Flatpak Chrome over CDP).
+
+**First-time setup** (once, after switching to a new image):
+
+```bash
+just brew-apply         # install the rtk binary + any new Brewfile entries
+just ai-tools-install   # install caveman, rtk, opencode-fusion, playwright-cli
+# then authenticate and set the Context7 key:
+codex login             # ; run `claude` then /login ; opencode auth login
+printf %s 'YOUR_CTX7_KEY' > ~/.config/opencode/context7-key && chmod 600 ~/.config/opencode/context7-key
+```
+
+**Everyday commands:**
+
+| Command | What it does |
+| --- | --- |
+| `just ai-diff` | show how live config has drifted from canonical (read-only) |
+| `just ai-reset` | restore config to canonical (dry run; add `--force`) — keeps auth, trust grants and keys |
+| `just ai-tools-install` | (re)install the four tools |
+| `just ai-tools-uninstall` | remove the four tools — leaves config, auth and history alone |
+
+**Reset to a clean base** (canonical config, no tools; keeps your logins and history):
+
+```bash
+just ai-tools-uninstall && just ai-reset --force
+```
+
+**Share to a non-image machine:** the self-contained `share/ai-cli-setup/` bundle
+does the same install with its own `install.sh` — see its README.
 
 ## Architecture
 

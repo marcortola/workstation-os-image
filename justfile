@@ -42,6 +42,26 @@ jetbrains-apply *args:
 jetbrains-plugins *args:
     ./scripts/apply-jetbrains-plugins {{ args }}
 
+# Install the AI CLI tools (caveman, rtk, opencode-fusion, playwright-cli) via their official installers; run once after deploy like brew-apply.
+ai-tools-install:
+    ./scripts/install-ai-tools
+
+# Uninstall the AI CLI tools via their official uninstallers (leaves personal config, auth and history alone).
+ai-tools-uninstall:
+    ./scripts/uninstall-ai-tools
+
+# Regenerate the portable share/ai-cli-setup/ bundle from the repo seeds.
+ai-bundle:
+    ./scripts/build-ai-cli-bundle
+
+# Reset live codex/claude/opencode config to the repo canonical (dry run without --force).
+ai-reset *args:
+    ./scripts/reset-ai-cli {{ args }}
+
+# Report where live codex/claude/opencode config has drifted from canonical.
+ai-diff *args:
+    ./scripts/reset-ai-cli --diff {{ args }}
+
 # Refresh create-only seeds from manifest-listed live files.
 sync:
     ./scripts/sync-dotfiles

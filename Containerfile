@@ -92,11 +92,10 @@ RUN /usr/libexec/workstation-patch-zdots && \
       /usr/lib/systemd/user/workstation-invoice-bookmarks.service \
       /usr/lib/systemd/user/workstation-microsoft-fonts.service \
       /usr/lib/systemd/user/workstation-x11-clipsync.service \
-      /usr/lib/systemd/user/dcal.service \
       /usr/lib/systemd/user/dsearch.service && \
     systemctl preset containerd.service docker.service keyd.service \
       workstation-brew-trust.service workstation-user-groups.service && \
-    systemctl --global preset dcal.service dsearch.service \
+    systemctl --global preset dsearch.service \
       workstation-bootstrap.service \
       workstation-claude-mcp-seed.service \
       workstation-dms-settings.service \

@@ -46,6 +46,8 @@ brew "neovim"
 brew "pandoc"
 # Search tool like grep and The Silver Searcher
 brew "ripgrep"
+# CLI proxy that compresses command output to cut LLM token usage
+brew "rtk"
 # Intuitive find & replace CLI
 brew "sd"
 # Static analysis and lint tool, for (ba)sh scripts
