@@ -1,7 +1,7 @@
 ARG BASE_IMAGE=ghcr.io/zirconium-dev/zirconium:latest
 FROM ${BASE_IMAGE} AS workstation-x11-clipsync-builder
 
-COPY system_files/usr/src/workstation-x11-clipsync.c /usr/src/workstation-x11-clipsync.c
+COPY rootfs/usr/src/workstation-x11-clipsync.c /usr/src/workstation-x11-clipsync.c
 
 RUN dnf -y install --setopt=install_weak_deps=False \
       libX11-devel \
@@ -41,7 +41,7 @@ FROM ${BASE_IMAGE}
 LABEL org.opencontainers.image.source="https://github.com/marcortola/workstation-os-image"
 LABEL org.opencontainers.image.description="Personal Fedora bootc image with host-integrated tools"
 
-COPY system_files/etc/yum.repos.d/insync.repo /etc/yum.repos.d/insync.repo
+COPY rootfs/etc/yum.repos.d/insync.repo /etc/yum.repos.d/insync.repo
 
 RUN rpm --import https://d2t3ff60b2tol4.cloudfront.net/repomd.xml.key && \
     dnf -y install \
@@ -72,7 +72,7 @@ RUN rpm --import https://d2t3ff60b2tol4.cloudfront.net/repomd.xml.key && \
     dnf clean all && \
     rm -rf /var/cache/libdnf5 /var/lib/dnf
 
-COPY system_files/ /
+COPY rootfs/ /
 COPY --from=workstation-x11-clipsync-builder \
   /usr/libexec/workstation-x11-clipsync \
   /usr/libexec/workstation-x11-clipsync

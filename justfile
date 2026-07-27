@@ -5,66 +5,66 @@ default:
 
 # Report personal and Zirconium-managed configuration drift.
 audit:
-    ./scripts/audit-workstation
+    ./tooling/audit-workstation
 
 # Show complete diffs for informational Zirconium/DMS drift.
 audit-diff:
-    ./scripts/audit-workstation --diff
+    ./tooling/audit-workstation --diff
 
 # Review portable DMS deviations and capture selected values.
 dms-capture:
-    ./scripts/capture-dms-settings
+    ./tooling/capture-dms-settings
 
 # Stop tracking selected DMS preference overrides.
 dms-remove:
-    ./scripts/capture-dms-settings --remove
+    ./tooling/capture-dms-settings --remove
 
 # Explicitly restore the tracked DMS preference overlay into this account.
 dms-apply:
-    WORKSTATION_DMS_SETTINGS_OVERLAY="$PWD/system_files/usr/share/workstation-os-image/dms-settings.json" \
-        ./system_files/usr/bin/workstation-apply-dms-settings --force
+    WORKSTATION_DMS_SETTINGS_OVERLAY="$PWD/rootfs/usr/share/workstation-os-image/dms-settings.json" \
+        ./rootfs/usr/bin/workstation-apply-dms-settings --force
 
 # Report where installed JetBrains IDEs diverge from the shared canonical.
 jetbrains-diff:
-    ./scripts/diff-jetbrains-settings
+    ./tooling/diff-jetbrains-settings
 
 # Refresh the shared JetBrains canonical (_shared/) from the canonical IDE.
 jetbrains-promote product="":
-    ./scripts/promote-jetbrains-shared {{ product }}
+    ./tooling/promote-jetbrains-shared {{ product }}
 
 # Write the shared JetBrains config and install shared plugins into the IDEs
 # (dry run without --force).
 jetbrains-apply *args:
-    ./scripts/apply-jetbrains-settings {{ args }}
-    ./scripts/apply-jetbrains-plugins {{ args }}
+    ./tooling/apply-jetbrains-settings {{ args }}
+    ./tooling/apply-jetbrains-plugins {{ args }}
 
 # Install the shared JetBrains plugins into the IDEs (dry run without --force).
 jetbrains-plugins *args:
-    ./scripts/apply-jetbrains-plugins {{ args }}
+    ./tooling/apply-jetbrains-plugins {{ args }}
 
 # Install the AI CLI tools (caveman, rtk, opencode-fusion, playwright-cli) via their official installers; run once after deploy like brew-apply.
 ai-tools-install:
-    ./scripts/install-ai-tools
+    ./tooling/install-ai-tools
 
 # Uninstall the AI CLI tools via their official uninstallers (leaves personal config, auth and history alone).
 ai-tools-uninstall:
-    ./scripts/uninstall-ai-tools
+    ./tooling/uninstall-ai-tools
 
-# Regenerate the portable share/ai-cli-setup/ bundle from the repo seeds.
+# Regenerate the portable tooling/portable/ai-cli-setup/ bundle from the repo seeds.
 ai-bundle:
-    ./scripts/build-ai-cli-bundle
+    ./tooling/build-ai-cli-bundle
 
 # Reset live codex/claude/opencode config to the repo canonical (dry run without --force).
 ai-reset *args:
-    ./scripts/reset-ai-cli {{ args }}
+    ./tooling/reset-ai-cli {{ args }}
 
 # Report where live codex/claude/opencode config has drifted from canonical.
 ai-diff *args:
-    ./scripts/reset-ai-cli --diff {{ args }}
+    ./tooling/reset-ai-cli --diff {{ args }}
 
 # Refresh create-only seeds from manifest-listed live files.
 sync:
-    ./scripts/sync-dotfiles
+    ./tooling/sync-dotfiles
 
 # Capture reviewed live changes, validate them, and show the Git diff.
 capture: sync validate
@@ -74,7 +74,7 @@ capture: sync validate
 
 # Validate repository structure and the effective local workstation.
 validate:
-    ./scripts/validate
+    ./tooling/validate
 
 # Install not-yet-installed Brewfile entries (brew, cask, Flatpak); tap trust and daily upgrades are already automatic.
 brew-apply:
@@ -83,7 +83,7 @@ brew-apply:
 # Install the worktree post-checkout hook and a starter .worktreeinclude into a
 # repo (cwd), the given repos, or every repo under ~/projects with --all.
 worktree-init *args:
-    ./scripts/worktree-init {{ args }}
+    ./tooling/worktree-init {{ args }}
 
 # Build and lint the complete bootc image locally.
 build:

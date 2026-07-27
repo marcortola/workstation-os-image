@@ -163,13 +163,13 @@ by deleting `~/.config/opencode/context7-key` and re-running.
 just ai-tools-uninstall && just ai-reset --force
 ```
 
-**Share to a non-image machine:** the self-contained `share/ai-cli-setup/` bundle
+**Share to a non-image machine:** the self-contained `tooling/portable/ai-cli-setup/` bundle
 does the same install with its own `install.sh` — see its README.
 
 ## Architecture
 
 ```text
-Zirconium image ──> Containerfile + system_files ──> GHCR image ──> bootc A/B OS
+Zirconium image ──> Containerfile + rootfs ──> GHCR image ──> bootc A/B OS
                               │
                               ├─> create-only chezmoi seeds ──> portable $HOME defaults
                               └─> partial DMS overlay ─────────> selected GUI preferences
@@ -190,13 +190,13 @@ The image extends Zirconium's existing chezmoi source. It does not introduce a
 second dotfile manager, hardcode a username, or use rpm-ostree package layers.
 
 Image builds keep the slow runtime-package transaction ahead of the volatile
-`system_files/` copy, while compiled helpers use isolated builder stages. CI
+`rootfs/` copy, while compiled helpers use isolated builder stages. CI
 stores Buildah intermediate layers in the companion GHCR cache repository and
 reuses cache entries for ordinary pushes and pull requests. The daily scheduled
 build deliberately skips cache reads so DNF metadata and packages are refreshed;
 it then replaces the remote cache. Changes that do not affect `Containerfile`,
-`system_files/` or the build workflow still run their tests but skip the image
-job. The build context contains only `Containerfile` and `system_files/`.
+`rootfs/` or the build workflow still run their tests but skip the image
+job. The build context contains only `Containerfile` and `rootfs/`.
 
 ### XWayland interop
 
@@ -312,7 +312,7 @@ wjust audit
 ```
 
 The tracked overlay is
-`system_files/usr/share/workstation-os-image/dms-settings.json`. Simple values
+`rootfs/usr/share/workstation-os-image/dms-settings.json`. Simple values
 merge by top-level key; bar settings merge by bar ID and field so future DMS
 fields survive. Paths use portable tokens, and device pins, monitor layouts,
 histories and similar state are excluded from the interactive picker.
@@ -334,7 +334,7 @@ whether portable deviations remain uncaptured.
 Use the smallest durable owner:
 
 - RPM, daemon, socket, privileged helper or system preset: `Containerfile` or
-  `system_files/`.
+  `rootfs/`.
 - Homebrew formula, cask or Flatpak: `~/.config/homebrew/Brewfile`, then
   `wjust sync`.
 - Portable user configuration: add it to `config/dotfiles.manifest`, then
