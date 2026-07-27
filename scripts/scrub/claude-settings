@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Curate Claude Code settings.json for capture: drop the secret env block
+# (HELPSCOUT_* app id/secret) and the machine-specific plugin declarations
+# (enabledPlugins / extraKnownMarketplaces carry absolute install paths and are
+# work-specific), then pin the shared model default. Sorted keys keep the seed
+# stable across live key-order churn. Reads live settings on stdin, writes the
+# secret-free seed to stdout.
+set -euo pipefail
+
+jq --sort-keys \
+    'del(.env, .enabledPlugins, .extraKnownMarketplaces) | .model = "opus[1m]"'

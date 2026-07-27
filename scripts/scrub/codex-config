@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Curate a Codex config.toml for capture: keep the portable top-level defaults,
+# drop machine-local [projects.*] trust tables and [tui.*] NUX state (absolute
+# home paths + per-machine UI counters that must never land in git).
+# Reads the live config on stdin, writes the secret-free seed to stdout.
+set -euo pipefail
+
+awk '
+    /^\[(projects|tui)([.]|\])/ { skip = 1; next }
+    /^\[/                       { skip = 0 }
+    skip                        { next }
+                                { lines[n++] = $0 }
+    END {
+        end = n
+        while (end > 0 && lines[end - 1] ~ /^[[:space:]]*$/) end--
+        for (i = 0; i < end; i++) print lines[i]
+    }
+'

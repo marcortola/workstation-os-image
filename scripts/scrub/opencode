@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Curate opencode.json for capture: replace the live CONTEXT7_API_KEY with an
+# opencode {file:} placeholder so the mcp shape stays reproducible but the key
+# never lands in git. Everything else (fusion models/agents, playwright mcp) is
+# portable and kept verbatim. Reads live config on stdin, writes seed to stdout.
+set -euo pipefail
+
+jq 'if .mcp.context7.headers.CONTEXT7_API_KEY
+    then .mcp.context7.headers.CONTEXT7_API_KEY = "{file:~/.config/opencode/context7-key}"
+    else . end'

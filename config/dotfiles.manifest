@@ -1,7 +1,10 @@
 # kind|live path relative to $HOME|chezmoi source path|file pattern
 copy|.codex/AGENTS.md|dot_codex/create_AGENTS.md|-
+scrub|.codex/config.toml|dot_codex/create_config.toml|codex-config
 copy|.claude/CLAUDE.md|dot_claude/create_CLAUDE.md|-
-copy|.claude/settings.json|dot_claude/create_settings.json|-
+scrub|.claude/settings.json|dot_claude/create_settings.json|claude-settings
+copy|.claude/rules/context7.md|dot_claude/rules/create_context7.md|-
+tree|.claude/skills/context7-mcp|dot_claude/skills/context7-mcp|*
 tree|.claude/skills/weekly-summary|dot_claude/skills/weekly-summary|*
 tree|.codex/skills/weekly-summary|dot_codex/skills/weekly-summary|*
 copy|.claude/commands/worktree-create.md|dot_claude/commands/create_worktree-create.md|-
@@ -10,10 +13,15 @@ copy|.claude/commands/worktree-remove.md|dot_claude/commands/create_worktree-rem
 tree|.codex/skills/worktree-create|dot_codex/skills/worktree-create|*
 tree|.codex/skills/worktree-push|dot_codex/skills/worktree-push|*
 tree|.codex/skills/worktree-remove|dot_codex/skills/worktree-remove|*
-copy|.config/opencode/opencode.jsonc|dot_config/opencode/create_opencode.jsonc|-
+scrub|.config/opencode/opencode.json|dot_config/opencode/create_opencode.json|opencode
+copy|.config/opencode/AGENTS.md|dot_config/opencode/create_AGENTS.md|-
+directory|.config/opencode/agent|dot_config/opencode/agent|*.md
 copy|.config/opencode/commands/worktree-create.md|dot_config/opencode/commands/create_worktree-create.md|-
 copy|.config/opencode/commands/worktree-push.md|dot_config/opencode/commands/create_worktree-push.md|-
 copy|.config/opencode/commands/worktree-remove.md|dot_config/opencode/commands/create_worktree-remove.md|-
+copy|.config/opencode/commands/fusion-setup.md|dot_config/opencode/commands/create_fusion-setup.md|-
+copy|.config/opencode/commands/fusion-status.md|dot_config/opencode/commands/create_fusion-status.md|-
+copy|.config/opencode/plugins/fusion-audit.js|dot_config/opencode/plugins/create_fusion-audit.js|-
 copy|.config/workmux/config.yaml|dot_config/workmux/create_config.yaml|-
 copy|.config/git/config|dot_config/git/create_config|-
 copy|.config/git/ignore|dot_config/git/create_ignore|-

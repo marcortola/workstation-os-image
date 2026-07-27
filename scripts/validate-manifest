@@ -13,7 +13,7 @@ trap 'rm -rf -- "$tmp"' EXIT
 while IFS='|' read -r kind live_path source_path pattern; do
     [[ -z $kind || $kind == \#* ]] && continue
     case "$kind" in
-        copy|template)
+        copy|template|scrub)
             printf '%s\n' "$source_path"
             ;;
         directory|tree)

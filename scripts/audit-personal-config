@@ -36,6 +36,21 @@ while IFS='|' read -r kind live_path source_path pattern; do
         copy)
             compare_file "$HOME/$live_path" "$source_root/$source_path" "$live_path"
             ;;
+        scrub)
+            # Compare the FILTERED live file against the seed so stripped secret
+            # / machine state is not reported as drift; only portable-content
+            # divergence surfaces.
+            if [[ ! -f $HOME/$live_path ]]; then
+                compare_file "$HOME/$live_path" \
+                    "$source_root/$source_path" "$live_path"
+            else
+                scrubbed="$tmp/${source_path//\//_}"
+                "$repo_root/scripts/scrub/$pattern" \
+                    < "$HOME/$live_path" > "$scrubbed"
+                compare_file "$scrubbed" \
+                    "$source_root/$source_path" "$live_path"
+            fi
+            ;;
         template)
             rendered="$tmp/${source_path//\//_}"
             chezmoi execute-template --config "$config_file" \

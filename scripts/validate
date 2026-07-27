@@ -27,6 +27,33 @@ gitleaks dir . --no-banner --redact
 [[ $(< CLAUDE.md) == '@AGENTS.md' ]]
 (( $(wc -l < AGENTS.md) <= 200 ))
 
+# AI CLI config seeds must be secret-free by construction: the scrub filters
+# strip secrets/machine-state on capture, and these positive gates assert the
+# committed seeds (visible to CI even when live files are absent). gitleaks
+# above is the generic backstop; these catch the tool-specific shapes it misses
+# (e.g. the dash-broken context7 key gitleaks does not flag).
+ai_seeds=system_files/usr/share/zirconium/zdots
+assert_absent() {
+    # Fail if the extended-regexp $1 matches anywhere in file $2. A plain
+    # `! grep` would be exempt from errexit and silently pass, so branch.
+    if grep -qE "$1" "$2"; then
+        echo "Secret/machine-state leaked into $2 (matched: $1)" >&2
+        exit 1
+    fi
+}
+jq -e 'has("env") | not' \
+    "$ai_seeds/dot_claude/create_settings.json" >/dev/null
+assert_absent 'HELPSCOUT' "$ai_seeds/dot_claude/create_settings.json"
+jq -e '(.mcp.context7 == null)
+    or (.mcp.context7.headers.CONTEXT7_API_KEY
+        | . == null or startswith("{file:") or startswith("{env:"))' \
+    "$ai_seeds/dot_config/opencode/create_opencode.json" >/dev/null
+assert_absent '^\[(projects|tui)' "$ai_seeds/dot_codex/create_config.toml"
+assert_absent '/(var/)?home/' "$ai_seeds/dot_codex/create_config.toml"
+assert_absent \
+    '(\.local/share/opencode/auth\.json|\.codex/auth\.json|\.claude/\.credentials\.json)' \
+    config/dotfiles.manifest
+
 # Worktree untracked-file propagation: every creation path (workmux, Claude
 # Code, the post-checkout hook, the JetBrains External Tool) must read the same
 # committed .worktreeinclude, so assert the wiring that keeps them in sync.
