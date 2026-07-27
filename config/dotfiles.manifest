@@ -7,6 +7,22 @@ copy|.claude/rules/context7.md|dot_claude/rules/create_context7.md|-
 tree|.claude/skills/context7-mcp|dot_claude/skills/context7-mcp|*
 tree|.claude/skills/weekly-summary|dot_claude/skills/weekly-summary|*
 tree|.codex/skills/weekly-summary|dot_codex/skills/weekly-summary|*
+# caveman token-optimization skills (skills.sh). Captured per-agent as real dirs
+# (opencode also reads ~/.claude/skills, so it is covered by the claude copies).
+tree|.claude/skills/caveman|dot_claude/skills/caveman|*
+tree|.claude/skills/cavecrew|dot_claude/skills/cavecrew|*
+tree|.claude/skills/caveman-commit|dot_claude/skills/caveman-commit|*
+tree|.claude/skills/caveman-compress|dot_claude/skills/caveman-compress|*
+tree|.claude/skills/caveman-help|dot_claude/skills/caveman-help|*
+tree|.claude/skills/caveman-review|dot_claude/skills/caveman-review|*
+tree|.claude/skills/caveman-stats|dot_claude/skills/caveman-stats|*
+tree|.codex/skills/caveman|dot_codex/skills/caveman|*
+tree|.codex/skills/cavecrew|dot_codex/skills/cavecrew|*
+tree|.codex/skills/caveman-commit|dot_codex/skills/caveman-commit|*
+tree|.codex/skills/caveman-compress|dot_codex/skills/caveman-compress|*
+tree|.codex/skills/caveman-help|dot_codex/skills/caveman-help|*
+tree|.codex/skills/caveman-review|dot_codex/skills/caveman-review|*
+tree|.codex/skills/caveman-stats|dot_codex/skills/caveman-stats|*
 copy|.claude/commands/worktree-create.md|dot_claude/commands/create_worktree-create.md|-
 copy|.claude/commands/worktree-push.md|dot_claude/commands/create_worktree-push.md|-
 copy|.claude/commands/worktree-remove.md|dot_claude/commands/create_worktree-remove.md|-
