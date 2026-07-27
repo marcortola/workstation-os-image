@@ -11,6 +11,8 @@ mapfile -t shell_files < <(
         \( -perm /111 -o -name '*.sh' \) -print | sort
     find system_files/usr/share/zirconium/zdots -type f \
         -name 'create_executable_*' -print | sort
+    # Bundle scripts only (maxdepth 1 skips the vendored Node installer).
+    find share/ai-cli-setup -maxdepth 1 -name '*.sh' -print | sort
 )
 bash -n "${shell_files[@]}"
 shellcheck "${shell_files[@]}"
@@ -53,6 +55,14 @@ assert_absent '/(var/)?home/' "$ai_seeds/dot_codex/create_config.toml"
 assert_absent \
     '(\.local/share/opencode/auth\.json|\.codex/auth\.json|\.claude/\.credentials\.json)' \
     config/dotfiles.manifest
+# The portable bundle is a projection of the seeds; it too must carry no key,
+# no Help Scout secret, and no absolute home path.
+if grep -rIlE 'ctx7sk-|HELPSCOUT|/home/[a-z]' \
+    share/ai-cli-setup/config share/ai-cli-setup/opencode-mcp-fragment.json \
+    >/dev/null 2>&1; then
+    echo "Secret or absolute home path leaked into share/ai-cli-setup" >&2
+    exit 1
+fi
 
 # Worktree untracked-file propagation: every creation path (workmux, Claude
 # Code, the post-checkout hook, the JetBrains External Tool) must read the same
@@ -85,6 +95,7 @@ fish --no-execute \
 scripts/validate-manifest
 scripts/validate-jetbrains-settings
 scripts/test-reset-ai-cli
+scripts/build-ai-cli-bundle --check
 
 tmp="$(mktemp -d)"
 trap 'rm -rf -- "$tmp"' EXIT

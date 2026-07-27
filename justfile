@@ -42,6 +42,10 @@ jetbrains-apply *args:
 jetbrains-plugins *args:
     ./scripts/apply-jetbrains-plugins {{ args }}
 
+# Regenerate the portable share/ai-cli-setup/ bundle from the repo seeds.
+ai-bundle:
+    ./scripts/build-ai-cli-bundle
+
 # Reset live codex/claude/opencode config to the repo canonical (dry run without --force).
 ai-reset *args:
     ./scripts/reset-ai-cli {{ args }}

@@ -1,0 +1,12 @@
+{
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
+  "effortLevel": "high",
+  "model": "opus[1m]",
+  "skipWorkflowUsageWarning": true,
+  "theme": "auto",
+  "tui": "fullscreen"
+}
