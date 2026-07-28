@@ -3,11 +3,7 @@
 # A narrow sanitized value may remain in the overlay after explicit review.
 # Keep one exact top-level SettingsSpec key per line.
 activeDisplayProfile
-audioInputDevicePins
-audioOutputDevicePins
 barConfigs
-bluetoothDevicePins
-brightnessDevicePins
 browserUsageHistory
 builtInPluginSettings
 connectedFrameBarStyleBackups
@@ -37,4 +33,3 @@ showOnLastDisplay
 systemMonitorDisplayPreferences
 systemMonitorGpuPciId
 systemMonitorCustomColor
-wifiNetworkPins
