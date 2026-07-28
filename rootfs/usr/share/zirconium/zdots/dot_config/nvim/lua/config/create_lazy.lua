@@ -14,6 +14,12 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
+-- When Neovim runs inside a Dev Container (launched by `dev nvim`),
+-- stdpath("config") is a per-launch copy of the host config in the store;
+-- redirect lazy.nvim's lock file to the persistent state dir so it survives the
+-- recopy, and disable the periodic update checker. Inert on the host.
+local in_container = os.getenv("NVIM_IN_CONTAINER") ~= nil
+
 require("lazy").setup({
   spec = {
     -- add LazyVim and import its plugins
@@ -31,8 +37,13 @@ require("lazy").setup({
     -- version = "*", -- try installing the latest stable version for plugins that support semver
   },
   install = { colorscheme = { "tokyonight", "habamax" } },
+  lockfile = in_container and (vim.fn.stdpath("state") .. "/lazy-lock.json")
+    or (vim.fn.stdpath("config") .. "/lazy-lock.json"),
+  -- Fewer parallel git jobs in the container: the partial-clone blob fetch
+  -- flakes ("checkout failed") when many run at once over the container network.
+  concurrency = in_container and 6 or nil,
   checker = {
-    enabled = true, -- check for plugin updates periodically
+    enabled = not in_container, -- check for plugin updates periodically (host only)
     notify = false, -- notify on update
   }, -- automatically check for plugin updates
   performance = {
