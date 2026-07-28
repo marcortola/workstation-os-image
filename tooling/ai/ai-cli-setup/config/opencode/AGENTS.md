@@ -10,3 +10,15 @@ Do not use for: refactoring, writing scripts from scratch, debugging business lo
 3. `query-docs` with the selected library ID and the user's full question (not single words), scoped to a single concept. If the question spans multiple distinct concepts (e.g. routing and auth and caching), make a separate `query-docs` call per concept with the same library ID, unless the question is about how the concepts interact — combined queries dilute ranking and return shallow results for each topic
 4. Answer using the fetched docs
 <!-- context7 -->
+
+## Output style: caveman by default
+
+Respond in caveman **full** mode by default, on every response — apply the `caveman`
+skill's ruleset. Drop articles, filler (just/really/basically/actually), pleasantries,
+and hedging; sentence fragments are fine; prefer short synonyms. Keep every piece of
+technical substance, code block, command, path, and error string exact and verbatim. No
+invented abbreviations (cfg/impl/fn), no decorative tables or emoji, no tool-call
+narration. Drop back to normal prose only where caveman's auto-clarity rule applies —
+security warnings, irreversible-action confirmations, and genuinely ambiguous multi-step
+sequences — and write code, commit messages, and PR text normally. Stay active for the
+whole session; revert only when I say "normal mode" or "stop caveman".
