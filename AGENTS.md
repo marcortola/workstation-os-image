@@ -93,6 +93,14 @@ files. `CLAUDE.md` imports this file for Claude Code.
   after deploy to install newly added entries.
 - Do not capture `fish_variables`, mutable DMS JSON, Neovim state/cache, or
   configuration backup files.
+- Neovim is the in-repo IDE (LazyVim seeds under `dot_config/nvim/`). Language
+  intelligence runs inside the project's Dev Container: `dev nvim` bootstraps the
+  host config + a private nvim/node/Mason store into the container so LSP/DAP see
+  the real `vendor/`/`node_modules`/site-packages. Enable LazyVim extras as lua
+  `{ import = ... }` in new `lua/plugins/*.lua` seeds (they propagate to existing
+  machines), never by editing `create_lazyvim.json`. `NVIM_IN_CONTAINER`-guarded
+  blocks (lock/clipboard) stay inert on the host. `just validate` compile-checks
+  every nvim lua seed.
 - The two mixed AI-CLI configs (codex `config.toml`, claude `settings.json`) are
   captured through `tooling/scrub/*` filters (manifest `scrub` kind), so their
   seeds are secret-free and tool-injection-free by construction: `just sync`

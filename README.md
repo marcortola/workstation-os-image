@@ -90,6 +90,35 @@ configured rootful and passwordless. Each project pins its own runtime versions
 in a `.devcontainer/devcontainer.json`. This is the same workflow used by VS
 Code Dev Containers and GitHub Codespaces.
 
+### Neovim IDE (`dev nvim`)
+
+Neovim (LazyVim) is the workstation IDE. Because language runtimes and project
+dependencies live inside the Dev Container, **`dev nvim` runs Neovim inside the
+project's container** — the same model VS Code Dev Containers and JetBrains
+Gateway use — so LSP, debugging and tests see the real `vendor/`, `node_modules`
+and site-packages. It shares the host config and reuses the plain `dev`
+container (no rebuild).
+
+- **Two tiers.** Host `nvim` is the editor for git, quick edits and
+  non-container repos; **`dev nvim`** is where LSP/DAP/tests run for a
+  containerized project. A host LSP cannot resolve container-only dependencies,
+  so use `dev nvim` for real language work.
+- **First run per container** provisions a pinned Neovim, a private Node (for
+  node-based servers), Mason LSP/DAP servers and treesitter parsers into a
+  per-project store under `~/.local/share/dev-nvim/` (minutes; subsequent
+  launches are fast). The store auto-resets if the container's base image
+  changes; delete its directory to force a clean reprovision.
+- **Languages:** Python (basedpyright + ruff), JS/TS/React/Astro (vtsls +
+  astro), PHP/Symfony (intelephense — put a premium licence key in
+  `~/intelephense/licence.txt`), plus Twig, SQL, YAML, Docker. Formatting is
+  on-demand (`<leader>cf`); nothing reformats on save.
+- **Per-project prerequisites** (owned by each repo's devcontainer, not this
+  image): dependencies installed (`composer`/`npm`/`pip`), and for step
+  debugging, Xdebug in the PHP image or `debugpy`/`--inspect` for Python/Node.
+- The config ships as create-only chezmoi seeds (`dot_config/nvim/`); enable
+  LazyVim extras as `{ import = ... }` in new `lua/plugins/*.lua` files, then
+  `just sync`. `just validate` compile-checks every lua seed.
+
 ### Worktree file propagation
 
 A git worktree is a fresh checkout, so the untracked files a project needs to run
