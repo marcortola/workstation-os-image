@@ -6,20 +6,16 @@ brew=/home/linuxbrew/.linuxbrew/bin/brew
 jq=/home/linuxbrew/.linuxbrew/bin/jq
 brewfile="${XDG_CONFIG_HOME:-$HOME/.config}/homebrew/Brewfile"
 marker="$state_home/workstation-os-image/bootstrap-complete"
-repo="$HOME/projects/personal/workstation-os-image"
 
-mkdir -p "$(dirname "$marker")" "$HOME/.local/bin" "$HOME/.local/opt" \
-    "$(dirname "$repo")"
+mkdir -p "$(dirname "$marker")" "$HOME/.local/bin" "$HOME/.local/opt"
 
 workdir="$(mktemp -d)"
 trap 'rm -rf -- "$workdir"' EXIT
 
-if [[ ! -e $repo ]]; then
-    git clone https://github.com/marcortola/workstation-os-image.git "$repo"
-elif [[ ! -d $repo/.git ]]; then
-    echo "$repo exists but is not a Git checkout." >&2
-    exit 1
-fi
+# The repository checkout is no longer cloned here: /usr/bin/wjust clones it on
+# demand the first time a recipe runs. That keeps this bootstrap free of any
+# GitHub dependency, so a transient clone failure can no longer block the
+# essential brew and Toolbox provisioning below.
 
 # Zirconium's brew image profile ships /usr/share/homebrew.tar.zst and
 # enables brew-setup.service, which unpacks it on first boot. Never install

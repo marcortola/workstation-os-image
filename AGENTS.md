@@ -96,11 +96,15 @@ files. `CLAUDE.md` imports this file for Claude Code.
 - Neovim is the in-repo IDE (LazyVim seeds under `dot_config/nvim/`). Language
   intelligence runs inside the project's Dev Container: `dev nvim` bootstraps the
   host config + a private nvim/node/Mason store into the container so LSP/DAP see
-  the real `vendor/`/`node_modules`/site-packages. Enable LazyVim extras as lua
-  `{ import = ... }` in new `lua/plugins/*.lua` seeds (they propagate to existing
-  machines), never by editing `create_lazyvim.json`. `NVIM_IN_CONTAINER`-guarded
-  blocks (lock/clipboard) stay inert on the host. `just validate` compile-checks
-  every nvim lua seed.
+  the real `vendor/`/`node_modules`/site-packages. `dev nvim` detects the
+  project's languages host-side and passes them as `NVIM_MASON_LANGS`; the spec
+  in `config/lazy.lua` imports only those language extras (plus the universal
+  json/yaml/markdown/sql/toml ones), so a container installs just its own
+  servers/parsers/tools, not every language's. Add a language by extending that
+  gated list and the `dev.fish` detector; a user plugin that configures a
+  language server must gate on `config/scope.lua`. Never re-add extras ungated or
+  edit `create_lazyvim.json`. `NVIM_IN_CONTAINER`-guarded blocks (lock/clipboard)
+  stay inert on the host. `just validate` compile-checks every nvim lua seed.
 - The two mixed AI-CLI configs (codex `config.toml`, claude `settings.json`) are
   captured through `tooling/scrub/*` filters (manifest `scrub` kind), so their
   seeds are secret-free and tool-injection-free by construction: `just sync`

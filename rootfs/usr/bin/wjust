@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Image-owned launcher for the workstation justfile: run any `wjust <recipe>`
+# from any shell or directory, cloning the checkout on demand. Lives in the
+# image rather than a create-only Fish alias, so it ships and updates with every
+# build and reaches existing machines. The first-login bootstrap no longer clones
+# eagerly; the checkout materialises here the first time a recipe runs.
+set -euo pipefail
+
+repo="$HOME/projects/personal/workstation-os-image"
+
+if [[ ! -e $repo ]]; then
+    mkdir -p "$(dirname "$repo")"
+    git clone https://github.com/marcortola/workstation-os-image.git "$repo"
+elif [[ ! -d $repo/.git ]]; then
+    echo "wjust: $repo exists but is not a Git checkout." >&2
+    exit 1
+fi
+
+exec just --justfile "$repo/justfile" --working-directory "$repo" "$@"
