@@ -85,9 +85,9 @@ brew-apply:
 worktree-init *args:
     ./tooling/worktree-init {{ args }}
 
-# Store the intelephense premium PHP licence key for `dev nvim` (machine-local, never committed).
-intelephense-licence:
-    ./tooling/set-intelephense-licence
+# Store the intelephense premium PHP licence key for `dev nvim` (machine-local, never committed). Pass --force to overwrite.
+intelephense-licence *args:
+    ./tooling/set-intelephense-licence {{ args }}
 
 # Set up this machine's IDE config (run once after deploy): store the intelephense
 # premium PHP key for `dev nvim`, install the shared JetBrains plugins (dry run

@@ -1,21 +1,50 @@
 #!/usr/bin/env bash
 # Store the intelephense premium PHP licence key that `dev nvim` injects into the
 # container (as INTELEPHENSE_LICENCE_KEY, fed to intelephense init_options.
-# licenceKey). Machine-local, never committed. Hidden input; written without a
-# trailing newline to match intelephense's expectation.
+# licenceKey). Machine-local, never committed. Hidden input; the pasted value is
+# sanitised (surrounding quotes and every whitespace/control char stripped) and
+# written without a trailing newline to match intelephense's expectation.
+# Pass --force to overwrite an existing key.
 set -euo pipefail
 
 iph_file="$HOME/.config/intelephense/licence.key"
+force=0
+[[ ${1:-} == -f || ${1:-} == --force ]] && force=1
 
-if [[ -s $iph_file ]]; then
-    echo "Intelephense licence already set (~/.config/intelephense/licence.key) -- delete it to re-enter."
+# A licence key is a single run of characters — strip anything a paste tends to
+# carry along (a trailing newline, CR from a Windows clipboard, stray spaces, or
+# wrapping quotes). Never touches the key's own characters.
+sanitize() {
+    local k=$1
+    k=${k//[[:space:]]/}       # drop every whitespace char, incl. CR
+    k=${k#\"}; k=${k%\"}       # strip one surrounding double quote
+    k=${k#\'}; k=${k%\'}       # strip one surrounding single quote
+    printf '%s' "$k"
+}
+
+# Sanity-check WITHOUT ever echoing the key: intelephense keys are exactly 15
+# alphanumeric characters. Warn (do not block) so a bad paste is caught early.
+warn_if_odd() {
+    if [[ ! $1 =~ ^[A-Za-z0-9]{15}$ ]]; then
+        printf 'Warning: the saved key is %s character(s) and/or not plain alphanumeric;\n' "${#1}" >&2
+        printf '         intelephense keys are 15 alphanumeric characters. If PHP reports a\n' >&2
+        printf '         licence-activation error, re-run: just intelephense-licence --force\n' >&2
+        printf '         and paste the exact key from your intelephense account.\n' >&2
+    fi
+}
+
+if [[ -s $iph_file && $force -eq 0 ]]; then
+    echo "Intelephense licence already set (~/.config/intelephense/licence.key)."
+    echo "Re-enter with: just intelephense-licence --force"
 elif [[ -t 0 ]]; then
-    read -r -s -p "Intelephense premium licence key (Enter to skip): " iph_key
+    read -r -s -p "Intelephense premium licence key (Enter to skip): " iph_raw
     printf '\n'
+    iph_key=$(sanitize "$iph_raw")
     if [[ -n $iph_key ]]; then
         install -d -m 0700 "$(dirname "$iph_file")"
-        (umask 077; printf '%s' "$iph_key" > "$iph_file")
+        (umask 077; printf '%s' "$iph_key" >"$iph_file")
         echo "Saved to ~/.config/intelephense/licence.key (0600). Restart dev nvim to apply."
+        warn_if_odd "$iph_key"
     else
         echo "Skipped (free tier)."
     fi
