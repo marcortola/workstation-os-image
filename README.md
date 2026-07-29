@@ -104,10 +104,11 @@ container (no rebuild).
   containerized project. A host LSP cannot resolve container-only dependencies,
   so use `dev nvim` for real language work.
 - **First run per container** provisions a pinned Neovim, a private Node (for
-  node-based servers), Mason LSP/DAP servers and treesitter parsers into a
-  per-project store under `~/.local/share/dev-nvim/` (minutes; subsequent
-  launches are fast). The store auto-resets if the container's base image
-  changes; delete its directory to force a clean reprovision.
+  node-based servers), and the Mason LSP/DAP servers, linters and treesitter
+  parsers **for the project's detected languages only** into a per-project store
+  under `~/.local/share/dev-nvim/` (minutes; subsequent launches are fast). The
+  store auto-resets if the container's base image changes; delete its directory
+  to force a clean reprovision.
 - **Languages:** Python (basedpyright + ruff), JS/TS/React/Astro (vtsls +
   astro), PHP/Symfony (intelephense — run `just ide-setup` once after deploy to
   store a premium key that `dev nvim` injects into the container; free tier
@@ -116,9 +117,11 @@ container (no rebuild).
 - **Per-project prerequisites** (owned by each repo's devcontainer, not this
   image): dependencies installed (`composer`/`npm`/`pip`), and for step
   debugging, Xdebug in the PHP image or `debugpy`/`--inspect` for Python/Node.
-- The config ships as create-only chezmoi seeds (`dot_config/nvim/`); enable
-  LazyVim extras as `{ import = ... }` in new `lua/plugins/*.lua` files, then
-  `just sync`. `just validate` compile-checks every lua seed.
+- The config ships as create-only chezmoi seeds (`dot_config/nvim/`). `dev nvim`
+  scopes the servers/parsers/tools to the project's detected languages
+  (`NVIM_MASON_LANGS`); add a language by extending the gated import list in
+  `lua/config/lazy.lua` and the detector in `dev.fish`, then `just sync`. `just
+  validate` compile-checks every lua seed.
 
 ### Worktree file propagation
 
@@ -284,8 +287,9 @@ the bootc upgrade until its image build passes and the PR is merged.
 
 ## Capture local changes
 
-Run workstation recipes from any Fish terminal and any directory with
-`wjust`. Plain `just` remains project-local.
+Run workstation recipes from any shell and any directory with `wjust`, an
+image-provided launcher (`/usr/bin/wjust`) that clones the checkout on demand
+the first time it runs. Plain `just` remains project-local.
 
 ```bash
 wjust audit
@@ -415,9 +419,11 @@ sudo bootc status --verbose
 systemctl reboot
 ```
 
-After graphical login, first-login services clone this repository, restore the
-Brewfile/Flatpaks, install Toolbox and fonts, seed the DMS preference overlay
-once, and seed the default Claude Code MCP servers once. Check convergence with:
+After graphical login, first-login services restore the Brewfile/Flatpaks,
+install Toolbox and fonts, seed the DMS preference overlay once, and seed the
+default Claude Code MCP servers once. The repository checkout is not cloned
+eagerly; `wjust` clones it on demand the first time you run a recipe. Check
+convergence with:
 
 ```bash
 wjust audit

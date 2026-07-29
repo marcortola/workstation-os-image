@@ -134,6 +134,26 @@ function dev --description "Run a command in the nearest Dev Container (no args 
             return 1
         end
 
+        # Detect the project's languages (host-side, from the bind-mounted
+        # source) so `dev nvim` scopes the in-container LSP/parser/tool install to
+        # what the project actually uses, not every language. Consumed by
+        # lua/config/lazy.lua (NVIM_MASON_LANGS gates which lang extras import).
+        set -l mlangs
+        test -f "$root/composer.json"; and set -a mlangs php twig
+        if test -f "$root/package.json"
+            set -a mlangs ts
+            grep -qE '"tailwindcss"|"@tailwindcss/' "$root/package.json" 2>/dev/null; and set -a mlangs tailwind
+            grep -q '"astro"' "$root/package.json" 2>/dev/null; and set -a mlangs astro
+        end
+        # Python: manifests OR any top-level *.py (covers pipenv/conda/pyenv and
+        # bare-script repos with no manifest).
+        set -l pyhit (find "$root" -maxdepth 1 \( -iname 'pyproject.toml' -o -iname 'requirements*.txt' -o -iname 'setup.py' -o -iname 'setup.cfg' -o -iname 'Pipfile' -o -iname 'environment.yml' -o -iname '.python-version' -o -iname '*.py' \) -print -quit 2>/dev/null)
+        test -n "$pyhit"; and set -a mlangs python
+        # Docker: any Dockerfile/Containerfile or compose file, including the
+        # common docker-compose.dev.yml / compose.yaml / Dockerfile.<stage> variants.
+        set -l dockerhit (find "$root" -maxdepth 1 \( -iname 'Dockerfile*' -o -iname 'Containerfile*' -o -iname 'compose*.y*ml' -o -iname 'docker-compose*.y*ml' \) -print -quit 2>/dev/null)
+        test -n "$dockerhit"; and set -a mlangs docker
+
         # Inject the intelephense premium licence (if configured) so the
         # in-container PHP LSP unlocks premium features. Machine-local file, set
         # with `just intelephense-licence`; never seeded into the image.
@@ -145,6 +165,7 @@ function dev --description "Run a command in the nearest Dev Container (no args 
 
         devcontainer exec --workspace-folder "$root" \
             $iph_env \
+            --remote-env "NVIM_MASON_LANGS=$mlangs" \
             --remote-env XDG_CONFIG_HOME=/nvimdata/config \
             --remote-env XDG_DATA_HOME=/nvimdata/data \
             --remote-env XDG_STATE_HOME=/nvimdata/state \
