@@ -95,44 +95,20 @@ map({ "n", "x" }, "<C-Space>", ts_expand, { desc = "Expand selection" })
 map({ "n", "x" }, "<A-w>", ts_expand, { desc = "Expand selection" })
 map("x", "<A-S-w>", ts_shrink, { desc = "Shrink selection" })
 
--- Change case of selection  (JetBrains: Ctrl+Shift+U) -> a case-style menu.
--- Vim also changes a selection's case natively (u lower, U upper, ~ toggle), and
--- text-case.nvim exposes each style directly on the selection (gzc camelCase,
--- gzs snake_case, gzp PascalCase, gzn CONSTANT, gzu UPPER, gzl lower, gzd dash,
--- gzt Title). This binds the JetBrains key to a picker of them (snacks-backed
--- via vim.ui.select). Each choice re-selects the range (gv) and applies the keys.
-local case_items = {
-  { label = "Toggle case", keys = "gv~" },
-  { label = "UPPER CASE", keys = "gvgzu" },
-  { label = "lower case", keys = "gvgzl" },
-  { label = "snake_case", keys = "gvgzs" },
-  { label = "camelCase", keys = "gvgzc" },
-  { label = "PascalCase", keys = "gvgzp" },
-  { label = "CONSTANT_CASE", keys = "gvgzn" },
-  { label = "dash-case", keys = "gvgzd" },
-  { label = "Title Case", keys = "gvgzt" },
-}
-map("x", "<C-S-u>", function()
-  -- Leave visual first (synchronously) so '< '> capture this selection and the
-  -- picker opens on a clean tick instead of racing pending input.
-  vim.cmd("normal! \27")
-  vim.schedule(function()
-    vim.ui.select(case_items, {
-      prompt = "Change case",
-      format_item = function(item)
-        return item.label
-      end,
-    }, function(choice)
-      if choice then
-        vim.api.nvim_feedkeys(choice.keys, "mx", false)
-      end
-    end)
-  end)
-end, { desc = "Change case (menu)" })
+-- Change case of selection  (JetBrains: Ctrl+Shift+U) -> text-case's gz menu.
+-- text-case.nvim binds the case styles under the gz prefix and registers them
+-- with which-key, so entering gz on a selection pops a proper menu: gzs snake,
+-- gzc camel, gzp Pascal, gzn CONSTANT, gzu UPPER, gzl lower, gzd dash, gzt Title.
+-- Ctrl+Shift+U just enters that prefix on the current selection (native u/U/~
+-- also change a selection's case directly, without the menu).
+map("x", "<C-S-u>", "gz", { remap = true, desc = "Change case (gz menu)" })
 
--- Terminal toggle  (JetBrains: Ctrl+T -> ActivateTerminalToolWindow)
+-- Terminal toggle  (JetBrains: Ctrl+T -> ActivateTerminalToolWindow).
+-- Opens fish when the container ships it, else the default shell (bash in a
+-- container, per options.lua; the host's login shell otherwise).
 map("n", "<C-t>", function()
-  Snacks.terminal(nil, { cwd = LazyVim.root() })
+  local shell = vim.fn.executable("fish") == 1 and "fish" or nil
+  Snacks.terminal(shell, { cwd = LazyVim.root() })
 end, { desc = "Terminal (Root Dir)" })
 map("t", "<C-t>", "<cmd>close<cr>", { desc = "Hide Terminal" })
 
