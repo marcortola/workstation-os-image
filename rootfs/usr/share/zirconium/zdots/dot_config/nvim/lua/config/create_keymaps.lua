@@ -30,20 +30,77 @@ map("n", "<C-y>", "dd", { desc = "Delete line" })
 map("i", "<C-y>", "<esc>ddi", { desc = "Delete line" })
 
 -- Expand / shrink selection  (JetBrains: Ctrl+W / Ctrl+Shift+W)
--- This is treesitter incremental selection, which LazyVim binds to <C-Space>
--- (expand) and <BS> (shrink). Ctrl+W is Vim's window prefix, so it is left alone;
--- these Alt aliases reuse LazyVim's own mappings via remap (no version-specific
--- treesitter API), so <C-Space>/<BS> keep working too.
-map("n", "<A-w>", "<C-space>", { remap = true, desc = "Expand selection" })
-map("x", "<A-w>", "<C-space>", { remap = true, desc = "Expand selection" })
-map("x", "<A-S-w>", "<BS>", { remap = true, desc = "Shrink selection" })
+-- LazyVim's nvim-treesitter is on the "main" branch, which dropped the
+-- incremental_selection module, so this drives core vim.treesitter directly:
+-- grow to the enclosing node, remembering each range so we can shrink back.
+-- Primary key is Ctrl+Space (free, terminal-safe); Alt+w is a JetBrains alias.
+local ts_stack = {}
+
+local function ts_set_visual(sr, sc, er, ec) -- 0-indexed rows/cols, ec exclusive
+  if vim.fn.mode():match("^[vV\22]") then
+    vim.cmd("normal! \27")
+  end
+  vim.api.nvim_win_set_cursor(0, { sr + 1, sc })
+  vim.cmd("normal! v")
+  vim.api.nvim_win_set_cursor(0, { er + 1, math.max(ec - 1, 0) })
+end
+
+local function ts_cur_sel() -- current visual range as sr,sc,er,ec (ec exclusive) or nil
+  if not vim.fn.mode():match("^[vV\22]") then
+    return nil
+  end
+  local a, b = vim.fn.getpos("v"), vim.fn.getpos(".")
+  local sr, sc, er, ec = a[2] - 1, a[3] - 1, b[2] - 1, b[3] - 1
+  if sr > er or (sr == er and sc > ec) then
+    sr, sc, er, ec = er, ec, sr, sc
+  end
+  return sr, sc, er, ec + 1
+end
+
+local function ts_expand()
+  local buf = vim.api.nvim_get_current_buf()
+  local sr, sc, er, ec = ts_cur_sel()
+  local node
+  if sr then
+    node = vim.treesitter.get_node({ pos = { sr, sc } })
+    while node do
+      local a, b, c, d = node:range()
+      if a < sr or (a == sr and b < sc) or c > er or (c == er and d > ec) then
+        break
+      end
+      node = node:parent()
+    end
+    ts_stack[buf] = ts_stack[buf] or {}
+    table.insert(ts_stack[buf], { sr, sc, er, ec })
+  else
+    ts_stack[buf] = {}
+    node = vim.treesitter.get_node()
+  end
+  if not node then
+    return
+  end
+  local a, b, c, d = node:range()
+  ts_set_visual(a, b, c, d)
+end
+
+local function ts_shrink()
+  local st = ts_stack[vim.api.nvim_get_current_buf()]
+  if st and #st > 0 then
+    local r = table.remove(st)
+    ts_set_visual(r[1], r[2], r[3], r[4])
+  end
+end
+
+map({ "n", "x" }, "<C-Space>", ts_expand, { desc = "Expand selection" })
+map({ "n", "x" }, "<A-w>", ts_expand, { desc = "Expand selection" })
+map("x", "<A-S-w>", ts_shrink, { desc = "Shrink selection" })
 
 -- Change case of selection  (JetBrains: Ctrl+Shift+U) -> a case-style menu.
 -- Vim also changes a selection's case natively (u lower, U upper, ~ toggle), and
 -- text-case.nvim exposes each style directly on the selection (gzc camelCase,
 -- gzs snake_case, gzp PascalCase, gzn CONSTANT, gzu UPPER, gzl lower, gzd dash,
 -- gzt Title). This binds the JetBrains key to a picker of them (snacks-backed
--- via vim.ui.select). Each choice re-selects the range (gv) and applies the key.
+-- via vim.ui.select). Each choice re-selects the range (gv) and applies the keys.
 local case_items = {
   { label = "Toggle case", keys = "gv~" },
   { label = "UPPER CASE", keys = "gvgzu" },
@@ -56,17 +113,20 @@ local case_items = {
   { label = "Title Case", keys = "gvgzt" },
 }
 map("x", "<C-S-u>", function()
-  -- Finalise the visual selection (sets '< '> so gv can restore it), then pick.
-  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "nx", false)
-  vim.ui.select(case_items, {
-    prompt = "Change case",
-    format_item = function(item)
-      return item.label
-    end,
-  }, function(choice)
-    if choice then
-      vim.api.nvim_feedkeys(choice.keys, "m", false)
-    end
+  -- Leave visual first (synchronously) so '< '> capture this selection and the
+  -- picker opens on a clean tick instead of racing pending input.
+  vim.cmd("normal! \27")
+  vim.schedule(function()
+    vim.ui.select(case_items, {
+      prompt = "Change case",
+      format_item = function(item)
+        return item.label
+      end,
+    }, function(choice)
+      if choice then
+        vim.api.nvim_feedkeys(choice.keys, "mx", false)
+      end
+    end)
   end)
 end, { desc = "Change case (menu)" })
 
