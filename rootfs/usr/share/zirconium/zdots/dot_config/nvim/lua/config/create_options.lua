@@ -25,3 +25,11 @@ if os.getenv("NVIM_IN_CONTAINER") then
     }
   end
 end
+
+-- Dev Containers usually default to plain /bin/sh; prefer bash for `:terminal`
+-- and shell commands. bash is POSIX-compatible, so plugins that shell out are
+-- unaffected. fish is not POSIX, so it is never set as 'shell'; the <C-t>
+-- terminal mapping opens fish only when the container actually ships it.
+if os.getenv("NVIM_IN_CONTAINER") and vim.fn.executable("bash") == 1 then
+  vim.o.shell = vim.fn.exepath("bash")
+end
