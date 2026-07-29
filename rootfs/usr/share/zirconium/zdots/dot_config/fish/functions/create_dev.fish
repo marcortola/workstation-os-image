@@ -106,6 +106,18 @@ function dev --description "Run a command in the nearest Dev Container (no args 
                 curl -fsSL "https://nodejs.org/dist/v$nver/node-v$nver-linux-x64.tar.gz" -o /tmp/node.tgz
                 mkdir -p /nvimdata/node && tar xzf /tmp/node.tgz -C /nvimdata/node --strip-components=1
             fi
+            # fd + ripgrep for the file/grep pickers and venv-selector (the slim
+            # container bases usually ship neither).
+            if [ ! -x /nvimdata/bin/fd ] || [ ! -x /nvimdata/bin/rg ]; then
+                echo "dev nvim: installing fd + ripgrep in container (pickers)" >&2
+                mkdir -p /nvimdata/bin
+                fdv=10.2.0
+                curl -fsSL "https://github.com/sharkdp/fd/releases/download/v$fdv/fd-v$fdv-x86_64-unknown-linux-gnu.tar.gz" | tar xz -C /tmp \
+                    && cp "/tmp/fd-v$fdv-x86_64-unknown-linux-gnu/fd" /nvimdata/bin/
+                rgv=14.1.1
+                curl -fsSL "https://github.com/BurntSushi/ripgrep/releases/download/$rgv/ripgrep-$rgv-x86_64-unknown-linux-musl.tar.gz" | tar xz -C /tmp \
+                    && cp "/tmp/ripgrep-$rgv-x86_64-unknown-linux-musl/rg" /nvimdata/bin/
+            fi
             if ! command -v cc >/dev/null 2>&1 || ! command -v git >/dev/null 2>&1; then
                 if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
                     echo "dev nvim: installing build toolchain" >&2
@@ -140,7 +152,7 @@ function dev --description "Run a command in the nearest Dev Container (no args 
             --remote-env NVIM_IN_CONTAINER=1 \
             --remote-env COLORTERM=truecolor \
             --remote-env TERM=xterm-256color \
-            bash -c 'export PATH=/nvimdata/node/bin:$PATH; cd "$1" || exit; shift; exec /nvimdata/nvim/bin/nvim "$@"' -- "$rel" $argv[2..-1]
+            bash -c 'export PATH=/nvimdata/node/bin:/nvimdata/bin:$PATH; cd "$1" || exit; shift; exec /nvimdata/nvim/bin/nvim "$@"' -- "$rel" $argv[2..-1]
     else if test (count $argv) -eq 0
         devcontainer exec --workspace-folder "$root" bash -c 'cd "$1" || exit; exec bash' -- "$rel"
     else
