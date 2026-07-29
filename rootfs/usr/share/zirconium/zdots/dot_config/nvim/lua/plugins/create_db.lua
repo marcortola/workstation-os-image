@@ -4,6 +4,5 @@
 -- git. Native psql/mysql clients are provided by the image (Containerfile), and
 -- also inside dev containers so `dev nvim` can reach the DB by compose name.
 return {
-  { import = "lazyvim.plugins.extras.lang.sql" },
   { "tpope/vim-dotenv" },
 }
