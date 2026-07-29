@@ -2,7 +2,6 @@
 -- lang.php, ...) declare their neotest adapters as optional; test.core makes
 -- them live.
 return {
-  { import = "lazyvim.plugins.extras.test.core" },
   -- JS/TS test runner (WebStorm test parity); lang.typescript ships no adapter.
   {
     "nvim-neotest/neotest",

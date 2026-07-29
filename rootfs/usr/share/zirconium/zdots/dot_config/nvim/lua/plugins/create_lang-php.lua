@@ -4,8 +4,6 @@
 -- set once with `just intelephense-licence`); free tier when unset. Twig via the
 -- twig extra.
 return {
-  { import = "lazyvim.plugins.extras.lang.php" },
-  { import = "lazyvim.plugins.extras.lang.twig" },
   {
     "neovim/nvim-lspconfig",
     opts = {
