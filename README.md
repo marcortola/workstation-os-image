@@ -109,7 +109,7 @@ container (no rebuild).
   launches are fast). The store auto-resets if the container's base image
   changes; delete its directory to force a clean reprovision.
 - **Languages:** Python (basedpyright + ruff), JS/TS/React/Astro (vtsls +
-  astro), PHP/Symfony (intelephense — run `just intelephense-licence` once to
+  astro), PHP/Symfony (intelephense — run `just ide-setup` once after deploy to
   store a premium key that `dev nvim` injects into the container; free tier
   otherwise), plus Twig, SQL, YAML, Docker. Formatting is
   on-demand (`<leader>cf`); nothing reformats on save.
@@ -327,6 +327,7 @@ state, and enforces that a file lives in exactly one place.
 | `wjust jetbrains-promote [Product]` | Refresh `_shared/` from the canonical IDE (default: first listed) |
 | `wjust jetbrains-apply [--force]` | Write `_shared/` + remainder and install shared plugins (dry run without `--force`) |
 | `wjust jetbrains-plugins [--force]` | Install the `_shared/plugins.list` plugins into each IDE (dry run without `--force`) |
+| `wjust ide-setup [--force]` | One-shot post-deploy IDE setup: intelephense premium key + JetBrains plugins (dry run without `--force`), then an interactive offer to apply the shared JetBrains settings (defaults to no) |
 
 Plugins are declared as Marketplace IDs and installed headlessly with the IDE's
 `installPlugins` command; the JARs are fetched at apply time, never vendored.
