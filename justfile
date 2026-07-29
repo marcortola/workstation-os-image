@@ -85,6 +85,10 @@ brew-apply:
 worktree-init *args:
     ./tooling/worktree-init {{ args }}
 
+# Store the intelephense premium PHP licence key for `dev nvim` (machine-local, never committed).
+intelephense-licence:
+    ./tooling/set-intelephense-licence
+
 # Build and lint the complete bootc image locally.
 build:
     podman build --pull=always --tag workstation-os-image:review -f Containerfile .
