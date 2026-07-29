@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Store the intelephense premium PHP licence key that `dev nvim` injects into the
+# container (as INTELEPHENSE_LICENCE_KEY, fed to intelephense init_options.
+# licenceKey). Machine-local, never committed. Hidden input; written without a
+# trailing newline to match intelephense's expectation.
+set -euo pipefail
+
+iph_file="$HOME/.config/intelephense/licence.key"
+
+if [[ -s $iph_file ]]; then
+    echo "Intelephense licence already set (~/.config/intelephense/licence.key) -- delete it to re-enter."
+elif [[ -t 0 ]]; then
+    read -r -s -p "Intelephense premium licence key (Enter to skip): " iph_key
+    printf '\n'
+    if [[ -n $iph_key ]]; then
+        install -d -m 0700 "$(dirname "$iph_file")"
+        (umask 077; printf '%s' "$iph_key" > "$iph_file")
+        echo "Saved to ~/.config/intelephense/licence.key (0600). Restart dev nvim to apply."
+    else
+        echo "Skipped (free tier)."
+    fi
+else
+    echo "Non-interactive; set later: printf %s KEY > $iph_file && chmod 600 $iph_file"
+fi

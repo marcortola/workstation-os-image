@@ -109,8 +109,9 @@ container (no rebuild).
   launches are fast). The store auto-resets if the container's base image
   changes; delete its directory to force a clean reprovision.
 - **Languages:** Python (basedpyright + ruff), JS/TS/React/Astro (vtsls +
-  astro), PHP/Symfony (intelephense — put a premium licence key in
-  `~/intelephense/licence.txt`), plus Twig, SQL, YAML, Docker. Formatting is
+  astro), PHP/Symfony (intelephense — run `just intelephense-licence` once to
+  store a premium key that `dev nvim` injects into the container; free tier
+  otherwise), plus Twig, SQL, YAML, Docker. Formatting is
   on-demand (`<leader>cf`); nothing reformats on save.
 - **Per-project prerequisites** (owned by each repo's devcontainer, not this
   image): dependencies installed (`composer`/`npm`/`pip`), and for step

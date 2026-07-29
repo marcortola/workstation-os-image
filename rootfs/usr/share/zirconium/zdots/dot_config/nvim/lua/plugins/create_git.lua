@@ -15,6 +15,10 @@ return {
   {
     "akinsho/git-conflict.nvim",
     version = "*",
+    -- Host only: git-conflict runs git eagerly on load and hangs inside a Dev
+    -- Container (`dev nvim`); commits/merges are done host-side anyway, and
+    -- diffview handles in-container merge viewing.
+    cond = function() return not vim.env.NVIM_IN_CONTAINER end,
     event = "VeryLazy",
     opts = {},
   },

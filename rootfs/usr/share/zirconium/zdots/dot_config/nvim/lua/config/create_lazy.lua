@@ -1,4 +1,13 @@
-local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
+-- Inside a Dev Container (launched by `dev nvim`) reuse the host's already
+-- installed plugins, bind-mounted at /nvim-plugins, instead of re-cloning ~50
+-- repos over the slow container network (plugins are architecture-independent;
+-- Mason servers and treesitter parsers stay per-container). stdpath("config")
+-- is a per-launch copy of the host config, so the lazy lock is redirected to the
+-- persistent state dir and the update checker is disabled. All inert on the host.
+local in_container = os.getenv("NVIM_IN_CONTAINER") ~= nil
+local lazyroot = in_container and "/nvim-plugins" or (vim.fn.stdpath("data") .. "/lazy")
+
+local lazypath = lazyroot .. "/lazy.nvim"
 if not (vim.uv or vim.loop).fs_stat(lazypath) then
   local lazyrepo = "https://github.com/folke/lazy.nvim.git"
   local out = vim.fn.system({ "git", "clone", "--filter=blob:none", "--branch=stable", lazyrepo, lazypath })
@@ -14,13 +23,8 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
--- When Neovim runs inside a Dev Container (launched by `dev nvim`),
--- stdpath("config") is a per-launch copy of the host config in the store;
--- redirect lazy.nvim's lock file to the persistent state dir so it survives the
--- recopy, and disable the periodic update checker. Inert on the host.
-local in_container = os.getenv("NVIM_IN_CONTAINER") ~= nil
-
 require("lazy").setup({
+  root = lazyroot,
   spec = {
     -- add LazyVim and import its plugins
     { "LazyVim/LazyVim", import = "lazyvim.plugins" },

@@ -55,6 +55,7 @@ function dev --description "Run a command in the nearest Dev Container (no args 
     mkdir -p "$store/data" "$store/state" "$store/cache" "$store/config"
     set -l mounts \
         --mount "type=bind,source=$HOME/.config/nvim,target=/nvimconf-src" \
+        --mount "type=bind,source=$HOME/.local/share/nvim/lazy,target=/nvim-plugins" \
         --mount "type=bind,source=$store,target=/nvimdata"
 
     # Idempotent: builds/starts on first call, fast no-op once running.
@@ -68,7 +69,7 @@ function dev --description "Run a command in the nearest Dev Container (no args 
         # A container created earlier WITHOUT these mounts (e.g. by JetBrains
         # Gateway or an older `dev`) is reused by `up` with the mounts absent;
         # recreate it once so the config/store are actually present.
-        if not devcontainer exec --workspace-folder "$root" bash -c 'test -f /nvimconf-src/init.lua -a -d /nvimdata'
+        if not devcontainer exec --workspace-folder "$root" bash -c 'test -f /nvimconf-src/init.lua -a -d /nvimdata -a -d /nvim-plugins'
             echo "dev nvim: container lacks the nvim mounts; recreating..." >&2
             devcontainer up --workspace-folder "$root" $mounts --remove-existing-container >/dev/null 2>&1
         end
@@ -115,28 +116,23 @@ function dev --description "Run a command in the nearest Dev Container (no args 
             fi
             rm -rf /nvimdata/config/nvim
             cp -a /nvimconf-src /nvimdata/config/nvim
-            export XDG_CONFIG_HOME=/nvimdata/config XDG_DATA_HOME=/nvimdata/data XDG_STATE_HOME=/nvimdata/state XDG_CACHE_HOME=/nvimdata/cache NVIM_IN_CONTAINER=1
-            export PATH=/nvimdata/node/bin:$PATH
-            n=/nvimdata/nvim/bin/nvim
-            if [ ! -f /nvimdata/data/.warmed ]; then
-                echo "dev nvim: installing plugins (first run in this container)..." >&2
-                for i in 1 2 3; do
-                    if "$n" --headless "+Lazy! sync" +qa 2>&1 | grep -q "checkout failed"; then
-                        echo "dev nvim: repairing plugin clones (attempt $i)" >&2
-                    else
-                        touch /nvimdata/data/.warmed; break
-                    fi
-                done
-            else
-                "$n" --headless "+Lazy! install" +qa >/dev/null 2>&1 || true
-            fi
         '
         if not devcontainer exec --workspace-folder "$root" bash -c "$boot"
             echo "dev nvim: provisioning failed" >&2
             return 1
         end
 
+        # Inject the intelephense premium licence (if configured) so the
+        # in-container PHP LSP unlocks premium features. Machine-local file, set
+        # with `just intelephense-licence`; never seeded into the image.
+        set -l iph_env
+        set -l iph_file "$HOME/.config/intelephense/licence.key"
+        if test -r "$iph_file"
+            set iph_env --remote-env "INTELEPHENSE_LICENCE_KEY="(string trim <"$iph_file")
+        end
+
         devcontainer exec --workspace-folder "$root" \
+            $iph_env \
             --remote-env XDG_CONFIG_HOME=/nvimdata/config \
             --remote-env XDG_DATA_HOME=/nvimdata/data \
             --remote-env XDG_STATE_HOME=/nvimdata/state \
