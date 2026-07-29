@@ -90,6 +90,39 @@ configured rootful and passwordless. Each project pins its own runtime versions
 in a `.devcontainer/devcontainer.json`. This is the same workflow used by VS
 Code Dev Containers and GitHub Codespaces.
 
+### Neovim IDE (`dev nvim`)
+
+Neovim (LazyVim) is the workstation IDE. Because language runtimes and project
+dependencies live inside the Dev Container, **`dev nvim` runs Neovim inside the
+project's container** — the same model VS Code Dev Containers and JetBrains
+Gateway use — so LSP, debugging and tests see the real `vendor/`, `node_modules`
+and site-packages. It shares the host config and reuses the plain `dev`
+container (no rebuild).
+
+- **Two tiers.** Host `nvim` is the editor for git, quick edits and
+  non-container repos; **`dev nvim`** is where LSP/DAP/tests run for a
+  containerized project. A host LSP cannot resolve container-only dependencies,
+  so use `dev nvim` for real language work.
+- **First run per container** provisions a pinned Neovim, a private Node (for
+  node-based servers), and the Mason LSP/DAP servers, linters and treesitter
+  parsers **for the project's detected languages only** into a per-project store
+  under `~/.local/share/dev-nvim/` (minutes; subsequent launches are fast). The
+  store auto-resets if the container's base image changes; delete its directory
+  to force a clean reprovision.
+- **Languages:** Python (basedpyright + ruff), JS/TS/React/Astro (vtsls +
+  astro), PHP/Symfony (intelephense — run `just ide-setup` once after deploy to
+  store a premium key that `dev nvim` injects into the container; free tier
+  otherwise), plus Twig, SQL, YAML, Docker. Formatting is
+  on-demand (`<leader>cf`); nothing reformats on save.
+- **Per-project prerequisites** (owned by each repo's devcontainer, not this
+  image): dependencies installed (`composer`/`npm`/`pip`), and for step
+  debugging, Xdebug in the PHP image or `debugpy`/`--inspect` for Python/Node.
+- The config ships as create-only chezmoi seeds (`dot_config/nvim/`). `dev nvim`
+  scopes the servers/parsers/tools to the project's detected languages
+  (`NVIM_MASON_LANGS`); add a language by extending the gated import list in
+  `lua/config/lazy.lua` and the detector in `dev.fish`, then `just sync`. `just
+  validate` compile-checks every lua seed.
+
 ### Worktree file propagation
 
 A git worktree is a fresh checkout, so the untracked files a project needs to run
@@ -254,8 +287,9 @@ the bootc upgrade until its image build passes and the PR is merged.
 
 ## Capture local changes
 
-Run workstation recipes from any Fish terminal and any directory with
-`wjust`. Plain `just` remains project-local.
+Run workstation recipes from any shell and any directory with `wjust`, an
+image-provided launcher (`/usr/bin/wjust`) that clones the checkout on demand
+the first time it runs. Plain `just` remains project-local.
 
 ```bash
 wjust audit
@@ -297,6 +331,7 @@ state, and enforces that a file lives in exactly one place.
 | `wjust jetbrains-promote [Product]` | Refresh `_shared/` from the canonical IDE (default: first listed) |
 | `wjust jetbrains-apply [--force]` | Write `_shared/` + remainder and install shared plugins (dry run without `--force`) |
 | `wjust jetbrains-plugins [--force]` | Install the `_shared/plugins.list` plugins into each IDE (dry run without `--force`) |
+| `wjust ide-setup [--force]` | One-shot post-deploy IDE setup: intelephense premium key + JetBrains plugins (dry run without `--force`), then an interactive offer to apply the shared JetBrains settings (defaults to no) |
 
 Plugins are declared as Marketplace IDs and installed headlessly with the IDE's
 `installPlugins` command; the JARs are fetched at apply time, never vendored.
@@ -384,9 +419,11 @@ sudo bootc status --verbose
 systemctl reboot
 ```
 
-After graphical login, first-login services clone this repository, restore the
-Brewfile/Flatpaks, install Toolbox and fonts, seed the DMS preference overlay
-once, and seed the default Claude Code MCP servers once. Check convergence with:
+After graphical login, first-login services restore the Brewfile/Flatpaks,
+install Toolbox and fonts, seed the DMS preference overlay once, and seed the
+default Claude Code MCP servers once. The repository checkout is not cloned
+eagerly; `wjust` clones it on demand the first time you run a recipe. Check
+convergence with:
 
 ```bash
 wjust audit

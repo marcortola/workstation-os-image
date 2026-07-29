@@ -44,4 +44,3 @@ alias ccp="claude --model opus --effort ultracode --permission-mode plan"
 alias ccs="claude --model sonnet --permission-mode auto"
 alias ccf="claude --model fable --permission-mode auto"
 alias oc="opencode"
-alias wjust='just --justfile "$HOME/projects/personal/workstation-os-image/justfile" --working-directory "$HOME/projects/personal/workstation-os-image"'

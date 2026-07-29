@@ -63,7 +63,9 @@ RUN rpm --import https://d2t3ff60b2tol4.cloudfront.net/repomd.xml.key && \
       gstreamer1-plugins-ugly \
       insync \
       libavcodec-freeworld \
+      mariadb \
       mkcert \
+      postgresql \
       shadow-utils \
       slurp \
       unrar \

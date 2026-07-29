@@ -85,6 +85,22 @@ brew-apply:
 worktree-init *args:
     ./tooling/worktree-init {{ args }}
 
+# Store the intelephense premium PHP licence key for `dev nvim` (machine-local, never committed).
+intelephense-licence:
+    ./tooling/set-intelephense-licence
+
+# Set up this machine's IDE config (run once after deploy): store the intelephense
+# premium PHP key for `dev nvim`, install the shared JetBrains plugins (dry run
+# without --force), then optionally apply the shared JetBrains settings (asks
+# interactively, defaults to no, skipped when non-interactive). `*args` scope the
+# plugin step (--force installs, --product NAME). The settings step overwrites
+# local IDE config and primes a GUI cloud push, hence the prompt; `jetbrains-apply`
+# is the non-interactive path. JetBrains is the fallback; steps no-op without an IDE.
+ide-setup *args:
+    ./tooling/set-intelephense-licence
+    ./tooling/apply-jetbrains-plugins {{ args }}
+    ./tooling/ide-setup-jetbrains-settings
+
 # Build and lint the complete bootc image locally.
 build:
     podman build --pull=always --tag workstation-os-image:review -f Containerfile .

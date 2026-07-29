@@ -93,6 +93,18 @@ files. `CLAUDE.md` imports this file for Claude Code.
   after deploy to install newly added entries.
 - Do not capture `fish_variables`, mutable DMS JSON, Neovim state/cache, or
   configuration backup files.
+- Neovim is the in-repo IDE (LazyVim seeds under `dot_config/nvim/`). Language
+  intelligence runs inside the project's Dev Container: `dev nvim` bootstraps the
+  host config + a private nvim/node/Mason store into the container so LSP/DAP see
+  the real `vendor/`/`node_modules`/site-packages. `dev nvim` detects the
+  project's languages host-side and passes them as `NVIM_MASON_LANGS`; the spec
+  in `config/lazy.lua` imports only those language extras (plus the universal
+  json/yaml/markdown/sql/toml ones), so a container installs just its own
+  servers/parsers/tools, not every language's. Add a language by extending that
+  gated list and the `dev.fish` detector; a user plugin that configures a
+  language server must gate on `config/scope.lua`. Never re-add extras ungated or
+  edit `create_lazyvim.json`. `NVIM_IN_CONTAINER`-guarded blocks (lock/clipboard)
+  stay inert on the host. `just validate` compile-checks every nvim lua seed.
 - The two mixed AI-CLI configs (codex `config.toml`, claude `settings.json`) are
   captured through `tooling/scrub/*` filters (manifest `scrub` kind), so their
   seeds are secret-free and tool-injection-free by construction: `just sync`
@@ -152,6 +164,7 @@ files. `CLAUDE.md` imports this file for Claude Code.
 - `just jetbrains-plugins`: install the shared plugin list into the IDEs (dry run without `--force`).
 - `just ai-tools-install`: install the AI CLI tools (fusion, caveman, rtk, playwright-cli) via their official installers; run once after deploy.
 - `just ai-tools-uninstall`: uninstall those tools via their official uninstallers (leaves personal config, auth and history intact).
+- `just ide-setup`: set up this machine's IDE config after deploy — store the intelephense premium key for `dev nvim`, install shared JetBrains plugins (dry run without `--force`), then optionally apply the shared JetBrains settings (asks interactively, defaults to no, skipped when non-interactive; the destructive cloud-push path). `just intelephense-licence`/`jetbrains-plugins`/`jetbrains-apply` are the standalone steps.
 - `just ai-bundle`: regenerate the portable `tooling/ai/ai-cli-setup/` bundle from the seeds.
 - `just ai-diff`: report how live codex/claude/opencode config diverges from canonical.
 - `just ai-reset`: reset live codex/claude/opencode config to canonical (dry run without `--force`; merges, preserving trust grants/keys, unless `--replace`).

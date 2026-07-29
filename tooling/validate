@@ -16,6 +16,18 @@ mapfile -t shell_files < <(
 )
 bash -n "${shell_files[@]}"
 shellcheck "${shell_files[@]}"
+
+# Neovim config seeds must be valid Lua (compile-check, no execution — the Lua
+# analog of `bash -n` above), using the image's own Neovim so the check matches
+# its LuaJIT dialect. Restricted to *.lua so JSON/TOML seeds are not fed to it;
+# skipped where Neovim is unavailable (e.g. minimal CI), like other local gates.
+if command -v nvim >/dev/null 2>&1; then
+    mapfile -t nvim_lua < <(
+        find rootfs/usr/share/zirconium/zdots/dot_config/nvim -name '*.lua' -print | sort
+    )
+    (( ${#nvim_lua[@]} )) && nvim --clean -l tooling/lint-nvim-seeds.lua "${nvim_lua[@]}"
+fi
+
 just --fmt --check
 just --list >/dev/null
 
