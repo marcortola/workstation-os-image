@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+credential_dir="$config_home/opencode"
+app_id_file="$credential_dir/helpscout-app-id"
+app_secret_file="$credential_dir/helpscout-app-secret"
+
+for credential_file in "$app_id_file" "$app_secret_file"; do
+    if [[ ! -s $credential_file ]]; then
+        printf 'Missing or empty Help Scout credential file: %s\n' \
+            "$credential_file" >&2
+        exit 1
+    fi
+done
+
+helpscout_app_id="$(<"$app_id_file")"
+helpscout_app_secret="$(<"$app_secret_file")"
+if [[ -z $helpscout_app_id || -z $helpscout_app_secret ]]; then
+    echo 'Help Scout credential files must contain non-empty values.' >&2
+    exit 1
+fi
+
+export HELPSCOUT_APP_ID="$helpscout_app_id"
+export HELPSCOUT_APP_SECRET="$helpscout_app_secret"
+export REDACT_MESSAGE_CONTENT="${REDACT_MESSAGE_CONTENT:-false}"
+
+exec npx -y help-scout-mcp-server

@@ -50,15 +50,20 @@ if [[ -s $pid_file ]]; then
     printf 'Authorization: Bearer %s\n' "$api_key" > "$header_file"
     trap 'rm -f "$audio_file" "$header_file"' EXIT
     notify-send "Dictation" "Transcribing…"
-    if ! transcript="$(/usr/bin/curl --fail-with-body --silent --show-error \
+    if ! transcription="$(/usr/bin/curl --fail-with-body --silent --show-error \
         --max-time 120 \
         https://api.openai.com/v1/audio/transcriptions \
         --header "@$header_file" \
         --form "file=@$audio_file;type=audio/wav" \
-        --form model=gpt-4o-transcribe \
-        --form response_format=text \
-        --form-string 'prompt=Use natural punctuation and preserve the spoken language.')"; then
+        --form model=gpt-transcribe \
+        --form response_format=json \
+        --form-string 'prompt=Personal desktop dictation. Speech may be English or Spanish.')"; then
         notify-send "Dictation failed" "The OpenAI transcription request failed."
+        exit 1
+    fi
+    if ! transcript="$(/usr/bin/jq -er \
+        '.text | select(type == "string")' <<< "$transcription")"; then
+        notify-send "Dictation failed" "The OpenAI transcription response was invalid."
         exit 1
     fi
 

@@ -23,7 +23,7 @@ ghcr.io/marcortola/workstation-os-image:latest
   the `docker` group, so Docker does not require `sudo` after login.
 - Fish, Foot, Omarchy-based Tmux, Starship, Neovim and Tokyo Night defaults.
 - OpenCode (`oc` and `Mod+Shift+O`), Caps Lock as Ctrl, and
-  `gpt-4o-transcribe` dictation on `Mod+Shift+V`.
+  `gpt-transcribe` dictation on `Mod+Shift+V`.
 - Default Claude Code MCP servers (`context7`, `ahrefs`) seeded once into the
   user account; Ahrefs needs a one-time `claude mcp login ahrefs`. Browser
   automation is the token-lean `playwright-cli` (not an MCP): it attaches to the
@@ -166,13 +166,15 @@ installers — the same split the Brewfile uses for packages.
 The tools: **opencode-fusion** (a main agent that plans/reviews and delegates
 edits to a cheap sidekick), **caveman** (~65% shorter model output), **rtk**
 (compresses shell output before it reaches context), and **@playwright/cli**
-(token-lean browser automation that drives the Flatpak Chrome over CDP).
+(token-lean browser automation that drives the Flatpak Chrome over CDP). Codex
+also gets the `help-scout-mcp-server` launcher; it reads the same local 0600
+credential files as OpenCode, never credentials from tracked config.
 
 **First-time setup** (once, after switching to a new image):
 
 ```bash
 just brew-apply         # install the rtk binary + any new Brewfile entries
-just ai-tools-install   # install the tools, log in to each CLI, set the Context7 key
+just ai-tools-install   # install the tools, log in, and print secret-file setup
 ```
 
 `ai-tools-install` walks the interactive parts for you: it offers to run each
@@ -180,6 +182,13 @@ CLI's login (`codex login`, `claude auth login`, `opencode auth login` — skipp
 any you are already signed in to) and prompts for the Context7 key (hidden input,
 stored 0600). Answer `n` to any prompt to do that piece later. Re-enter the key
 by deleting `~/.config/opencode/context7-key` and re-running.
+
+Help Scout MCP for Codex uses
+`~/.config/opencode/helpscout-app-id` and
+`~/.config/opencode/helpscout-app-secret`, both mode `0600`. These files stay in
+persistent home and outside Git. Codex also gets OpenAI's official developer-docs
+MCP at `https://developers.openai.com/mcp`; it needs no secret. Restart Codex
+after creating or changing MCP config or credentials.
 
 **Everyday commands:**
 
