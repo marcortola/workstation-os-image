@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # Curate a Codex config.toml for capture: keep the portable top-level defaults,
-# drop machine-local [projects.*] trust tables and [tui.*] NUX state (absolute
-# home paths + per-machine UI counters that must never land in git).
+# replace every table with canonical, secret-free MCP tables.
+# Machine-local [projects.*] trust tables, [tui.*] NUX state, and unapproved MCP
+# tables must never land in git.
 # Reads the live config on stdin, writes the secret-free seed to stdout.
 set -euo pipefail
 
-# Portable codex config is the top-level key block only; every [table]
-# (projects trust, tui nux, and any future machine/runtime table such as
-# mcp_servers/history) is machine state and is dropped. Keeping the seed
-# table-free means no table can ever smuggle a value into git, and capture
-# stays symmetric with the reset merge, which re-adds only the trust/nux tables.
+# The Help Scout launcher reads credentials from local 0600 files; OpenAI's
+# official developer-docs MCP needs no credentials. Keeping both tables
+# canonical instead of copying live blocks prevents env or inline secrets from
+# entering the seed. Reset re-adds only live trust/NUX tables.
 awk '
     /^\[/  { stop = 1 }
     !stop  { lines[n++] = $0 }
@@ -17,5 +17,13 @@ awk '
         end = n
         while (end > 0 && lines[end - 1] ~ /^[[:space:]]*$/) end--
         for (i = 0; i < end; i++) print lines[i]
+        print ""
+        print "[mcp_servers.helpscout]"
+        print "command = \"bash\""
+        print "args = [\"-c\", \"exec bash \\\"$HOME/.codex/bin/helpscout-mcp\\\"\"]"
+        print "startup_timeout_sec = 30"
+        print ""
+        print "[mcp_servers.openaiDeveloperDocs]"
+        print "url = \"https://developers.openai.com/mcp\""
     }
 '

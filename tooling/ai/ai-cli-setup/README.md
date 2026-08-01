@@ -7,8 +7,8 @@ image, chezmoi, or Zirconium required.
 `install.sh` does two things: lays down this repo's **personal config**
 (secret-free — no keys, tokens, or machine paths) create-only, then installs the
 **AI tools via their own official installers** (nothing third-party is vendored
-here). You supply secrets afterwards via each CLI's `auth login` and a local
-context7 key file (see `secrets.example`).
+here). You supply secrets afterwards via each CLI's `auth login` and local
+Context7/Help Scout credential files (see `secrets.example`).
 
 ## Prerequisites
 
@@ -29,7 +29,7 @@ overwritten**. Then do the one-time secret/auth steps it prints and restart each
 
 ## What it installs
 
-**Personal config** (create-only): codex `AGENTS.md`/`config.toml`/skills; claude
+**Personal config** (create-only): codex `AGENTS.md`/`config.toml`/MCP launcher/skills; claude
 `CLAUDE.md`/`settings.json`/`rules`/`skills`/worktree commands; opencode `AGENTS.md`
 + worktree commands.
 
@@ -52,6 +52,10 @@ Nothing secret ships here. After install:
 - **Context7 key** (opencode MCP): the config references
   `{file:~/.config/opencode/context7-key}` — put your key in that 0600 file
   (install.sh offers to do this interactively).
+- **Help Scout MCP credentials** (Codex and opencode): put the app ID and app
+  secret in `~/.config/opencode/helpscout-app-id` and
+  `~/.config/opencode/helpscout-app-secret`, both mode `0600`. Codex's tracked
+  launcher reads those files and starts `npx -y help-scout-mcp-server`.
 
 ## Reset
 

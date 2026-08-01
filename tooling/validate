@@ -17,6 +17,18 @@ mapfile -t shell_files < <(
 bash -n "${shell_files[@]}"
 shellcheck "${shell_files[@]}"
 
+# Dictation records a complete WAV before uploading it, so it uses the
+# completed-audio model and consumes that model's JSON response contract.
+dictate_seed=rootfs/usr/share/zirconium/zdots/private_dot_local/bin/create_executable_workstation-dictate
+grep -Fq -- '--form model=gpt-transcribe' "$dictate_seed"
+grep -Fq -- '--form response_format=json' "$dictate_seed"
+grep -Fq -- '.text | select(type == "string")' "$dictate_seed"
+if grep -qE -- '--form model=(whisper-1|gpt-4o-transcribe)|--form response_format=text' \
+    "$dictate_seed"; then
+    echo "Legacy dictation transcription contract found in $dictate_seed" >&2
+    exit 1
+fi
+
 # Neovim config seeds must be valid Lua (compile-check, no execution — the Lua
 # analog of `bash -n` above), using the image's own Neovim so the check matches
 # its LuaJIT dialect. Restricted to *.lua so JSON/TOML seeds are not fed to it;
@@ -69,16 +81,33 @@ assert_absent '/(var/)?home/' "$claude_settings"
 jq -e '.mcp.context7.headers.CONTEXT7_API_KEY
         | startswith("{file:") or startswith("{env:")' \
     config/ai-tools/opencode-mcp-fragment.json >/dev/null
-# The codex seed is top-level keys only; ANY [table] means machine/runtime state
-# (trust, nux, mcp_servers, ...) leaked past the scrub -- fail closed.
-assert_absent '^\[' "$ai_seeds/dot_codex/create_config.toml"
-assert_absent '/(var/)?home/' "$ai_seeds/dot_codex/create_config.toml"
+codex_config="$ai_seeds/dot_codex/create_config.toml"
+# Only canonical, secret-free Help Scout and OpenAI developer-docs MCP tables
+# may survive codex scrub.
+if grep '^\[' "$codex_config" \
+    | grep -Fvx \
+        -e '[mcp_servers.helpscout]' \
+        -e '[mcp_servers.openaiDeveloperDocs]' >/dev/null; then
+    echo "Unapproved table leaked into $codex_config" >&2
+    exit 1
+fi
+[[ $(grep -Fxc '[mcp_servers.helpscout]' "$codex_config") -eq 1 ]]
+[[ $(grep -Fxc '[mcp_servers.openaiDeveloperDocs]' "$codex_config") -eq 1 ]]
+grep -Fqx 'command = "bash"' "$codex_config"
+# Match literal $HOME in canonical TOML.
+# shellcheck disable=SC2016
+grep -Fqx 'args = ["-c", "exec bash \"$HOME/.codex/bin/helpscout-mcp\""]' \
+    "$codex_config"
+grep -Fqx 'url = "https://developers.openai.com/mcp"' "$codex_config"
+assert_absent 'HELPSCOUT_APP_(ID|SECRET)[[:space:]]*=' "$codex_config"
+assert_absent '/(var/)?home/' "$codex_config"
 assert_absent \
     '(\.local/share/opencode/auth\.json|\.codex/auth\.json|\.claude/\.credentials\.json)' \
     config/dotfiles.manifest
-# The portable bundle is a projection of the seeds; it too must carry no key,
-# no Help Scout association, and no absolute home path.
-if grep -rIliE 'ctx7sk-|helpscout|help-scout|/home/[a-z]' \
+# The portable bundle is a projection of the seeds; it too must carry no key or
+# absolute home path. Help Scout identifiers are expected; credential values
+# remain only in local 0600 files.
+if grep -rIliE 'ctx7sk-|/home/[a-z]' \
     tooling/ai/ai-cli-setup/config tooling/ai/ai-cli-setup/opencode-mcp-fragment.json \
     >/dev/null 2>&1; then
     echo "Secret or absolute home path leaked into tooling/ai/ai-cli-setup" >&2

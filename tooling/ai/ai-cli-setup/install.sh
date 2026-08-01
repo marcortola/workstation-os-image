@@ -5,8 +5,8 @@
 # Linux/macOS account; no workstation image or chezmoi required.
 #
 # Secrets are never shipped: provider auth is each CLI's own `auth login`, and
-# the opencode context7 key lands in a local 0600 file the config references via
-# a {file:} placeholder. See ./secrets.example.
+# Context7 and Help Scout credentials live in local 0600 files referenced by
+# client config or the Codex launcher. See ./secrets.example.
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -170,6 +170,8 @@ cat <<'EOF'
 == If you skipped anything above ==
   codex login ; claude auth login ; opencode auth login
   Context7 (opencode MCP): put the key in ~/.config/opencode/context7-key (0600)
+  Help Scout (Codex + opencode MCP): put credentials in
+    ~/.config/opencode/helpscout-app-id and helpscout-app-secret (0600)
 
 Restart each CLI so it reloads config.
 EOF

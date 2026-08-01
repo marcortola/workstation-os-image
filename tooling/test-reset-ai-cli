@@ -50,6 +50,16 @@ grep -q '^model = "gpt-5.6-sol"' "$home/.codex/config.toml" \
     || fail "codex canonical model not restored"
 grep -q '^model_reasoning_effort = "high"' "$home/.codex/config.toml" \
     || fail "codex canonical reasoning effort not restored"
+grep -Fq '[mcp_servers.helpscout]' "$home/.codex/config.toml" \
+    || fail "codex canonical Help Scout MCP table not restored"
+# Match literal $HOME in canonical TOML.
+# shellcheck disable=SC2016
+grep -Fq 'exec bash \"$HOME/.codex/bin/helpscout-mcp\"' "$home/.codex/config.toml" \
+    || fail "codex canonical Help Scout launcher not restored"
+grep -Fq '[mcp_servers.openaiDeveloperDocs]' "$home/.codex/config.toml" \
+    || fail "codex canonical OpenAI developer-docs MCP table not restored"
+grep -Fq 'url = "https://developers.openai.com/mcp"' "$home/.codex/config.toml" \
+    || fail "codex canonical OpenAI developer-docs MCP URL not restored"
 grep -q '\[projects."/tmp/trusted-project"\]' "$home/.codex/config.toml" \
     || fail "codex project-trust table not preserved"
 grep -q '\[tui.model_availability_nux\]' "$home/.codex/config.toml" \
