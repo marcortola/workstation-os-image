@@ -103,7 +103,7 @@ require("lazy").setup({
         -- "netrwPlugin",
         "tarPlugin",
         "tohtml",
-        "tutor",
+        -- "tutor",  -- keep enabled: :Tutor is the built-in Vim tutorial
         "zipPlugin",
       },
     },
