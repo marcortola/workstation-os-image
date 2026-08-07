@@ -125,6 +125,10 @@ container (no rebuild).
 
 ### Vim bindings in every editor
 
+**[`VIM.md`](VIM.md) is the guide and key reference** — the stack in plain terms,
+a four-week learning path, the full cheatsheet and leader map, the daily flows,
+and what does and does not carry over to the IDEs.
+
 Neovim and the JetBrains IDEs answer to the same keys, so a habit learned in one
 works in the other. Neovim runs stock LazyVim bindings — `lua/config/keymaps.lua`
 is deliberately empty — and the IDEs get the same set through **IdeaVim**, driven
