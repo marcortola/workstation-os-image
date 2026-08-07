@@ -2,7 +2,13 @@
 # via the headless `installPlugins` launcher command. One canonical Marketplace
 # plugin ID per line; JARs are fetched at apply time, never vendored. Only portable,
 # non-language-locked plugins belong here (PHP/Terraform/etc. stay per-IDE).
-de.netnexus.camelcaseplugin
 org.sylfra.idea.plugins.linessorter
 mobi.hsz.idea.gitignore
 ru.adelf.idea.dotenv
+# Vim. IdeaVIM reads ~/.ideavimrc (a chezmoi seed, see config/dotfiles.manifest);
+# the other three are required by mappings in that file. de.netnexus.camelcaseplugin
+# was dropped here: vim-abolish's cr* coercions replace it in both editors.
+IdeaVIM
+eu.theblob42.idea.whichkey
+org.yelog.ideavim.flash
+com.magidc.ideavim.dial

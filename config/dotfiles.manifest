@@ -52,6 +52,12 @@ copy|.config/nvim/lazy-lock.json|dot_config/nvim/create_lazy-lock.json|-
 copy|.config/nvim/lazyvim.json|dot_config/nvim/create_lazyvim.json|-
 copy|.config/nvim/stylua.toml|dot_config/nvim/create_stylua.toml|-
 tree|.config/nvim/lua|dot_config/nvim/lua|*
+# IdeaVim gives the JetBrains IDEs the same Vim/LazyVim bindings as nvim. Lives
+# at ~/.ideavimrc, not under XDG: IdeaVim resolves the first existing rc and
+# creates ~/.ideavimrc itself, which would shadow an XDG one. It cannot live in
+# config/jetbrains-settings/ — that tree is an allowlist enforced by
+# tooling/validate-jetbrains-settings.
+copy|.ideavimrc|create_dot_ideavimrc|-
 copy|.var/app/io.typora.Typora/config/Typora/themes/ia_typora.css|dot_var/app/io.typora.Typora/config/Typora/themes/create_ia_typora.css|-
 copy|.var/app/io.typora.Typora/config/Typora/themes/ia_typora_night.css|dot_var/app/io.typora.Typora/config/Typora/themes/create_ia_typora_night.css|-
 # jetbrains-app|version-globbed live product dir|product subdir|-
