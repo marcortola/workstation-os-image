@@ -127,38 +127,24 @@ container (no rebuild).
 
 Neovim and the JetBrains IDEs answer to the same keys, so a habit learned in one
 works in the other. Neovim runs stock LazyVim bindings — `lua/config/keymaps.lua`
-is deliberately empty — and the IDEs get the same set through **IdeaVim**, driven
-by `~/.ideavimrc` (a chezmoi seed; see `config/dotfiles.manifest`). Where LazyVim
-and JetBrains disagree, LazyVim wins and the displaced IDE action moves to its
-LazyVim `<leader>` key: terminal `<leader>ft`, rename `<leader>cr`, find in path
-`<leader>/`, recent files `<leader>fr`, commit `<leader>gs`, branches `<leader>gB`.
+is deliberately empty, because a binding that exists in only one of the two
+editors is a habit that has to be unlearned later. The IDEs get the same set
+through **IdeaVim**, driven by `~/.ideavimrc` (a chezmoi seed; see
+`config/dotfiles.manifest`). Where LazyVim and JetBrains disagree, LazyVim wins
+and the displaced IDE action moves to its LazyVim `<leader>` key.
 
 Four Marketplace plugins in `_shared/plugins.list` back this: `IdeaVIM` itself,
 `eu.theblob42.idea.whichkey` for the `<leader>` menus, `org.yelog.ideavim.flash`
 for LazyVim's `s`/`S`/`r`/`f`/`t` flash motions, and `com.magidc.ideavim.dial` for
 `<C-a>`/`<C-x>`. Every contested `Ctrl` key is assigned explicitly with
 `sethandler`, because `keymapFlags.xml` ships no conflict resolutions and IdeaVim
-would otherwise prompt once per key and silently default them to Vim.
+would otherwise prompt once per key and silently default them to Vim. Case
+conversion is `vim-abolish` in both — the only case plugin IdeaVim emulates —
+which is why `de.netnexus.camelcaseplugin` is not in the shared list.
 
-Case conversion is `vim-abolish` in both (`crs` snake, `crc` camel, `crm` Pascal,
-`cru` UPPER, `cr-` kebab, `cr.` dot) — it is the only case plugin IdeaVim
-emulates, so it is the one prefix that works in both editors. IdeaVim's emulation
-adds `crt` for Title Case; tpope's plugin has no `t` coercion, so that one key is
-IDE-only.
-
-What does not transfer, and can only be practised in real Neovim: the quickfix
-and location lists (`]q`, `<leader>xq`, Trouble), `<localleader>` mappings, tab
-pages, per-hunk git staging, and the `<leader>u` toggles that are JetBrains
-settings checkboxes rather than actions.
-
-Two training plugins are seeded for the transition and should be removed once the
-habits stick. `hardtime.nvim` coaches `hjkl` and friends in hint mode — never
-blocked, just told what the shorter motion was — while hard-blocking the arrow
-keys, which `restriction_mode` does not govern; `:Hardtime report` (`<leader>uR`)
-ranks the habits you trigger most and `<leader>uH` toggles it. `precognition.nvim`
-draws the available motions as virtual text, off by default, `<leader>uv` to
-toggle and `<leader>uV` to peek. Neither has an IdeaVim counterpart, so they only
-train the Neovim half.
+`hardtime.nvim` and `precognition.nvim` are seeded as transition scaffolding in
+`lua/plugins/create_training.lua`; delete that seed and its deployed copy once the
+habits stick.
 
 ### Worktree file propagation
 
