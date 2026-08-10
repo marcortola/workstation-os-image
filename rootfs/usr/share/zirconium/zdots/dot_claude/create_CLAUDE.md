@@ -61,7 +61,7 @@ Do not stop for:
 
 ## Continuity
 
-- Where the repo has `docs/design-records/`, read the relevant record and the recent git log before starting long work, and write durable decisions and their rationale back to it. Do not create that folder in a repo that does not already use it.
+- Record durable decisions and their rationale in `docs/design-records/`, and read the relevant record plus the recent git log before starting long work rather than re-deriving it. In a repo that does not use them, keep notes outside the working tree.
 - Keep working notes out of the repo root and out of version control. The design record is the durable artifact; a scratch file is not.
 - Do not stop early citing token budget. If you are running short, write state to the design record first.
 
