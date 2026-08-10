@@ -53,6 +53,26 @@ gitleaks dir . --no-banner --redact
 [[ $(< CLAUDE.md) == '@AGENTS.md' ]]
 (( $(wc -l < AGENTS.md) <= 200 ))
 
+# The agent guide states policy; nothing else proves its references still exist,
+# so it silently rots as recipes and paths are renamed. Assert the two classes
+# that are mechanically checkable: every `just <target>` it names must be a real
+# recipe, and every repo-root-relative path it cites must exist. Prose stays the
+# author's problem; dangling pointers do not.
+agents_stale=0
+recipes=" $(just --summary) "
+while read -r target; do
+    [[ $recipes == *" $target "* ]] && continue
+    echo "AGENTS.md references unknown recipe: just $target" >&2
+    agents_stale=1
+done < <(grep -oE '`just [a-z][a-z0-9-]*' AGENTS.md | sed 's/`just //' | sort -u)
+while read -r path; do
+    [[ -e $path ]] && continue
+    echo "AGENTS.md references missing path: $path" >&2
+    agents_stale=1
+done < <(grep -oE '`(config|rootfs|tooling)/[A-Za-z0-9._/-]*' AGENTS.md \
+    | tr -d '`' | sort -u)
+(( agents_stale == 0 ))
+
 # AI CLI config seeds must be secret-free by construction: the scrub filters
 # strip secrets/machine-state on capture, and these positive gates assert the
 # committed seeds (visible to CI even when live files are absent). gitleaks
