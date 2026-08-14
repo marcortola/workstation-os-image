@@ -74,6 +74,7 @@ brew "zoxide"
 cask "claude-code"
 # OpenAI's coding agent that runs in your terminal
 cask "codex"
+flatpak "com.danklinux.dankcalendar"
 flatpak "com.getpostman.Postman"
 flatpak "com.github.tchx84.Flatseal"
 flatpak "com.github.xournalpp.xournalpp"
