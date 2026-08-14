@@ -37,6 +37,7 @@ copy|.config/fontconfig/fonts.conf|dot_config/fontconfig/create_fonts.conf|-
 copy|.config/fcitx5/config|dot_config/fcitx5/create_config|-
 copy|.config/fcitx5/profile|dot_config/fcitx5/create_profile|-
 copy|.config/fcitx5/conf/unicode.conf|dot_config/fcitx5/conf/create_unicode.conf|-
+copy|.config/DankMaterialShell/clsettings.json|dot_config/DankMaterialShell/create_clsettings.json|-
 copy|.config/DankMaterialShell/themes/tokyoNightDark/theme.json|dot_config/DankMaterialShell/themes/tokyoNightDark/create_theme.json|-
 copy|.config/homebrew/Brewfile|dot_config/homebrew/create_Brewfile|-
 copy|.config/mimeapps.list|dot_config/create_mimeapps.list|-
