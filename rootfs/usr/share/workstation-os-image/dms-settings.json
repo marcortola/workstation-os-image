@@ -95,6 +95,7 @@
     }
   ],
   "enableFprint": true,
+  "firstDayOfWeek": 1,
   "fontFamily": "Noto Sans",
   "launcherLogoColorOverride": "surface",
   "launcherLogoCustomPath": "/usr/share/zirconium/pixmaps/logo-z.svg",
