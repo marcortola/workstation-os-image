@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Dank Calendar
+X-XDP-Autostart=com.danklinux.dankcalendar
+Exec=flatpak run --command=dcal com.danklinux.dankcalendar run -d --hidden
+X-Flatpak=com.danklinux.dankcalendar

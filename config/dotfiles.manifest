@@ -42,6 +42,17 @@ copy|.config/DankMaterialShell/themes/tokyoNightDark/theme.json|dot_config/DankM
 copy|.config/homebrew/Brewfile|dot_config/homebrew/create_Brewfile|-
 copy|.config/mimeapps.list|dot_config/create_mimeapps.list|-
 copy|.local/share/flatpak/overrides/com.onepassword.OnePassword|private_dot_local/share/flatpak/overrides/create_com.onepassword.OnePassword|-
+# DankCalendar follows the DankMaterialShell palette by live-watching
+# ~/.cache/DankMaterialShell/dms-colors.json, and already resolves the host path
+# inside a sandbox. Its Flathub manifest grants no filesystem access at all, so
+# without this read-only grant the calendar renders in its stock palette.
+copy|.local/share/flatpak/overrides/com.danklinux.dankcalendar|private_dot_local/share/flatpak/overrides/create_com.danklinux.dankcalendar|-
+# XDG autostart entry the Background portal writes when DankCalendar's "start at
+# login" is granted (Settings, or 'dcal ipc system.autostart.set enabled=true').
+# Machine-neutral, so a new machine gets the calendar daemon and its tray icon at
+# login without repeating the grant. The app's own toggle reads a marker inside
+# its sandbox, so Settings still shows "off" there until it is toggled once.
+copy|.config/autostart/com.danklinux.dankcalendar.desktop|dot_config/autostart/create_com.danklinux.dankcalendar.desktop|-
 copy|.var/app/md.obsidian.Obsidian/config/obsidian/user-flags.conf|dot_var/app/md.obsidian.Obsidian/config/obsidian/create_user-flags.conf|-
 copy|.local/bin/workstation-dev|private_dot_local/bin/create_executable_workstation-dev|-
 copy|.local/bin/workstation-dictate|private_dot_local/bin/create_executable_workstation-dictate|-
