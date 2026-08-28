@@ -134,12 +134,12 @@ if grep -rIliE 'ctx7sk-|/home/[a-z]' \
     exit 1
 fi
 
-# Worktree untracked-file propagation: every creation path (workmux, Claude
-# Code, the post-checkout hook, the JetBrains External Tool) must read the same
-# committed .worktreeinclude, so assert the wiring that keeps them in sync.
-workmux_seed=rootfs/usr/share/zirconium/zdots/dot_config/workmux/create_config.yaml
-grep -q '^post_create:' "$workmux_seed"
-grep -q 'workstation-worktree-sync' "$workmux_seed"
+# Worktree untracked-file propagation: every creation path (herdr, Claude Code,
+# the post-checkout hook, the JetBrains External Tool) reaches the same
+# committed .worktreeinclude through `git worktree add`, so assert the wiring
+# that keeps them in sync.
+grep -q 'workstation-worktree-sync' \
+    rootfs/usr/share/zirconium/zdots/dot_config/git/template/hooks/create_executable_post-checkout
 grep -q 'satococoa/tap/git-worktreeinclude' \
     rootfs/usr/share/zirconium/zdots/dot_config/homebrew/create_Brewfile
 grep -q 'templateDir' rootfs/usr/share/zirconium/zdots/dot_config/git/create_config

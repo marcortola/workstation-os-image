@@ -17,7 +17,8 @@
 --   jump back / forward      <C-o> / <C-i>
 --   rename symbol            <leader>cr
 --
--- Note on <C-Space>: the tmux prefix is also Ctrl+Space, so inside tmux/workmux
--- press it twice (`bind C-Space send-prefix` passes the second one through), or
--- use S (Flash Treesitter), which labels every enclosing node at once instead of
--- stepping outward one at a time.
+-- Note on <C-Space>: it reaches Neovim unintercepted. herdr takes Ctrl+b as its
+-- prefix and fcitx5 was moved off Ctrl+Space (see
+-- workstation-cycle-keyboard-layout). S (Flash Treesitter) remains the faster
+-- alternative: it labels every enclosing node at once instead of stepping
+-- outward one at a time.

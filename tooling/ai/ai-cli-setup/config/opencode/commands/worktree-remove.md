@@ -1,16 +1,16 @@
 ---
-description: Remove a git worktree, its tmux window, and branch via workmux
+description: Remove a git worktree, its herdr workspace, and branch
 agent: build
 ---
 
-Remove a git worktree, its tmux window, and its local branch, then clean up.
+Remove a git worktree, its herdr workspace, and its local branch, then clean up.
 
 Target branch (optional): **$ARGUMENTS**
 
 ## Current state
 
-- Workmux worktrees:
-!`workmux list 2>/dev/null || echo "workmux not available"`
+- herdr worktrees:
+!`herdr worktree list 2>/dev/null || echo "no herdr worktrees for this directory"`
 - Git worktrees:
 !`git worktree list --porcelain`
 
@@ -18,12 +18,15 @@ Target branch (optional): **$ARGUMENTS**
 
 1. **Detect the target.** Use the branch above if given; otherwise ask the user which
    worktree to remove. BLOCK if the target is the main worktree: "Cannot remove the
-   main worktree."
+   main worktree." Unless it was created with an explicit `--path`, the checkout lives
+   at `~/.herdr/worktrees/<repo>/<branch-slug>`, where the slug is the branch name
+   with `/` replaced by `-`.
 
-2. **Check merge status (squash-merge aware).** `workmux list` flags `●` for any
-   branch whose tip is not an ancestor of main, so it gives false positives on squash
-   and rebase merges. Verify the real state:
+2. **Check merge status (squash-merge aware).** `git cherry` is how merge state is
+   determined: it lists `+` for commits not in base and `-` for patch-equivalents, so
+   squash and rebase merges read as merged. Establish the real state:
    ```bash
+   main=$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')
    branch="<branch-name>"
    worktree_path="<absolute-path>"
 
@@ -49,7 +52,7 @@ Target branch (optional): **$ARGUMENTS**
      dirty=$(printf '%s' "$status" | grep -c .)
    fi
    ```
-   - `unmerged=0` AND `dirty=0` → safe removal (even if workmux shows `●`).
+   - `unmerged=0` AND `dirty=0` → safe removal.
    - anything else (including a `risky` value from a check that could not
      complete) → real risk of data loss; never auto-`--force`.
 
@@ -57,38 +60,45 @@ Target branch (optional): **$ARGUMENTS**
    and wait for an explicit "yes". For the risky case, state clearly that unmerged
    commits and uncommitted changes will be LOST and the action cannot be undone.
 
-4. **Remove via workmux.** In the confirmed-safe case (`unmerged=0` and `dirty=0`),
-   pipe `yes` so workmux's own prompt for unmerged branches does not re-ask:
+4. **Remove the worktree.** Look up the herdr workspace holding the branch:
    ```bash
-   yes | workmux remove "$branch"
+   ws=$(herdr worktree list --cwd "$main" | jq -r --arg b "$branch" \
+       '.result.worktrees[] | select(.branch==$b) | .open_workspace_id // empty')
    ```
-   In any risky or unverified case, run it interactively (`workmux remove "$branch"`)
-   so workmux's own unmerged-branch guard still fires.
-   If workmux fails (a manually created worktree), fall back to:
-   ```bash
-   git worktree remove "$worktree_path"    # refuses if the worktree is dirty
-   git branch -D "$branch"                 # force-deletes the (already-merged) branch
-   ```
-   A refusal means uncommitted changes exist — do not add `--force` (it discards
-   them) without re-checking merge/dirty state and explicit user confirmation.
+   If `$ws` is non-empty, run `herdr worktree remove --workspace "$ws"`. If `$ws` is
+   empty, or no herdr server is running (`herdr status`), fall back to
+   `git worktree remove "$worktree_path"`. Both paths run `git worktree remove`
+   underneath, so both refuse on a dirty checkout. A refusal means uncommitted changes
+   exist — do not add `--force` (it discards them) without re-checking merge/dirty
+   state and explicit user confirmation. Pass `--force` only in the risky case the
+   user has explicitly approved.
 
-5. **Clean up the nvim session:**
+5. **Delete the local branch.** herdr never deletes a branch, so this is mandatory —
+   skip it and the machine silently accumulates dead local branches. From the main
+   checkout, once the worktree is gone:
+   ```bash
+   git branch -D "$branch"
+   ```
+   `-D` rather than `-d`: a squash-merged branch is not an ancestor of the base, so
+   `-d` would refuse it. Step 2 already established whether the work is safe to
+   discard.
+
+6. **Clean up the nvim session:**
    ```bash
    session_file=$(echo "$worktree_path" | sed 's|/|%|g').vim
    session_path="$HOME/.local/state/nvim/sessions/$session_file"
    [ -f "$session_path" ] && rm "$session_path"
    ```
 
-6. **Verify** with `git worktree list --porcelain` and report the remaining count.
+7. **Verify** with `git worktree list --porcelain` and report the remaining count.
 
-## JetBrains / no-tmux
+## Worktrees created outside herdr
 
-If you created the worktree from a JetBrains IDE (no tmux window ever existed),
-`workmux remove` still removes the worktree and its branch cleanly — it just skips
-the absent tmux window. Or use the `git worktree remove` fallback in step 4 (then
-`git branch -D "$branch"`). Close the worktree's project in the IDE first so it is
-not left pointing at a deleted directory; the nvim-session cleanup in step 5 is a
-harmless no-op for you.
+A worktree created outside herdr — from a JetBrains IDE, or by a plain
+`git worktree add` — has no herdr workspace to look up, so `$ws` comes back empty and
+the git fallback in step 4 handles it. Close the worktree's project in the IDE first
+so it is not left pointing at a deleted directory; the nvim-session cleanup in step 6
+is a harmless no-op for you.
 
 ## When removing the current working directory
 

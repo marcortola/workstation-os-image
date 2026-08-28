@@ -43,6 +43,19 @@ for recipe in "${ide_recipes[@]}"; do
         || fail "IDE recipe does not branch from origin/main: $recipe"
 done
 
+# `herdr worktree remove` runs `git worktree remove` and never deletes the
+# branch, so every remove recipe must delete it explicitly or the machine
+# accumulates dead local branches after each merged worktree.
+remove_recipes=(
+    "$repo_root/rootfs/usr/share/zirconium/zdots/dot_claude/commands/create_worktree-remove.md"
+    "$repo_root/rootfs/usr/share/zirconium/zdots/dot_codex/skills/worktree-remove/create_SKILL.md"
+    "$repo_root/rootfs/usr/share/zirconium/zdots/dot_config/opencode/commands/create_worktree-remove.md"
+)
+for recipe in "${remove_recipes[@]}"; do
+    grep -Fq 'git branch -D' "$recipe" \
+        || fail "remove recipe does not delete the local branch: $recipe"
+done
+
 # Supplying a linked checkout must still create the shared inventory in the
 # primary/source checkout, where git-worktreeinclude looks for it by default.
 primary="$workdir/primary"
