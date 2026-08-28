@@ -134,6 +134,15 @@ if grep -rIliE 'ctx7sk-|/home/[a-z]' \
     exit 1
 fi
 
+# Claude Code's auto mode rewrites autoMode.environment for whichever project it
+# is run in: organisation, private repository names, secret names, internal
+# domains. It regenerates constantly, this repository is public, and gitleaks
+# does not recognise any of it as a secret, so assert the scrub actually held.
+jq -e '.autoMode.environment == null' \
+    rootfs/usr/share/zirconium/zdots/dot_claude/create_settings.json >/dev/null
+jq -e '.autoMode.environment == null' \
+    tooling/ai/ai-cli-setup/config/claude/settings.json >/dev/null
+
 # Worktree untracked-file propagation: every creation path (herdr, Claude Code,
 # the post-checkout hook, the JetBrains External Tool) reaches the same
 # committed .worktreeinclude through `git worktree add`, so assert the wiring
