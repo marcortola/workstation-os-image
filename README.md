@@ -115,6 +115,10 @@ container (no rebuild).
   non-container repos; **`dev nvim`** is where LSP/DAP/tests run for a
   containerized project. A host LSP cannot resolve container-only dependencies,
   so use `dev nvim` for real language work.
+- **Git:** lazygit is LazyVim's `<leader>gg`, and the keymap only exists where
+  the binary does, so the host's static binary and its config are mounted into
+  the container and the host git identity is forwarded. Staging, committing and
+  diffing work in there; pushing stays on the host, which has the credentials.
 - **First run per container** provisions a pinned Neovim, a private Node (for
   node-based servers), and the Mason LSP/DAP servers, linters and treesitter
   parsers **for the project's detected languages only** into a per-project store
