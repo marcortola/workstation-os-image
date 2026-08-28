@@ -1,6 +1,6 @@
 ---
 name: worktree-push
-description: Ship a worktree's branch to main by committing, syncing main, opening a PR, merging, and handing off cleanup. Use when the user is inside a workmux worktree and wants to finish and merge the work, or invokes $worktree-push.
+description: Ship a worktree's branch to main by committing, syncing main, opening a PR, merging, and handing off cleanup. Use when the user is inside a worktree and wants to finish and merge the work, or invokes $worktree-push.
 ---
 
 # Ship Worktree
@@ -91,12 +91,13 @@ Code merged to main via PR #<N>.
 This session stays alive — review or keep talking here.
 
 When you are truly done, remove the worktree from the main checkout:
-  - tmux / workmux: switch to the main window (Ctrl-s + number), then
-      `workmux remove <branch>`
-  - JetBrains / no-tmux: close the project, then `workmux remove <branch>`
-      (or `git worktree remove <path> && git branch -D <branch>`)
+  - herdr: switch to the main repo's workspace with the workspace picker
+      (prefix+w; the prefix is ctrl+b by default, and prefix+1..9 moves
+      between tabs inside a workspace), then run the worktree-remove recipe
+  - JetBrains / no herdr: close the project, then
+      `git worktree remove <path> && git branch -D <branch>`
 
-Either path removes the worktree and its local branch (and the tmux window if one exists).
+Either path removes the worktree and its local branch.
 ```
 
 ## Error handling

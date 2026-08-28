@@ -28,6 +28,8 @@ brew "glab"
 brew "glow"
 # Smarter Dockerfile linter to validate best practices
 brew "hadolint"
+# Agent multiplexer that lives in your terminal
+brew "herdr"
 # User-friendly cURL replacement (command-line HTTP client)
 brew "httpie"
 # Lightweight and flexible command-line JSON processor
@@ -56,14 +58,10 @@ brew "shellcheck"
 brew "starship"
 # Very fast implementation of tldr in Rust
 brew "tealdeer"
-# Terminal multiplexer
-brew "tmux"
 # Command-line interface to the freedesktop.org trashcan
 brew "trash-cli"
 # Executes a program periodically, showing output fullscreen
 brew "watch"
-# git worktrees + tmux windows for zero-friction parallel dev
-brew "raine/workmux/workmux"
 # Blazing fast terminal file manager written in Rust, based on async I/O
 brew "yazi"
 # Process YAML, JSON, XML, CSV and properties documents from the CLI

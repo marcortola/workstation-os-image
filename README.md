@@ -24,7 +24,7 @@ ghcr.io/marcortola/workstation-os-image:latest
   tray icon at login.
 - Rootful Docker with its socket enabled and local users added dynamically to
   the `docker` group, so Docker does not require `sudo` after login.
-- Fish, Foot, Omarchy-based Tmux, Starship, Neovim and Tokyo Night defaults.
+- Fish, Foot, herdr, Starship, Neovim and Tokyo Night defaults.
 - OpenCode (`oc` and `Mod+Shift+O`), Caps Lock as Ctrl, and
   `gpt-transcribe` dictation on `Mod+Shift+V`.
 - Default Claude Code MCP servers (`context7`, `ahrefs`) seeded once into the
@@ -40,15 +40,18 @@ ghcr.io/marcortola/workstation-os-image:latest
 - `dev [cmd]` runs a command inside the current repo's Dev Container (no args
   drops into a shell), starting it on demand via the `devcontainer` CLI —
   e.g. `dev terraform apply`.
+- `herdr` as the terminal multiplexer, auto-attached by Fish and prefixed on
+  `Ctrl+b`. It labels each pane's coding agent as working, blocked, done or
+  idle in its sidebar, which is the reason it replaced tmux.
 - `ga <branch>` / `gd` create and remove a per-branch git worktree at
-  `../<repo>--<branch>`, keeping parallel branches — and the AI agents working
-  them — in separate directories.
-- `workmux` for heavier parallel work: each branch gets its own tmux window and
-  worktree under `<repo>__worktrees/`, driven by matching `worktree-create` /
-  `worktree-push` / `worktree-remove` helpers seeded for Claude Code (commands),
-  Codex (skills) and OpenCode (commands).
+  `~/.herdr/worktrees/<repo>/<branch>`, keeping parallel branches — and the AI
+  agents working them — in separate directories.
+- For heavier parallel work each branch gets its own herdr workspace and
+  worktree, driven by matching `worktree-create` / `worktree-push` /
+  `worktree-remove` helpers seeded for Claude Code (commands), Codex (skills)
+  and OpenCode (commands).
 - New worktrees inherit a repo's untracked files (`.env`, `.idea`, ...) from a
-  committed `.worktreeinclude`, applied identically by `ga`, workmux, Claude Code
+  committed `.worktreeinclude`, applied identically by `ga`, herdr, Claude Code
   and the JetBrains IDE (see [Worktree file propagation](#worktree-file-propagation)).
 - Brewfile and Flatpak restoration, JetBrains Toolbox, personal fonts and the
   accepted Microsoft-font installer.
@@ -157,7 +160,8 @@ declares them once in a committed **`.worktreeinclude`** (gitignore syntax; only
 files git already ignores are copied, never tracked ones), and every worktree
 creation path reads that single inventory:
 
-- **workmux** (`worktree-create`) applies it from its `post_create` hook.
+- **herdr** (`worktree-create`) creates the checkout by shelling out to `git
+  worktree add`, so the `post-checkout` hook below applies it.
 - **`ga`** applies it after `git worktree add`.
 - **Claude Code** (`--worktree`, subagent isolation) reads `.worktreeinclude`
   natively.
@@ -176,8 +180,8 @@ just worktree-init            # the current repo
 just worktree-init --all      # every repo under ~/projects
 ```
 
-Dependencies (`node_modules`, `vendor`) are deliberately not copied — add an
-install step or a symlink in a per-repo `.workmux.yaml` instead. The JetBrains
+Dependencies (`node_modules`, `vendor`) are deliberately not copied — add a
+per-repo install step instead. The JetBrains
 index is per-worktree and always rebuilds; copying `.idea/` carries settings and
 run configs, not the index.
 
@@ -261,7 +265,7 @@ local terminal/GUI edits ──> audit + interactive capture ──> Git branch/
 | --- | --- | --- |
 | Zirconium | Niri/DMS scaffolding and desktop integration | Continues moving with the base image |
 | This image | RPMs, daemons, sockets, privileged helpers and factory defaults | Replaced transactionally by bootc |
-| Chezmoi seeds | Portable Fish, Foot, Tmux, Niri and application defaults | Create missing files; preserve later edits |
+| Chezmoi seeds | Portable Fish, Foot, herdr, Niri and application defaults | Create missing files; preserve later edits |
 | DMS overlay | Explicitly captured, portable GUI preferences | Seeds a new account once; later UI edits win unless explicitly restored |
 | JetBrains config | One shared canonical (`_shared/`) plus per-product remainder | Applied into the IDEs on demand; never auto-synced |
 | Persistent home | Secrets, projects, histories, device state and application databases | Never stored in the image or Git |

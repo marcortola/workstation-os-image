@@ -117,8 +117,9 @@ second inventory. `CLAUDE.md` imports this file for Claude Code.
 ### Worktrees
 
 - Untracked-file propagation is driven by each repo's committed
-  `.worktreeinclude`, and every creation path reads that one inventory. Never
-  add a second copy list such as workmux `files.copy`.
+  `.worktreeinclude`, and every creation path reads that one inventory. herdr
+  shells out to `git worktree add`, so the post-checkout hook covers it. Never
+  add a second copy list, such as a herdr plugin that copies `.env` files.
 
 ## Safety
 

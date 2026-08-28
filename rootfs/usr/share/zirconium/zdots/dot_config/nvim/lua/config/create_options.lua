@@ -13,8 +13,8 @@ vim.g.lazyvim_php_lsp = "intelephense" -- premium; phpactor added separately as 
 
 -- Inside a Dev Container (`dev nvim`) there is no Wayland/X clipboard tool, so
 -- route the system clipboard through OSC 52 (a terminal escape sequence). foot
--- supports it natively; tmux/workmux needs `set -g set-clipboard on` and
--- `allow-passthrough on` (shipped in the tmux config). Inert on the host.
+-- supports it natively, and herdr forwards pane OSC 52 writes to the attached
+-- client with no configuration of its own. Inert on the host.
 if os.getenv("NVIM_IN_CONTAINER") then
   local ok, osc52 = pcall(require, "vim.ui.clipboard.osc52")
   if ok then
