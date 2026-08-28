@@ -9,6 +9,10 @@
 # dot_config/herdr/create_config.toml in the image. Sockets, logs, session.json
 # and plugins.json also live in ~/.config/herdr/ and are never captured.
 
+# herdr writes this itself once its first-run onboarding is dismissed. Kept so
+# a new machine starts configured rather than in the walkthrough.
+onboarding = false
+
 [theme]
 name = "tokyo-night"
 
