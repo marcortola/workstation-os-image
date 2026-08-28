@@ -171,9 +171,6 @@ binds {
     Mod+Shift+P hotkey-overlay-title="Projects (coding session)" {
         spawn-sh "foot --working-directory=$HOME --title=Projects --app-id=dev-terminal $HOME/.local/bin/workstation-dev --herdr";
     }
-    Mod+Shift+G hotkey-overlay-title=null {
-        spawn-sh "foot --working-directory=$HOME --title=Lazygit --app-id=lazygit /home/linuxbrew/.linuxbrew/bin/lazygit";
-    }
     Mod+Shift+D hotkey-overlay-title="Monitor Docker Containers (lazydocker)" {
         spawn-sh "foot --working-directory=$HOME --title=Lazydocker --app-id=lazydocker /home/linuxbrew/.linuxbrew/bin/lazydocker";
     }
