@@ -5,7 +5,14 @@
 # work-specific), then pin the shared model default. Sorted keys keep the seed
 # stable across live key-order churn. Reads live settings on stdin, writes the
 # secret-free seed to stdout.
+#
+# autoMode.environment is dropped too. Auto mode writes it per project, and it
+# reads the current repository for organisation names, private repository
+# names, secret names, internal domains and cloud services. This repository is
+# public, so capturing it would publish a client's internals. The allow and
+# soft_deny lists beside it are portable policy and are kept.
 set -euo pipefail
 
 jq --sort-keys \
-    'del(.env, .enabledPlugins, .extraKnownMarketplaces, .hooks) | .model = "opus[1m]"'
+    'del(.env, .enabledPlugins, .extraKnownMarketplaces, .hooks, .autoMode.environment)
+     | .model = "opus[1m]"'
