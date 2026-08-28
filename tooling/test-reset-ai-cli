@@ -25,6 +25,8 @@ model_reasoning_effort = "low"
 trust_level = "trusted"
 [tui.model_availability_nux]
 "gpt-DRIFT" = 1
+[features]
+hooks = true
 EOF
     install -D -m 0644 /dev/stdin "$home/.claude/settings.json" <<'EOF'
 { "theme": "DRIFT", "env": { "HELPSCOUT_APP_SECRET": "live-secret" } }
@@ -70,6 +72,10 @@ grep -q '\[projects."/tmp/trusted-project"\]' "$home/.codex/config.toml" \
     || fail "codex project-trust table not preserved"
 grep -q '\[tui.model_availability_nux\]' "$home/.codex/config.toml" \
     || fail "codex tui table not preserved"
+# herdr's codex integration sets [features] hooks = true; a reset that drops it
+# disables agent-state reporting without saying so.
+grep -q '^\[features\]' "$home/.codex/config.toml" \
+    || fail "codex herdr feature table not preserved"
 
 # 3. Claude merge: shared key restored, live env (secret) preserved.
 run "$home" --tool claude --force >/dev/null
