@@ -114,6 +114,15 @@ second inventory. `CLAUDE.md` imports this file for Claude Code.
 - `just ai-reset` merges canonical over preserved machine state (trust grants,
   keys) and never touches auth stores or histories.
 
+### Terminal
+
+- herdr is launched deliberately (`Mod+Shift+T`, or the project picker), never
+  auto-attached from a shell rc: every attached client mirrors the others.
+- Keep one default herdr session. The agent-state rollup is per server, so
+  named sessions fragment the only thing herdr was adopted for.
+- Run coding agents inside a herdr pane. Outside one the state hook exits 0
+  silently and the agent never reaches the sidebar.
+
 ### Worktrees
 
 - Untracked-file propagation is driven by each repo's committed

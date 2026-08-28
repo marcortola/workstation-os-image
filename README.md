@@ -25,7 +25,8 @@ ghcr.io/marcortola/workstation-os-image:latest
 - Rootful Docker with its socket enabled and local users added dynamically to
   the `docker` group, so Docker does not require `sudo` after login.
 - Fish, Foot, herdr, Starship, Neovim and Tokyo Night defaults.
-- OpenCode (`oc` and `Mod+Shift+O`), Caps Lock as Ctrl, and
+- OpenCode (`oc`, or `Ctrl+b Alt+O` for a pane inside herdr), Caps Lock as
+  Ctrl, and
   `gpt-transcribe` dictation on `Mod+Shift+V`.
 - Default Claude Code MCP servers (`context7`, `ahrefs`) seeded once into the
   user account; Ahrefs needs a one-time `claude mcp login ahrefs`. Browser
@@ -36,13 +37,18 @@ ghcr.io/marcortola/workstation-os-image:latest
 - `Ctrl+Alt+U`, or the power menu's **Switch User**, moves between logged-in
   users (see [Switch user](#switch-user)).
 - `pro` to select a repository and change the current shell into it;
-  `Mod+Shift+P` opens the same picker in a new Foot terminal.
+  `Mod+Shift+P` opens the same picker and hands the chosen repository to herdr
+  as its own workspace.
 - `dev [cmd]` runs a command inside the current repo's Dev Container (no args
   drops into a shell), starting it on demand via the `devcontainer` CLI —
   e.g. `dev terraform apply`.
-- `herdr` as the terminal multiplexer, auto-attached by Fish and prefixed on
-  `Ctrl+b`. It labels each pane's coding agent as working, blocked, done or
-  idle in its sidebar, which is the reason it replaced tmux.
+- `herdr` as the coding multiplexer on `Mod+Shift+T`, prefixed on `Ctrl+b`. It
+  labels each pane's coding agent as working, blocked, done or idle in its
+  sidebar, which is the reason it replaced tmux. `Mod+T` stays a plain Foot
+  window: herdr is never started from the shell, because every attached client
+  mirrors the others, so a second terminal would be a clone rather than a
+  second context. An agent started outside a herdr pane reports no state and
+  says nothing about it, so start them from the herdr window.
 - `ga <branch>` / `gd` create and remove a per-branch git worktree at
   `~/.herdr/worktrees/<repo>/<branch>`, keeping parallel branches — and the AI
   agents working them — in separate directories.

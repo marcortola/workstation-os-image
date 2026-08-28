@@ -161,12 +161,15 @@ binds {
         spawn "dms" "ipc" "call" "spotlight" "toggle";
     }
     Mod+T hotkey-overlay-title="Terminal" { spawn "xdg-terminal-exec"; }
-    Mod+F hotkey-overlay-title="File Manager" { spawn "nautilus"; }
-    Mod+Shift+P hotkey-overlay-title="Projects" {
-        spawn-sh "foot --working-directory=$HOME --title=Projects --app-id=dev-terminal $HOME/.local/bin/workstation-dev --shell";
+    // One herdr window, launched deliberately. Every attached client mirrors
+    // the others, so herdr is never started from the shell rc: a second
+    // terminal would be a clone of the first rather than a second context.
+    Mod+Shift+T hotkey-overlay-title="Coding Session (herdr)" {
+        spawn-sh "foot --working-directory=$HOME --title=herdr --app-id=herdr /home/linuxbrew/.linuxbrew/bin/herdr";
     }
-    Mod+Shift+O hotkey-overlay-title="OpenCode" {
-        spawn-sh "foot --working-directory=$HOME --title=OpenCode --app-id=opencode /home/linuxbrew/.linuxbrew/bin/opencode";
+    Mod+F hotkey-overlay-title="File Manager" { spawn "nautilus"; }
+    Mod+Shift+P hotkey-overlay-title="Projects (coding session)" {
+        spawn-sh "foot --working-directory=$HOME --title=Projects --app-id=dev-terminal $HOME/.local/bin/workstation-dev --herdr";
     }
     Mod+Shift+G hotkey-overlay-title=null {
         spawn-sh "foot --working-directory=$HOME --title=Lazygit --app-id=lazygit /home/linuxbrew/.linuxbrew/bin/lazygit";
