@@ -21,6 +21,18 @@ name = "tokyo-night"
 # and applies them at runtime, which would change how pane state is classified
 # on a pinned binary without anything here changing. uupd upgrades herdr
 # through Homebrew; detection stays whatever the installed binary ships.
+[terminal]
+# herdr is launched from a niri keybind, which never sources config.fish, so
+# it would inherit the compositor's $SHELL rather than fish. Pin it.
+default_shell = "/usr/bin/fish"
+
 [update]
 version_check = false
 manifest_check = false
+
+# OpenCode in a pane rather than its own bare foot window: an agent outside a
+# herdr pane never reaches the sidebar.
+[[keys.command]]
+key = "prefix+alt+o"
+type = "pane"
+command = "opencode"
