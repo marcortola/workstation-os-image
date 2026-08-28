@@ -2,7 +2,7 @@
 # Cycle to the next fcitx5 input method (keyboard layout) among the configured
 # layouts, wrapping around. Bound in niri as "Switch Keyboard Language" on
 # Ctrl+Alt+Space, replacing fcitx5's built-in Ctrl+Space trigger so that key is
-# free for the tmux prefix.
+# free for Neovim's <C-Space> (Treesitter incremental selection).
 set -euo pipefail
 
 command -v fcitx5-remote >/dev/null 2>&1 || exit 0

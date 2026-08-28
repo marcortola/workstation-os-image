@@ -1,6 +1,6 @@
 ---
-description: Ship code from worktree to main - commit, PR, merge, cleanup via workmux
-allowed-tools: Bash(git:*), Bash(gh:*), Bash(tmux:*), Bash(workmux:*), Bash(rm:*), Bash(mv:*), Bash(ls:*), Bash(cd:*), Bash(echo:*), Bash(pwd:*), TodoWrite, Read, Glob, Grep, Edit, Write
+description: Ship code from worktree to main - commit, PR, merge, cleanup
+allowed-tools: Bash(git:*), Bash(gh:*), Bash(rm:*), Bash(mv:*), Bash(ls:*), Bash(cd:*), Bash(echo:*), Bash(pwd:*), TodoWrite, Read, Glob, Grep, Edit, Write
 ---
 
 # Ship Worktree
@@ -105,15 +105,16 @@ Issue: #<N> closed (if applicable)
 This session stays alive — feel free to review or continue the conversation.
 
 When you're truly done, remove the worktree from the main checkout:
-  - tmux / workmux: switch to the main window (ctrl-s + number), then
-      `workmux remove <branch>`
-  - JetBrains / no-tmux: close the project, then `workmux remove <branch>`
-      (or `git worktree remove <path> && git branch -D <branch>`)
+  - herdr: switch to the main repo's workspace with the workspace picker
+      (prefix+w; the prefix is ctrl+b by default, and prefix+1..9 moves
+      between tabs inside a workspace), then run the worktree-remove recipe
+  - JetBrains / no herdr: close the project, then
+      `git worktree remove <path> && git branch -D <branch>`
 
-Either path removes the worktree and its local branch (and the tmux window if one exists).
+Either path removes the worktree and its local branch.
 ```
 
-**STOP HERE.** Do not attempt cleanup, window management, or any further Bash commands.
+**STOP HERE.** Do not attempt cleanup, workspace switching, or any further Bash commands.
 
 ## Error Handling
 

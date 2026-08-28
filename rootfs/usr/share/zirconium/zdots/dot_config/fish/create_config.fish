@@ -5,8 +5,8 @@ if test -d /home/linuxbrew/.linuxbrew
     eval (/home/linuxbrew/.linuxbrew/bin/brew shellenv)
 end
 
-if status is-interactive; and command -q tmux; and not set -q TMUX
-    tmux new-session
+if status is-interactive; and command -q herdr; and not set -q HERDR_ENV
+    herdr
 end
 
 if status is-interactive; and command -q starship

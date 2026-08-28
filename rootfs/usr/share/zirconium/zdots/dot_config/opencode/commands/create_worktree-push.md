@@ -1,5 +1,5 @@
 ---
-description: Ship a worktree to main - commit, sync, PR, merge, cleanup via workmux
+description: Ship a worktree to main - commit, sync, PR, merge, cleanup
 agent: build
 ---
 
@@ -60,10 +60,12 @@ clean up.
 
    This session stays alive — review or keep working here.
    When you are done, remove the worktree from the main checkout:
-     - tmux / workmux: switch to the main window (Ctrl-s + number), then
-         `workmux remove <branch>`
-     - JetBrains / no-tmux: close the project, then `workmux remove <branch>`
-         (or `git worktree remove <path> && git branch -D <branch>`)
+     - herdr: switch to the main repo's workspace with the workspace picker
+         (prefix+w; the prefix is ctrl+b by default, and prefix+1..9 moves
+         between tabs inside a workspace), then run the worktree-remove
+         recipe
+     - JetBrains / no herdr: close the project, then
+         `git worktree remove <path> && git branch -D <branch>`
    ```
 
 ## Error handling

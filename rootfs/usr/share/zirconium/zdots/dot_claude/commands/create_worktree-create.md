@@ -1,10 +1,11 @@
 ---
-description: Create git worktree for parallel development (via workmux)
+description: Create git worktree for parallel development (via herdr)
 ---
 
 # Git Worktree
 
-Create a git worktree using workmux. This creates an isolated branch with its own tmux window.
+Create a git worktree using herdr. This gives the branch an isolated working
+directory and its own herdr workspace, so parallel branches never collide.
 
 ## Workflow
 
@@ -14,7 +15,7 @@ Run in parallel:
 - `git worktree list --porcelain` - Existing worktrees
 - `git rev-parse --show-toplevel` - Repository root
 - `git rev-parse --abbrev-ref HEAD` - Current branch
-- `cat .workmux.yaml 2>/dev/null || echo "No project config"` - Workmux project config
+- `printenv HERDR_ENV || echo "no herdr session"` - Which creation path applies
 
 ### 2. Ask User for Details
 
@@ -33,7 +34,7 @@ Branch type: <user selects>
 
 **Branch naming convention:** `{feat|fix|refactor|docs|chore}-{task-name}`
 
-### 3. Create Worktree with Workmux
+### 3. Create Worktree with herdr
 
 ```bash
 # Update main first (skip if already on main)
@@ -43,34 +44,50 @@ if [ "$current_branch" = "main" ]; then
 else
   git fetch origin main:main
 fi
-
-# Create worktree + tmux window via workmux
-workmux add {feat|fix|refactor|docs|chore}-{task-name}
 ```
 
-Workmux automatically:
-- Creates git worktree in `<repo>__worktrees/<branch-name>/`
-- Creates tmux window with configured pane layout (claude | nvim | terminal)
-- Copies the untracked files listed in the repo's `.worktreeinclude` (`.env`,
-  `.idea`, ...) via its `post_create` hook — tracked files are already present
-- Switches to the new window
+Pick the creation path with a runtime check, not a judgement call: use this
+step when `HERDR_ENV` is set to `1`, and step 3b when it is unset.
 
-(Dependencies like `node_modules`/`vendor` are not copied — add an install step
-or a `node_modules` symlink in the repo's `.workmux.yaml` if the branch needs them.)
+```bash
+created=$(herdr worktree create --cwd "$(git rev-parse --show-toplevel)" \
+    --branch {branch-name} --base origin/main --focus)
+pane=$(printf '%s\n' "$created" | jq -r '.result.root_pane.pane_id')
+herdr agent start {branch-name} --kind claude --pane "$pane"
+```
 
-### 3b. JetBrains / no-tmux flow
+herdr automatically:
+- Creates the checkout in `~/.herdr/worktrees/<repo>/<branch-slug>/` (the slug
+  is the branch name with `/` replaced by `-`)
+- Opens it as its own workspace, grouped under the parent repository, and
+  focuses it
+- Shells out to `git worktree add`, so the repo's `post-checkout` hook fires and
+  `workstation-worktree-sync` copies the untracked files listed in
+  `.worktreeinclude` (`.env`, `.idea`, `.claude/settings.local.json`, ...) —
+  tracked files are already present
 
-If you're driving a JetBrains IDE (no tmux, no nvim), skip `workmux add` — it
-opens a tmux window you won't use. Either create the worktree from the IDE's
-**New Worktree** UI (the git `post-checkout` hook copies the `.worktreeinclude`
-files automatically), or create it here without tmux and open it in the IDE:
+`herdr agent start` needs an existing pane sitting at a shell prompt; the new
+workspace's single default pane is exactly that. Do not split it.
+
+(Dependencies like `node_modules`/`vendor` are not copied — install them in the
+new worktree if the branch needs them.)
+
+### 3b. No herdr session (JetBrains, plain terminal, script)
+
+When `HERDR_ENV` is unset there is no server to open a workspace in. Either
+create the worktree from the IDE's **New Worktree** UI (the git `post-checkout`
+hook copies the `.worktreeinclude` files automatically), or create it here and
+open it in the IDE:
 
 ```bash
 git fetch origin +refs/heads/main:refs/remotes/origin/main
-dir="$(git rev-parse --show-toplevel)__worktrees/{branch-name}"
+dir="$HOME/.herdr/worktrees/$(basename "$(git rev-parse --show-toplevel)")/{branch-name}"
 git worktree add "$dir" -b {branch-name} origin/main
 ( cd "$dir" && workstation-worktree-sync )   # copy .env, .idea, ... from main
 ```
+
+The explicit `workstation-worktree-sync` call is belt-and-braces for repos whose
+`post-checkout` hook is not installed yet.
 
 Then open `$dir` in the IDE (`webstorm`/`phpstorm`/`idea "$dir"`). If you created
 it from the IDE and the files did not copy, run Tools → External Tools → **Sync
@@ -78,7 +95,9 @@ worktree files**.
 
 ### 4. Post-Creation: Task Handling
 
-After workmux finishes, handle task migration if needed:
+After the worktree exists, handle task migration if needed. On the herdr path
+the checkout path is already in the response
+(`jq -r '.result.worktree.path' <<< "$created"`); otherwise derive it from git.
 
 **Case A: Active task exists in main repo**
 If there's an active task in `.claude/tasks/` related to the current conversation:
@@ -98,31 +117,33 @@ mkdir -p "$worktree_path/.claude/tasks/<task-name>/research"
 
 ### 5. Confirm
 
-**If you used `workmux add` (tmux path):**
+**If you used the herdr path (3):**
 ```
-Worktree created via workmux!
+Worktree created via herdr!
+
+Branch:    <branch-name>
+Path:      ~/.herdr/worktrees/<repo>/<branch-slug>
+Workspace: focused, grouped under <repo>, Claude running in its pane
+
+Switch workspaces: ctrl+b w        Switch tabs: ctrl+b 1..9 or ctrl+b n/p
+Ship it when done: worktree-push recipe
+Discard it:        worktree-remove recipe
+```
+
+**If you used the no-herdr flow (3b):** there is no workspace — report the path
+instead:
+```
+Worktree created at ~/.herdr/worktrees/<repo>/<branch-name> (open it in the IDE)
 
 Branch: <branch-name>
-Window: wm-<branch-name>
-
-Switch between worktrees: Ctrl-s 1/2/3... or Ctrl-s n/p
-Merge when done: wm merge <branch-name>
-Remove without merge: wm remove <branch-name>
-```
-
-**If you used the JetBrains / no-tmux flow (3b):** there is no tmux window —
-report the path instead:
-```
-Worktree created at <repo>__worktrees/<branch-name> (open it in the IDE).
-
-Branch: <branch-name>
-Merge when done:      workmux merge <branch-name>
-Remove without merge: workmux remove <branch-name>
+Ship it when done: worktree-push recipe
+Discard it:        worktree-remove recipe
 ```
 
 ## Important Notes
 
-- Workmux creates worktrees in `<repo>__worktrees/` (not as sibling directories)
-- Each worktree gets its own tmux window in the current session
+- herdr creates worktrees under `~/.herdr/worktrees/<repo>/` (not as sibling
+  directories of the repository)
+- Each worktree is its own herdr workspace, grouped under the parent repository
 - All worktrees share the same git history
-- List all: `wm list` or `git worktree list`
+- List all: `herdr worktree list` or `git worktree list`

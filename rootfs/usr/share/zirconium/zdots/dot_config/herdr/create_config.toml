@@ -1,0 +1,22 @@
+# Workstation herdr configuration.
+#
+# Deliberately minimal: herdr's own defaults are accepted wholesale (Ctrl+b
+# prefix, the built-in prefix+? keybinding help, single-pane worktree
+# workspaces, ~/.herdr/worktrees checkouts). Only the settings whose defaults
+# are wrong for a machine that is meant to be reproducible are pinned here.
+#
+# Managed as a chezmoi create-only seed; see config/dotfiles.manifest and
+# dot_config/herdr/create_config.toml in the image. Sockets, logs, session.json
+# and plugins.json also live in ~/.config/herdr/ and are never captured.
+
+[theme]
+name = "tokyo-night"
+
+# Both checks are on by default and both talk to herdr.dev in the background.
+# version_check only nags, but manifest_check downloads agent-detection rules
+# and applies them at runtime, which would change how pane state is classified
+# on a pinned binary without anything here changing. uupd upgrades herdr
+# through Homebrew; detection stays whatever the installed binary ships.
+[update]
+version_check = false
+manifest_check = false

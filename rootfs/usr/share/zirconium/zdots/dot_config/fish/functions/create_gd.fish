@@ -16,7 +16,19 @@ function gd --description 'Remove the current git worktree and its branch, retur
         return 1
     end
     cd $main
-    git worktree remove --force $here; or return
+    # When herdr opened the checkout it owns the workspace too, so ask it first
+    # and the workspace goes away with the directory. herdr never deletes
+    # branches, so that stays our job on either path.
+    set -l workspace
+    if command -q herdr
+        set workspace (herdr worktree list --cwd $main 2>/dev/null |
+            jq -r --arg b $branch '.result.worktrees[]? | select(.branch == $b) | .open_workspace_id // empty')
+    end
+    if test -n "$workspace"
+        herdr worktree remove --workspace $workspace --force >/dev/null; or return
+    else
+        git worktree remove --force $here; or return
+    end
     if test "$branch" != HEAD
         git branch -D $branch
     end
