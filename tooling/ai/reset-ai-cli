@@ -106,14 +106,17 @@ merge_seed() {
     local id=$1 live=$2 seed=$3
     case "$id" in
         codex-config)
-            # Canonical head from the seed, then the live [projects.*]/[tui.*]
-            # machine tables copied verbatim, per-table (symmetric with the scrub
-            # filter). Copying only these blocks -- not the whole tail -- keeps a
-            # no-op reset byte-identical and never redefines a portable table that
-            # happens to sit after them (which would make the TOML unparseable).
+            # Canonical head from the seed, then the live machine tables copied
+            # verbatim, per-table (symmetric with the scrub filter). Copying only
+            # these blocks -- not the whole tail -- keeps a no-op reset
+            # byte-identical and never redefines a portable table that happens to
+            # sit after them (which would make the TOML unparseable).
+            # [features] carries `hooks = true`, which `herdr integration install
+            # codex` sets and the integration needs; dropping it here would
+            # silently disable agent-state reporting on the next reset.
             cat "$seed"
             awk '
-                /^\[(projects|tui)([.]|\])/ { k = 1; print; next }
+                /^\[(features|projects|tui)([.]|\])/ { k = 1; print; next }
                 /^\[/                       { k = 0 }
                 k                           { print }
             ' "$live"
