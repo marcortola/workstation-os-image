@@ -4,6 +4,20 @@
     "pr": "",
     "sessionUrl": false
   },
+  "autoMode": {
+    "allow": [
+      "$defaults",
+      "Bash(npm run lint)",
+      "Bash(npm run format)",
+      "Bash(npm run build)",
+      "Bash(gh pr view:*)"
+    ],
+    "soft_deny": [
+      "$defaults",
+      "Bash(gh workflow run:*)",
+      "Bash(docker system prune:*)"
+    ]
+  },
   "effortLevel": "high",
   "model": "opus[1m]",
   "skipWorkflowUsageWarning": true,
