@@ -58,6 +58,22 @@ function dev --description "Run a command in the nearest Dev Container (no args 
         --mount "type=bind,source=$HOME/.local/share/nvim/lazy,target=/nvim-plugins" \
         --mount "type=bind,source=$store,target=/nvimdata"
 
+    # lazygit is LazyVim's <leader>gg, and LazyVim only creates that keymap
+    # where the binary exists -- which is the container, not the host, once
+    # nvim runs inside one. It is a static Go binary, so the host copy runs in
+    # any base image: mount it rather than downloading a second one into every
+    # project store. Its config rides along so the theme and nerd-font icons
+    # match the host, copied (not mounted) into place below because lazygit
+    # writes state beside it.
+    if type -q lazygit
+        set -a mounts --mount \
+            "type=bind,source="(realpath (command -v lazygit))",target=/usr/local/bin/lazygit,readonly"
+    end
+    if test -d "$HOME/.config/lazygit"
+        set -a mounts --mount \
+            "type=bind,source=$HOME/.config/lazygit,target=/lazygitconf-src,readonly"
+    end
+
     # Idempotent: builds/starts on first call, fast no-op once running.
     if not devcontainer up --workspace-folder "$root" $mounts >/dev/null 2>&1
         echo "dev: failed to start devcontainer — retry verbosely with:" >&2
@@ -128,6 +144,10 @@ function dev --description "Run a command in the nearest Dev Container (no args 
             fi
             rm -rf /nvimdata/config/nvim
             cp -a /nvimconf-src /nvimdata/config/nvim
+            if [ -d /lazygitconf-src ]; then
+                rm -rf /nvimdata/config/lazygit
+                cp -a /lazygitconf-src /nvimdata/config/lazygit
+            fi
         '
         if not devcontainer exec --workspace-folder "$root" bash -c "$boot"
             echo "dev nvim: provisioning failed" >&2
@@ -163,8 +183,23 @@ function dev --description "Run a command in the nearest Dev Container (no args 
             set iph_env --remote-env "INTELEPHENSE_LICENCE_KEY="(string trim <"$iph_file")
         end
 
+        # Committing from the in-container lazygit needs an identity. Forward the
+        # host's instead of mounting ~/.config/git/config, which sets `pager =
+        # delta` and a gh credential helper that do not exist in the container.
+        set -l git_env
+        set -l git_name (git config --get user.name)
+        set -l git_email (git config --get user.email)
+        if test -n "$git_name" -a -n "$git_email"
+            set git_env \
+                --remote-env "GIT_AUTHOR_NAME=$git_name" \
+                --remote-env "GIT_AUTHOR_EMAIL=$git_email" \
+                --remote-env "GIT_COMMITTER_NAME=$git_name" \
+                --remote-env "GIT_COMMITTER_EMAIL=$git_email"
+        end
+
         devcontainer exec --workspace-folder "$root" \
             $iph_env \
+            $git_env \
             --remote-env "NVIM_MASON_LANGS=$mlangs" \
             --remote-env XDG_CONFIG_HOME=/nvimdata/config \
             --remote-env XDG_DATA_HOME=/nvimdata/data \
