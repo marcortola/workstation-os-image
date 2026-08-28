@@ -3,7 +3,11 @@ set -euo pipefail
 
 projects_root="${WORKSTATION_PROJECTS_ROOT:-$HOME/projects}"
 open_shell=false
-[[ ${1:-} == --shell ]] && open_shell=true
+open_herdr=false
+case ${1:-} in
+    --shell) open_shell=true ;;
+    --herdr) open_herdr=true ;;
+esac
 
 mapfile -t projects < <(
     find "$projects_root" -mindepth 2 -maxdepth 3 \
@@ -33,6 +37,21 @@ selection="$(
 )" || exit 0
 
 project=${selection%%$'\t'*}
+
+if $open_herdr; then
+    # Attaching an existing session lands on whatever pane is focused, so ask
+    # herdr for a workspace on the picked project first. With no server running
+    # that call fails harmlessly and herdr scopes the workspace from the cwd.
+    # A niri keybind runs this with a minimal PATH, so do not trust it.
+    herdr_bin=herdr
+    command -v herdr >/dev/null 2>&1 || herdr_bin=/home/linuxbrew/.linuxbrew/bin/herdr
+    if "$herdr_bin" workspace list >/dev/null 2>&1; then
+        "$herdr_bin" workspace create --cwd "$project" \
+            --label "$(basename -- "$project")" --focus >/dev/null
+    fi
+    cd -- "$project"
+    exec "$herdr_bin"
+fi
 
 if $open_shell; then
     cd -- "$project"
