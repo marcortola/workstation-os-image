@@ -7,9 +7,15 @@
 # `dms greeter install` instead.
 #
 # NOTE for existing machines: ostree three-way-merges /etc and keeps locally
-# modified files. `rpm -V greetd` reporting this path as modified means this
-# file will NOT land on upgrade until the local copy is removed. See the
-# cutover runbook.
+# modified files, so if `rpm -V greetd` reports this path as modified, this
+# file will not land on upgrade. Fix it by REPLACING the local file's contents
+# -- for example `cp /usr/etc/greetd/config.toml /etc/greetd/config.toml`.
+#
+# Do NOT `rm` the local copy expecting the image version to take its place.
+# ostree records a local deletion as a local modification too, so the merge
+# honours the removal, greetd finds no config, and the boot lands on a text
+# console with `i/o error: No such file or directory`. That is not theoretical;
+# it is how this comment came to be rewritten.
 #
 # There is deliberately no [general] service line. greetd-spawn existed
 # upstream to force XDG_SESSION_TYPE=wayland via pam_env, but the session is
