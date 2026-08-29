@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Trust every third-party (tap-qualified) Homebrew formula/cask declared in the
-# image Brewfile seed for the linuxbrew system user, so uupd's daily
-# `brew upgrade` (which runs as linuxbrew) stops skipping them. Runs as
-# linuxbrew, bypasses the polkit brew-proxy, and re-applies on every invocation
+# image Brewfile seed, so uupd's daily `brew upgrade` stops skipping them.
+# Runs as the uid that owns the brew prefix, and re-applies on every invocation
 # so adding a tap-qualified line to the Brewfile is sufficient -- no manual
 # per-package trust step. Best-effort by design: a single bad entry never fails
 # the unit, so it never blocks the uupd upgrade that orders after it.
@@ -20,14 +19,13 @@ brewfile=/usr/share/workstation-os-image/dotfiles/dot_config/homebrew/create_Bre
     exit 0
 }
 
-# Pin brew's trust store to linuxbrew's own home regardless of inherited
-# environment. NO_BREW_PROXY=1 routes the Zirconium bin/brew dispatch wrapper
-# straight to proxy/brew-original instead of the DBus/polkit proxy; running as
-# linuxbrew with HOME=/home/linuxbrew makes `brew trust` write
-# /home/linuxbrew/.homebrew/trust.json -- exactly the store uupd reads.
-export NO_BREW_PROXY=1
+# Pin brew's trust store to the brew prefix's own home regardless of inherited
+# environment, so `brew trust` writes /home/linuxbrew/.homebrew/trust.json --
+# exactly the store uupd reads. HOME is deliberately unchanged from the
+# brew-proxy era so the store stays at the same path; only the user differs,
+# because brew-setup.service owns the prefix as uid 1000 and the linuxbrew
+# system user came from brew-proxy, which is no longer installed.
 export HOME=/home/linuxbrew
-export USER=linuxbrew
 unset XDG_CONFIG_HOME HOMEBREW_XDG_CONFIG_HOME HOMEBREW_USER_CONFIG_HOME
 
 # A tap-qualified entry is a brew/cask line whose quoted argument contains a

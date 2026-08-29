@@ -1,0 +1,11 @@
+# DankMaterialShell proper.
+[copr:copr.fedorainfracloud.org:avengemedia:dms]
+name=Copr repo for dms owned by avengemedia
+baseurl=https://download.copr.fedorainfracloud.org/results/avengemedia/dms/fedora-$releasever-$basearch/
+type=rpm-md
+gpgcheck=1
+gpgkey=https://download.copr.fedorainfracloud.org/results/avengemedia/dms/pubkey.gpg
+repo_gpgcheck=0
+enabled=1
+priority=1
+includepkgs=dms,dms-cli,dms-greeter

@@ -8,12 +8,12 @@ tmp="$(mktemp -d)"
 trap 'rm -rf -- "$tmp"' EXIT
 status=0
 
-# On this image `brew` is a polkit-gated proxy (homebrew-proxy) that classifies
-# even read-only `bundle` queries as the privileged "modify the Homebrew
-# installation" action, so every audit would prompt for authentication. This
-# script only reads installed state, so bypass the proxy and disable auto-update
-# to keep the audit non-interactive and free of side effects.
-export NO_BREW_PROXY=1 HOMEBREW_NO_AUTO_UPDATE=1
+# This script only reads installed state. Disable auto-update so the audit is
+# non-interactive and free of side effects.
+#
+# The image no longer ships brew-proxy, so `brew` is the real Homebrew binary
+# and there is no polkit prompt to bypass; NO_BREW_PROXY was dropped with it.
+export HOMEBREW_NO_AUTO_UPDATE=1
 
 brew bundle dump --file "$tmp/installed.Brewfile" --force >/dev/null
 

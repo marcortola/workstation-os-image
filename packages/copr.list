@@ -1,0 +1,13 @@
+# copr:avengemedia/dms and copr:avengemedia/danklinux.
+# These float permanently: COPR prunes superseded builds, so versionlock to an
+# older NEVRA is impossible. The manifest diff in CI is the bisectability
+# substitute -- see repos/ for the includepkgs fencing.
+dms
+dms-cli
+dms-greeter
+quickshell
+dgop
+danksearch                  # ships /usr/bin/dsearch and dsearch.service; the unit is NOT named danksearch.service
+matugen
+# cpptrace is pulled in by quickshell (libcpptrace.so.1) and must stay inside
+# the danklinux includepkgs allowlist or the install fails.
