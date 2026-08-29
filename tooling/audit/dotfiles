@@ -66,10 +66,12 @@ show_diff() {
 
 show_diff "Managed Niri scaffolding" critical \
     "$HOME/.config/niri/config.kdl" "$HOME/.config/niri/dms.kdl"
-show_diff "DMS-generated Niri fragments" informational \
-    "$HOME/.config/niri/dms/binds.kdl" "$HOME/.config/niri/dms/colors.kdl"
-show_diff "DMS user preferences" informational \
-    "$HOME/.config/DankMaterialShell/settings.json" \
+# The DMS-generated niri fragments and settings.json are deliberately NOT
+# shipped as chezmoi sources -- DMS regenerates them at runtime, and shipping a
+# source for them is what let a lost state database silently rewrite live
+# config. There is nothing to diff them against, so they are not compared here;
+# the DMS overlay is audited below against the installed schema instead.
+show_diff "DMS clipboard preferences" informational \
     "$HOME/.config/DankMaterialShell/clsettings.json"
 
 printf '\nCaptured DMS preference defaults:\n'

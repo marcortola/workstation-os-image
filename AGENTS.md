@@ -194,6 +194,6 @@ both kinds:
   default, hiding live-vs-overlay drift). Never dismiss this as expected.
 - New items not tracked at all.
 
-The informational lines (DMS-generated niri fragments, DMS user preferences)
-cover UI-owned state; `Managed Niri scaffolding` is critical. Never report only
-the uncaptured count and treat tracked-value divergence as noise.
+The informational line (DMS clipboard preferences) covers UI-owned state;
+`Managed Niri scaffolding` is critical. Never report only the uncaptured count
+and treat tracked-value divergence as noise.
