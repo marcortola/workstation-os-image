@@ -30,6 +30,20 @@ gvfs
 gvfs-fuse
 gvfs-nfs
 gvfs-smb
+gvfs-mtp                    # phones
+gvfs-gphoto2                # cameras
+
+# DMS runtime dependencies it does not declare. Found by diffing the built
+# image against the old one and grepping DMS's QML: `rpm -qR dms` lists none
+# of these, and a missing one produces a shell that starts and then quietly
+# misbehaves rather than a build failure.
+cava                        # Modules/DankBar/Widgets/Media.qml, Modules/Lock/LockScreenContent.qml
+khal                        # Services/CalendarKhalBackend.qml, Modules/Settings/TimeWeatherTab.qml
+swaybg                      # Modules/Settings/WallpaperTab.qml
+
+# GTK side of the Breeze theme, so GTK apps match the Qt shell.
+breeze-gtk-gtk3
+breeze-gtk-gtk4
 
 # Session utilities referenced by the niri binds or our own scripts
 brightnessctl               # binds.kdl volume/brightness
@@ -48,3 +62,6 @@ chezmoi                     # ABSENT from base-main; seeding and `just audit` bo
 fish                        # the image owns /usr/bin/fish; never install via brew
 bolt                        # thunderbolt: /sys/bus/thunderbolt/devices/domain0 present
 NetworkManager-tui          # nmtui
+nm-connection-editor        # GUI for the two configured WireGuard VPNs
+openssh-askpass             # GUI ssh prompts, e.g. git from a JetBrains IDE
+input-remapper              # was installed and configured on the old image

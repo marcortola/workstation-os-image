@@ -2,8 +2,9 @@
 # with no priority= line, so it must be enabled explicitly at build time.
 # base-main already installed ffmpeg, ffmpeg-libs, libavcodec and fdk-aac from
 # it, so those are NOT repeated here.
-gstreamer1-plugins-ugly     # negativo17 has 1:1.28.6
-gstreamer1-plugin-openh264  # openh264 itself comes from fedora-cisco-openh264
+gstreamer1-plugins-ugly     # negativo17. Pulls its gstreamer1-plugins-bad, which
+                            # supersedes the standalone openh264 plugin; verified
+                            # avdec_h264 and avdec_aac are present in the built image.
 unar                        # RAR5-capable, LGPL, plain Fedora.
                             # NOT unrar: RPM Fusion is dropped entirely, and
                             # Fedora's own unrar-0.3.3 is only a wrapper around

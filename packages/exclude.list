@@ -1,0 +1,7 @@
+# Packages that must never be installed, even as dependencies.
+#
+# negativo17's gstreamer1-plugins-bad pulls the fluidsynth MIDI plugin, which
+# drags in 186 MiB of soundfont samples. Nothing on this image requires them
+# (`rpm -q --whatrequires` is empty) and no workstation workflow plays MIDI.
+fluid-soundfont-lite-patches
+fluid-soundfont-common
