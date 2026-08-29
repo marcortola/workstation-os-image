@@ -41,8 +41,10 @@ Task/feature name: **$ARGUMENTS**
    below with a runtime check, not a judgement call: take this one when
    `HERDR_ENV` is set to `1`, and the one below when it is unset.
    ```bash
+   repo=$(basename "$(git rev-parse --show-toplevel)")
    created=$(herdr worktree create --cwd "$(git rev-parse --show-toplevel)" \
-       --branch {branch-name} --base origin/main --focus)
+       --branch {branch-name} --base origin/main \
+       --label "$repo/{branch-name}" --focus)
    pane=$(printf '%s\n' "$created" | jq -r '.result.root_pane.pane_id')
    herdr agent start {branch-name} --kind opencode --pane "$pane"
    ```
@@ -52,6 +54,9 @@ Task/feature name: **$ARGUMENTS**
    it shells out to `git worktree add` — fires the repo's `post-checkout` hook,
    so `workstation-worktree-sync` copies the untracked files listed in
    `.worktreeinclude` (`.env`, `.idea`, `.claude/settings.local.json`, ...).
+   `--label` is not cosmetic: herdr labels a worktree workspace with the
+   branch alone, and the Agent sidebar's only location token is that workspace
+   name, so without it every worktree row loses the repository it belongs to.
    `herdr agent start` needs an existing pane at a shell prompt; the workspace's
    single default pane is exactly that, so do not split it. (Dependencies like
    `node_modules`/`vendor` are not copied — install them in the new worktree if
