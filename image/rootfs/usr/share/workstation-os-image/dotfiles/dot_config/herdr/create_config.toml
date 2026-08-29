@@ -1,0 +1,56 @@
+# Workstation herdr configuration.
+#
+# Deliberately minimal: herdr's own defaults are accepted wholesale (Ctrl+b
+# prefix, the built-in prefix+? keybinding help, single-pane worktree
+# workspaces, ~/.herdr/worktrees checkouts). Only the settings whose defaults
+# are wrong for a machine that is meant to be reproducible are pinned here.
+#
+# Managed as a chezmoi create-only seed; see tooling/data/dotfiles.manifest and
+# dot_config/herdr/create_config.toml in the image. Sockets, logs, session.json
+# and plugins.json also live in ~/.config/herdr/ and are never captured.
+
+# herdr writes this itself once its first-run onboarding is dismissed. Kept so
+# a new machine starts configured rather than in the walkthrough.
+onboarding = false
+
+[theme]
+name = "tokyo-night"
+
+# Both checks are on by default and both talk to herdr.dev in the background.
+# version_check only nags, but manifest_check downloads agent-detection rules
+# and applies them at runtime, which would change how pane state is classified
+# on a pinned binary without anything here changing. uupd upgrades herdr
+# through Homebrew; detection stays whatever the installed binary ships.
+[terminal]
+# herdr is launched from a niri keybind, which never sources config.fish, so
+# it would inherit the compositor's $SHELL rather than fish. Pin it.
+default_shell = "/usr/bin/fish"
+
+[update]
+version_check = false
+manifest_check = false
+
+# OpenCode in a pane rather than its own bare foot window: an agent outside a
+# herdr pane never reaches the sidebar.
+[[keys.command]]
+key = "prefix+alt+o"
+type = "pane"
+command = "opencode"
+
+[ui]
+agent_panel_sort = "priority"
+# Worktree spaces are labelled "<repo>/<branch>" so the Agent rows keep the
+# repository, which costs columns. 36 is herdr's maximum.
+sidebar_width = 36
+
+# The Agent panel's second row defaults to the detected agent kind alone, which
+# reads "claude" on every row. herdr has no token for the `agent start` name, so
+# carry the values that actually differ: the rolled-up state, and Claude Code's
+# own terminal title. Which checkout a row belongs to is already covered by
+# `workspace` — a worktree workspace is labelled with its branch.
+[ui.sidebar.agents]
+rows = [
+    ["state_icon", "workspace", "tab"],
+    ["agent", "state_text"],
+    ["terminal_title_stripped"],
+]

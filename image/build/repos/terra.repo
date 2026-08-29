@@ -1,0 +1,20 @@
+# Terra (Fyra Labs). Fenced hard, and deliberately LOWER priority than
+# negativo17 (which ships with no priority= line, i.e. the default 99).
+#
+# The fencing is not theoretical: on the Zirconium image Terra shipped
+# sdbus-cpp.terra, which satisfies libsdbus-c++.so.2 for dnf5 and dnf5-plugins.
+# A repo with thousands of packages at elevated priority replaced a library
+# Fedora's own package manager links against. includepkgs makes that
+# structurally impossible rather than merely unlikely.
+[terra]
+name=Terra $releasever
+metalink=https://tetsudou.fyralabs.com/metalink?repo=terra$releasever&arch=$basearch
+metadata_expire=6h
+type=rpm
+gpgcheck=1
+gpgkey=https://repos.fyralabs.com/terra$releasever/key.asc
+repo_gpgcheck=0
+enabled=1
+priority=100
+countme=1
+includepkgs=uupd,satty,satty-bash-completion,iio-niri,maple-fonts,xdg-terminal-exec-nautilus

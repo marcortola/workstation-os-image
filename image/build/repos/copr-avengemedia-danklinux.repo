@@ -1,0 +1,12 @@
+# DMS runtime stack. cpptrace is NOT optional: quickshell links
+# libcpptrace.so.1 and the install fails without it in the allowlist.
+[copr:copr.fedorainfracloud.org:avengemedia:danklinux]
+name=Copr repo for danklinux owned by avengemedia
+baseurl=https://download.copr.fedorainfracloud.org/results/avengemedia/danklinux/fedora-$releasever-$basearch/
+type=rpm-md
+gpgcheck=1
+gpgkey=https://download.copr.fedorainfracloud.org/results/avengemedia/danklinux/pubkey.gpg
+repo_gpgcheck=0
+enabled=1
+priority=1
+includepkgs=dms-greeter,quickshell,dgop,danksearch,matugen,cpptrace

@@ -1,0 +1,19 @@
+# Sorts before Fedora's 85-display-manager.preset and 90-default.preset, so
+# these win without having to fight them.
+enable greetd.service
+enable uupd.timer
+enable containerd.service
+enable docker.service
+enable keyd.service
+enable workstation-brew-trust.service
+enable workstation-user-groups.service
+
+# uupd covers bootc, flatpak, brew and distrobox in one transaction. base-main
+# enables its own three update timers with `systemctl enable`, which writes
+# real /etc symlinks that a preset cannot undo -- image/build/scripts/services.sh
+# disables them explicitly. These lines are defence in depth.
+disable rpm-ostreed-automatic.timer
+disable flatpak-system-update.timer
+disable bootc-fetch-apply-updates.timer
+disable brew-update.timer
+disable brew-upgrade.timer

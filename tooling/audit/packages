@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+brewfile="${XDG_CONFIG_HOME:-$HOME/.config}/homebrew/Brewfile"
+image_formulae="$repo_root/tooling/data/image-provided-brew-formulae"
+tmp="$(mktemp -d)"
+trap 'rm -rf -- "$tmp"' EXIT
+status=0
+
+# This script only reads installed state. Disable auto-update so the audit is
+# non-interactive and free of side effects.
+#
+# The image no longer ships brew-proxy, so `brew` is the real Homebrew binary
+# and there is no polkit prompt to bypass; NO_BREW_PROXY was dropped with it.
+export HOMEBREW_NO_AUTO_UPDATE=1
+
+brew bundle dump --file "$tmp/installed.Brewfile" --force >/dev/null
+
+for kind in formula cask flatpak; do
+    brew bundle list "--$kind" --file "$brewfile" | sort -u > "$tmp/declared.$kind"
+    brew bundle list "--$kind" --file "$tmp/installed.Brewfile" | \
+        sort -u > "$tmp/installed.$kind"
+done
+
+sort -u "$image_formulae" | sed '/^#/d; /^$/d' > "$tmp/image-formulae"
+comm -23 "$tmp/installed.formula" "$tmp/declared.formula" > "$tmp/extra.formula"
+comm -12 "$tmp/extra.formula" "$tmp/image-formulae" > "$tmp/shadowed.formula"
+comm -23 "$tmp/extra.formula" "$tmp/image-formulae" > "$tmp/unknown.formula"
+
+echo "Package manifest drift:"
+if [[ -s $tmp/shadowed.formula ]]; then
+    while IFS= read -r package; do
+        printf '  %-18s %s\n' "image-shadow" "brew:$package"
+    done < "$tmp/shadowed.formula"
+fi
+
+warn=0
+for kind in formula cask flatpak; do
+    extra="$tmp/unknown.$kind"
+    [[ $kind == formula ]] || \
+        comm -23 "$tmp/installed.$kind" "$tmp/declared.$kind" > "$extra"
+    [[ -s $extra ]] || continue
+    # Undeclared Flatpaks are a warning, not an error: a workstation may keep
+    # host-only Flatpaks that should not always ship in the image. Undeclared
+    # formulae and casks remain errors.
+    if [[ $kind == flatpak ]]; then
+        label="undeclared (warn)"
+        warn=1
+    else
+        label="undeclared"
+        status=1
+    fi
+    while IFS= read -r package; do
+        printf '  %-18s %s\n' "$label" "$kind:$package"
+    done < "$extra"
+done
+
+if (( status == 0 && warn == 0 )); then
+    echo "  no undeclared Homebrew formulae, casks, or Flatpaks"
+fi
+
+brew bundle check --file "$brewfile" >/dev/null || status=1
+exit "$status"

@@ -3,21 +3,21 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 default:
     @just --list
 
-# Report personal and Zirconium-managed configuration drift.
+# Report personal and image-managed configuration drift.
 audit:
-    ./tooling/audit-workstation
+    ./tooling/audit/workstation
 
-# Show complete diffs for informational Zirconium/DMS drift.
+# Show complete diffs for informational image/DMS drift.
 audit-diff:
-    ./tooling/audit-workstation --diff
+    ./tooling/audit/workstation --diff
 
 # Review portable DMS deviations and capture selected values.
 dms-capture:
-    ./tooling/capture-dms-settings
+    ./tooling/dms/capture
 
 # Stop tracking selected DMS preference overrides.
 dms-remove:
-    ./tooling/capture-dms-settings --remove
+    ./tooling/dms/capture --remove
 
 # Explicitly restore the tracked DMS preference overlay into this account.
 dms-apply:
@@ -26,21 +26,21 @@ dms-apply:
 
 # Report where installed JetBrains IDEs diverge from the shared canonical.
 jetbrains-diff:
-    ./tooling/diff-jetbrains-settings
+    ./tooling/jetbrains/diff
 
 # Refresh the shared JetBrains canonical (_shared/) from the canonical IDE.
 jetbrains-promote product="":
-    ./tooling/promote-jetbrains-shared {{ product }}
+    ./tooling/jetbrains/promote-shared {{ product }}
 
 # Write the shared JetBrains config and install shared plugins into the IDEs
 # (dry run without --force).
 jetbrains-apply *args:
-    ./tooling/apply-jetbrains-settings {{ args }}
-    ./tooling/apply-jetbrains-plugins {{ args }}
+    ./tooling/jetbrains/apply-settings {{ args }}
+    ./tooling/jetbrains/apply-plugins {{ args }}
 
 # Install the shared JetBrains plugins into the IDEs (dry run without --force).
 jetbrains-plugins *args:
-    ./tooling/apply-jetbrains-plugins {{ args }}
+    ./tooling/jetbrains/apply-plugins {{ args }}
 
 # Install the AI CLI tools (caveman, rtk, opencode-fusion, playwright-cli) via their official installers; run once after deploy like brew-apply.
 ai-tools-install:
@@ -64,7 +64,7 @@ ai-diff *args:
 
 # Refresh create-only seeds from manifest-listed live files.
 sync:
-    ./tooling/sync-dotfiles
+    ./tooling/dotfiles/sync
 
 # Capture reviewed live changes, validate them, and show the Git diff.
 capture: sync validate
@@ -74,7 +74,7 @@ capture: sync validate
 
 # Validate repository structure and the effective local workstation.
 validate:
-    ./tooling/validate
+    ./tooling/validate/all
 
 # Install not-yet-installed Brewfile entries (brew, cask, Flatpak); tap trust and daily upgrades are already automatic.
 brew-apply:
@@ -83,11 +83,11 @@ brew-apply:
 # Install the worktree post-checkout hook and a starter .worktreeinclude into a
 # repo (cwd), the given repos, or every repo under ~/projects with --all.
 worktree-init *args:
-    ./tooling/worktree-init {{ args }}
+    ./tooling/worktree/init {{ args }}
 
 # Store the intelephense premium PHP licence key for `dev nvim` (machine-local, never committed). Pass --force to overwrite.
 intelephense-licence *args:
-    ./tooling/set-intelephense-licence {{ args }}
+    ./tooling/jetbrains/intelephense-licence {{ args }}
 
 # Set up this machine's IDE config (run once after deploy): store the intelephense
 # premium PHP key for `dev nvim`, install the shared JetBrains plugins (dry run
@@ -97,13 +97,13 @@ intelephense-licence *args:
 # local IDE config and primes a GUI cloud push, hence the prompt; `jetbrains-apply`
 # is the non-interactive path. JetBrains is the fallback; steps no-op without an IDE.
 ide-setup *args:
-    ./tooling/set-intelephense-licence
-    ./tooling/apply-jetbrains-plugins {{ args }}
-    ./tooling/ide-setup-jetbrains-settings
+    ./tooling/jetbrains/intelephense-licence
+    ./tooling/jetbrains/apply-plugins {{ args }}
+    ./tooling/jetbrains/ide-setup
 
 # Build and lint the complete bootc image locally.
 build:
-    podman build --pull=always --tag workstation-os-image:review -f Containerfile .
+    podman build --pull=always --build-arg "BASE_IMAGE=$(sed -n 's/^ARG BASE_IMAGE=//p' Containerfile)" --tag workstation-os-image:review -f Containerfile .
 
 # Show the current repository state without changing it.
 status:

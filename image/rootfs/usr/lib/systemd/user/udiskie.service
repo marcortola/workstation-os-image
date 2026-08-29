@@ -1,0 +1,13 @@
+# Image-owned. The previous base shipped this unit; ublue base-main does not,
+# and the RPM providing the binary ships no unit of its own.
+[Unit]
+Description=Udiskie automount
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/udiskie
+Restart=on-failure
+
+[Install]
+WantedBy=graphical-session.target

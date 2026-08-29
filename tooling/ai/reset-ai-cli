@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Reset live codex / claude / opencode configuration to the repository canonical
-# (the create_ seeds under rootfs/.../zdots), walking the one manifest that
+# (the create_ seeds under image/rootfs/usr/share/workstation-os-image/dotfiles),
+# walking the one manifest that
 # already inventories them. Modelled on apply-jetbrains-settings' guards
 # (dry-run default, --force gate, timestamped backup, running-process refusal)
 # but with dms-apply's merge safety for the three mixed files: their canonical
@@ -16,8 +17,8 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=tooling/lib/dotfiles.sh
 source "$repo_root/tooling/lib/dotfiles.sh"
 
-manifest="$repo_root/config/dotfiles.manifest"
-seed_root="$repo_root/rootfs/usr/share/zirconium/zdots"
+manifest="$repo_root/tooling/data/dotfiles.manifest"
+seed_root="$repo_root/image/rootfs/usr/share/workstation-os-image/dotfiles"
 
 force=false
 diff_only=false
@@ -36,7 +37,7 @@ Usage: reset-ai-cli [--diff] [--force] [--replace] [--tool codex|claude|opencode
   --tool T    limit to one tool (repeatable); default is all three
 
 Never touches auth stores, credential files, histories, sessions, databases,
-or any path not in config/dotfiles.manifest.
+or any path not in tooling/data/dotfiles.manifest.
 EOF
 }
 
