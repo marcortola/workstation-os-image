@@ -36,3 +36,18 @@ manifest_check = false
 key = "prefix+alt+o"
 type = "pane"
 command = "opencode"
+
+[ui]
+agent_panel_sort = "priority"
+
+# The Agent panel's second row defaults to the detected agent kind alone, which
+# reads "claude" on every row. herdr has no token for the `agent start` name, so
+# carry the values that actually differ: the rolled-up state, and Claude Code's
+# own terminal title. Which checkout a row belongs to is already covered by
+# `workspace` — a worktree workspace is labelled with its branch.
+[ui.sidebar.agents]
+rows = [
+    ["state_icon", "workspace", "tab"],
+    ["agent", "state_text"],
+    ["terminal_title_stripped"],
+]
