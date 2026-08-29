@@ -2,7 +2,7 @@
 
 A portable setup for three AI coding CLIs — **codex**, **Claude Code**, and
 **opencode** — that you can drop onto any Linux/macOS account. No workstation
-image, chezmoi, or Zirconium required.
+image or chezmoi required.
 
 `install.sh` does two things: lays down this repo's **personal config**
 (secret-free — no keys, tokens, or machine paths) create-only, then installs the
