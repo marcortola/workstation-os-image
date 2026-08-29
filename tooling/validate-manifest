@@ -13,7 +13,7 @@ trap 'rm -rf -- "$tmp"' EXIT
 while IFS='|' read -r kind live_path source_path pattern; do
     [[ -z $kind || $kind == \#* ]] && continue
     case "$kind" in
-        copy|template|scrub)
+        copy|template|scrub|scaffold)
             printf '%s\n' "$source_path"
             ;;
         directory|tree)
@@ -40,13 +40,12 @@ while IFS='|' read -r kind live_path source_path pattern; do
     esac
 done < "$manifest" | sort > "$tmp/expected"
 
-# The dotfile manifest inventories personal chezmoi seeds (dot_config/,
-# private_dot_local/, etc.) captured from the live account. System overlays
-# under system/ are image-owned forks (not personal seeds, no live path in
-# $HOME), so they are excluded — they are inventoried by git and validated by
-# `just build`.
-find "$source_root" -type f -not -path "$source_root/system/*" \
-    -printf '%P\n' | sort > "$tmp/actual"
+# The manifest inventories every file in the chezmoi source tree: personal
+# seeds captured from the live account, plus the image-owned `scaffold` files
+# the base no longer supplies. The niri system config is NOT here -- it lives
+# outside the chezmoi source at /usr/share/workstation-os-image/niri, which is
+# why this no longer needs a system/ exclusion.
+find "$source_root" -type f -printf '%P\n' | sort > "$tmp/actual"
 
 if ! diff -u --label manifest-expected --label repository-seeds \
     "$tmp/expected" "$tmp/actual"; then

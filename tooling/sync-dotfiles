@@ -30,6 +30,10 @@ while IFS='|' read -r kind live_path source_path pattern; do
             install -D -m 0644 "$scrubbed" "$dest/$source_path"
             rm -f "$scrubbed"
             ;;
+        scaffold)
+            # Image-owned. Capturing it from live would overwrite what the
+            # image ships with whatever the runtime last wrote.
+            ;;
         directory|tree)
             live_dir="$HOME/$live_path"
             max_depth=()

@@ -51,6 +51,11 @@ while IFS='|' read -r kind live_path source_path pattern; do
                     "$source_root/$source_path" "$live_path"
             fi
             ;;
+        scaffold)
+            # Image-owned: chezmoi keeps the static ones in sync, and
+            # dank-colors.ini is matugen output that changes on every theme
+            # switch. Neither is personal drift.
+            ;;
         template)
             rendered="$tmp/${source_path//\//_}"
             chezmoi execute-template --config "$config_file" \
