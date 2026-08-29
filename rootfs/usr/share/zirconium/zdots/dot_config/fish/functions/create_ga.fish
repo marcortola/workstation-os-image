@@ -11,17 +11,22 @@ function ga --description 'Create or open a git worktree for BRANCH under ~/.her
     # The first worktree listed is the main one; herdr keys its checkouts off
     # that repository name, and slugifies the branch by replacing / with -.
     set -l main (git worktree list --porcelain | string replace -rf '^worktree ' '' | head -n1)
-    set -l dir $HOME/.herdr/worktrees/(path basename $main)/(string replace -a / - $branch)
+    set -l repo (path basename $main)
+    set -l dir $HOME/.herdr/worktrees/$repo/(string replace -a / - $branch)
 
     # Inside herdr, hand the whole job over: `worktree create` shells out to
     # `git worktree add`, so the post-checkout hook still copies the
     # .worktreeinclude files, and the checkout opens as its own workspace
     # grouped under the parent repository.
+    #
+    # --label is not cosmetic: herdr labels a worktree workspace with the branch
+    # alone, and the Agent sidebar's only location token is that workspace name,
+    # so without it every worktree row loses the repository it belongs to.
     if set -q HERDR_ENV; and command -q herdr
         if test -e $dir
-            herdr worktree open --cwd $main --branch $branch --focus >/dev/null; or return
+            herdr worktree open --cwd $main --branch $branch --label $repo/$branch --focus >/dev/null; or return
         else
-            herdr worktree create --cwd $main --branch $branch --focus >/dev/null; or return
+            herdr worktree create --cwd $main --branch $branch --label $repo/$branch --focus >/dev/null; or return
         end
         echo $dir
         return

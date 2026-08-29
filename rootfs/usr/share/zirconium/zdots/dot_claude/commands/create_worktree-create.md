@@ -50,8 +50,10 @@ Pick the creation path with a runtime check, not a judgement call: use this
 step when `HERDR_ENV` is set to `1`, and step 3b when it is unset.
 
 ```bash
+repo=$(basename "$(git rev-parse --show-toplevel)")
 created=$(herdr worktree create --cwd "$(git rev-parse --show-toplevel)" \
-    --branch {branch-name} --base origin/main --focus)
+    --branch {branch-name} --base origin/main \
+    --label "$repo/{branch-name}" --focus)
 pane=$(printf '%s\n' "$created" | jq -r '.result.root_pane.pane_id')
 herdr agent start {branch-name} --kind claude --pane "$pane"
 ```
@@ -65,6 +67,10 @@ herdr automatically:
   `workstation-worktree-sync` copies the untracked files listed in
   `.worktreeinclude` (`.env`, `.idea`, `.claude/settings.local.json`, ...) —
   tracked files are already present
+
+`--label` is not cosmetic: herdr labels a worktree workspace with the branch
+alone, and the Agent sidebar's only location token is that workspace name, so
+without it every worktree row loses the repository it belongs to.
 
 `herdr agent start` needs an existing pane sitting at a shell prompt; the new
 workspace's single default pane is exactly that. Do not split it.
