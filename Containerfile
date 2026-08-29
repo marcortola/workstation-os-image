@@ -12,8 +12,11 @@
 # desktop stack comes from COPRs that prune superseded builds, so versionlock
 # to an older NEVRA is impossible there. Bisectability via the NEVRA manifest
 # in cleanup.sh is the substitute for pinning the parts that float.
-ARG BASE_IMAGE=ghcr.io/ublue-os/base-main
-ARG BASE_TAG=latest
+# One knob, a full image reference -- the same shape the CI repository variable
+# and the justfile pass. Splitting it into image + tag invited
+# `${BASE_IMAGE}:${BASE_TAG}` to become `...:latest:latest` the moment CI passed
+# a tagged reference, which is exactly what happened.
+ARG BASE_IMAGE=ghcr.io/ublue-os/base-main:latest
 
 # Build inputs travel in a scratch stage and are bind-mounted, never COPYd, so
 # they cannot end up in a layer of the shipped image. This is base-main's own
@@ -24,7 +27,7 @@ COPY build /build
 # Everything that is not packaged, compiled once into /staging. One builder
 # stage rather than three: the compiler is pulled in once and the layer is
 # discarded wholesale, so uninstalling build deps afterwards is wasted time.
-FROM ${BASE_IMAGE}:${BASE_TAG} AS toolchain
+FROM ${BASE_IMAGE} AS toolchain
 ARG KEYD_VERSION=2.6.0
 ARG KEYD_SHA256=697089681915b89d9e98caf93d870dbd4abce768af8a647d54650a6a90744e26
 ARG FIRACODE_VERSION=3.5.1
@@ -36,7 +39,7 @@ RUN --mount=type=bind,from=ctx,src=/,dst=/ctx \
     FIRACODE_VERSION="${FIRACODE_VERSION}" FIRACODE_SHA256="${FIRACODE_SHA256}" \
     /ctx/build/scripts/toolchain.sh
 
-FROM ${BASE_IMAGE}:${BASE_TAG}
+FROM ${BASE_IMAGE}
 
 LABEL org.opencontainers.image.source="https://github.com/marcortola/workstation-os-image"
 LABEL org.opencontainers.image.description="Personal Fedora bootc image with host-integrated tools"

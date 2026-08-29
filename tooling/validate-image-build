@@ -23,6 +23,11 @@ line_of() {
 
 # --- base ---------------------------------------------------------------
 require_literal Containerfile 'ARG BASE_IMAGE=ghcr.io/ublue-os/base-main'
+# A single full reference. A split image/tag pair silently produces
+# `repo:tag:tag` as soon as anything passes a tagged --build-arg.
+if grep -qE '^ARG BASE_TAG' Containerfile; then
+    fail "BASE_IMAGE must be one full reference, not an image plus a separate tag"
+fi
 require_literal Containerfile 'FROM scratch AS ctx'
 require_literal Containerfile 'COPY rootfs/ /'
 require_literal Containerfile '/ctx/build/scripts/check-build.sh'

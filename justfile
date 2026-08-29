@@ -103,7 +103,7 @@ ide-setup *args:
 
 # Build and lint the complete bootc image locally.
 build:
-    podman build --pull=always --tag workstation-os-image:review -f Containerfile .
+    podman build --pull=always --build-arg "BASE_IMAGE=$(sed -n 's/^ARG BASE_IMAGE=//p' Containerfile)" --tag workstation-os-image:review -f Containerfile .
 
 # Show the current repository state without changing it.
 status:
