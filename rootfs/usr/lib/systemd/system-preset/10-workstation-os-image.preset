@@ -15,3 +15,5 @@ enable workstation-user-groups.service
 disable rpm-ostreed-automatic.timer
 disable flatpak-system-update.timer
 disable bootc-fetch-apply-updates.timer
+disable brew-update.timer
+disable brew-upgrade.timer

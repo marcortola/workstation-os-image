@@ -87,6 +87,10 @@ for t in rpm-ostreed-automatic.timer flatpak-system-update.timer; do
 done
 test -e /etc/systemd/user/timers.target.wants/flatpak-user-update.timer \
     && fail "flatpak-user-update.timer is still enabled and will race uupd"
+for t in brew-update.timer brew-upgrade.timer; do
+    test -e "/etc/systemd/system/timers.target.wants/$t" \
+        && fail "$t is still enabled; uupd is the single brew updater"
+done
 test -L /etc/systemd/user/graphical-session.target.wants/dms.service || fail "dms.service not enabled"
 readlink /usr/lib/systemd/system/default.target | grep graphical.target >/dev/null \
     || fail "default.target is not graphical.target"
@@ -126,6 +130,20 @@ if ! fc-list | grep 'FiraCode Nerd Font Mono' >/dev/null; then
     fc-list | grep -i fira >&2 || echo "(no fira in fc-list)" >&2
     fail "FiraCode Nerd Font Mono not installed"
 fi
+
+# --- every niri spawn target resolves ------------------------------------
+# `niri validate` parses the config but never checks that a spawned binary
+# exists, so a bind pointing at a removed program stays silent until the key is
+# pressed. This is how `spawn "zocr"` survived the base swap.
+while read -r target; do
+    [[ -z $target ]] && continue
+    case "$target" in
+        /*) test -x "$target" || fail "niri bind spawns a missing program: $target" ;;
+        *)  command -v "$target" >/dev/null || fail "niri bind spawns a missing program: $target" ;;
+    esac
+done < <(grep -hoE 'spawn "[^"]+"' \
+    /usr/share/workstation-os-image/niri/includes/*.kdl 2>/dev/null \
+    | sed 's/spawn "//; s/"$//' | sort -u)
 
 # --- config validators ---------------------------------------------------
 dockerd --validate --config-file=/usr/share/factory/etc/docker/daemon.json

@@ -192,7 +192,7 @@ binds {
     Mod+Shift+S hotkey-overlay-title="Take a Screenshot" {
         spawn "dms" "ipc" "call" "niri" "screenshot";
     }
-    Mod+Print hotkey-overlay-title="Read contents of screen" { spawn "zocr" "screenshot"; }
+    Mod+Print hotkey-overlay-title="Read contents of screen" { spawn "workstation-ocr" "screenshot"; }
     Mod+Shift+R hotkey-overlay-title="Start/stop screen recording" {
         spawn "/usr/libexec/workstation-screenrecord";
     }
@@ -235,7 +235,7 @@ binds {
     Print hotkey-overlay-title=null { spawn "dms" "ipc" "call" "niri" "screenshot"; }
     Ctrl+Print { spawn "dms" "ipc" "call" "niri" "screenshotScreen"; }
     Alt+Print { spawn "dms" "ipc" "call" "niri" "screenshotWindow"; }
-    Mod+Alt+Shift+S hotkey-overlay-title=null { spawn "zocr" "screenshot"; }
+    Mod+Alt+Shift+S hotkey-overlay-title=null { spawn "workstation-ocr" "screenshot"; }
 
     // ── Hidden from overlay (null-titled; keys still work) ───────────────
     // Mod+Y and Mod+Alt+L are claimed by DMS; reclaimed in local.kdl.

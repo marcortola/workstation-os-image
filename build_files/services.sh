@@ -10,6 +10,14 @@ set -ouex pipefail
 systemctl disable rpm-ostreed-automatic.timer flatpak-system-update.timer
 systemctl --global disable flatpak-user-update.timer
 
+# The ublue brew layer's own preset enables brew-update.timer (every 6h) and
+# brew-upgrade.timer (every 8h). On the previous base these were inert because
+# brew-proxy broke them; dropping brew-proxy revives them, which would give us
+# three brew update paths counting uupd's brew module. uupd is the single
+# updater, so disable them explicitly -- 01-homebrew.preset sorts before ours,
+# so a preset line alone would not win.
+systemctl disable brew-update.timer brew-upgrade.timer
+
 # getty@tty1 stays enabled on purpose. greetd carries
 # Conflicts=getty@tty1.service so it is displaced at runtime, and it is the
 # only escape hatch if the greeter fails to start.
@@ -21,7 +29,7 @@ systemctl preset \
     uupd.timer \
     docker.service containerd.service \
     keyd.service \
-    brew-setup.service brew-update.timer brew-upgrade.timer \
+    brew-setup.service \
     workstation-brew-trust.service \
     workstation-user-groups.service
 
