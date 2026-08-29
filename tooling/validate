@@ -6,6 +6,8 @@ cd "$repo_root"
 
 git diff --check
 
+tooling/validate-repo
+
 mapfile -t shell_files < <(
     find tooling rootfs/usr/bin rootfs/usr/libexec -type f \
         \( -perm /111 -o -name '*.sh' \) -print | sort
@@ -208,7 +210,8 @@ git config --file "$git_home/.gitconfig" user.name "Local Override"
 tooling/audit-workstation
 foot --check-config -c "$HOME/.config/foot/foot.ini"
 
-cp -a /usr/share/workstation-os-image/dotfiles/. "$tmp/"
+# The repo tree IS the chezmoi source now. Nothing is overlaid from the live
+# image, so these assertions test only what this repository ships.
 cp -a rootfs/usr/share/workstation-os-image/dotfiles/. "$tmp/"
 chezmoi managed -S "$tmp" > "$tmp/managed"
 

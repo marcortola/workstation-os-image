@@ -74,6 +74,26 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
+  repo-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Repository gates
+        run: |
+          tooling/validate-repo
+          tooling/validate-image-build
+
+      - name: Shell lint
+        run: |
+          mapfile -t files < <(
+            find tooling build_files rootfs/usr/bin rootfs/usr/libexec -type f \
+              \( -perm /111 -o -name '*.sh' \) -print | sort
+          )
+          sudo apt-get update && sudo apt-get install --yes shellcheck
+          shellcheck "${files[@]}"
+
   dms-settings-tests:
     runs-on: ubuntu-latest
     steps:
@@ -94,7 +114,7 @@ jobs:
         run: tooling/test-dms-settings
 
   build:
-    needs: [image-inputs, dms-settings-tests]
+    needs: [image-inputs, dms-settings-tests, repo-gates]
     if: needs.image-inputs.outputs.changed == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -137,6 +157,27 @@ jobs:
         run: |
           buildah push "$IMAGE_NAME:latest" "docker://$IMAGE_NAME:latest"
           buildah push "$IMAGE_NAME:$GITHUB_SHA" "docker://$IMAGE_NAME:$GITHUB_SHA"
+
+      - name: Smoke test the built image
+        run: |
+          # CI never boots the image, so this is the boundary of what can be
+          # proven: the artifact's own tools, run against the artifact.
+          img="$IMAGE_NAME:$GITHUB_SHA"
+          podman run --rm "$img" bash -euxc '
+            command -v chezmoi niri
+            test -d /usr/share/workstation-os-image/dotfiles
+            test -f /usr/share/workstation-os-image/niri/workstation.kdl
+            test ! -e /usr/share/zirconium
+            niri validate -c /etc/greetd/niri/config.kdl
+            niri validate -c /usr/share/workstation-os-image/niri/workstation.kdl
+            systemd-analyze verify \
+              /usr/lib/systemd/user/workstation-chezmoi-init.service \
+              /usr/lib/systemd/user/workstation-chezmoi-update.service \
+              /usr/lib/systemd/user/workstation-chezmoi-update.timer
+            readlink /etc/systemd/system/display-manager.service | grep greetd >/dev/null
+            HOME=$(mktemp -d) chezmoi apply --dry-run --no-tty \
+              -S /usr/share/workstation-os-image/dotfiles >/dev/null
+          '
 
       - name: Log out of GHCR
         if: always()
