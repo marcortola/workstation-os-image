@@ -3,11 +3,11 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 default:
     @just --list
 
-# Report personal and Zirconium-managed configuration drift.
+# Report personal and image-managed configuration drift.
 audit:
     ./tooling/audit-workstation
 
-# Show complete diffs for informational Zirconium/DMS drift.
+# Show complete diffs for informational image/DMS drift.
 audit-diff:
     ./tooling/audit-workstation --diff
 

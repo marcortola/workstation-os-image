@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-foot=/usr/share/zirconium/zdots/dot_config/foot/foot.ini.tmpl
+foot=/usr/share/workstation-os-image/dotfiles/dot_config/foot/foot.ini.tmpl
 include='include={{.chezmoi.homeDir}}/.config/foot/workstation.ini'
 
 if ! grep -Fqx "$include" "$foot"; then
@@ -18,7 +18,7 @@ fi
 # create_clsettings.json so the seed lands once and later UI edits win. chezmoi
 # refuses two sources for one target ("inconsistent state"), which breaks every
 # `chezmoi diff` the audit runs, so drop the upstream copy.
-dms=/usr/share/zirconium/zdots/dot_config/DankMaterialShell
+dms=/usr/share/workstation-os-image/dotfiles/dot_config/DankMaterialShell
 if [[ -f $dms/create_clsettings.json && -f $dms/clsettings.json ]]; then
     rm -f "$dms/clsettings.json"
 fi

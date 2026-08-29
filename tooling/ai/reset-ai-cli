@@ -17,7 +17,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "$repo_root/tooling/lib/dotfiles.sh"
 
 manifest="$repo_root/config/dotfiles.manifest"
-seed_root="$repo_root/rootfs/usr/share/zirconium/zdots"
+seed_root="$repo_root/rootfs/usr/share/workstation-os-image/dotfiles"
 
 force=false
 diff_only=false

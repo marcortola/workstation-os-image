@@ -100,7 +100,7 @@ if run_apply --initialize 2>/dev/null; then
 fi
 [[ ! -e $marker ]]
 
-# Initialization waits until DMS has migrated the Zirconium seed to the
+# Initialization waits until DMS has migrated the image seed to the
 # installed schema and never marks an old file as initialized.
 rm -f "$marker" "$bootstrap_marker"
 write_live_fixture "$target"

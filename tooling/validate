@@ -9,7 +9,7 @@ git diff --check
 mapfile -t shell_files < <(
     find tooling rootfs/usr/bin rootfs/usr/libexec -type f \
         \( -perm /111 -o -name '*.sh' \) -print | sort
-    find rootfs/usr/share/zirconium/zdots -type f \
+    find rootfs/usr/share/workstation-os-image/dotfiles -type f \
         -name 'create_executable_*' -print | sort
     # Bundle scripts only (maxdepth 1 skips the vendored Node installer).
     find tooling/ai/ai-cli-setup -maxdepth 1 -name '*.sh' -print | sort
@@ -19,7 +19,7 @@ shellcheck "${shell_files[@]}"
 
 # Dictation records a complete WAV before uploading it, so it uses the
 # completed-audio model and consumes that model's JSON response contract.
-dictate_seed=rootfs/usr/share/zirconium/zdots/private_dot_local/bin/create_executable_workstation-dictate
+dictate_seed=rootfs/usr/share/workstation-os-image/dotfiles/private_dot_local/bin/create_executable_workstation-dictate
 grep -Fq -- '--form model=gpt-transcribe' "$dictate_seed"
 grep -Fq -- '--form response_format=json' "$dictate_seed"
 grep -Fq -- '.text | select(type == "string")' "$dictate_seed"
@@ -35,7 +35,7 @@ fi
 # skipped where Neovim is unavailable (e.g. minimal CI), like other local gates.
 if command -v nvim >/dev/null 2>&1; then
     mapfile -t nvim_lua < <(
-        find rootfs/usr/share/zirconium/zdots/dot_config/nvim -name '*.lua' -print | sort
+        find rootfs/usr/share/workstation-os-image/dotfiles/dot_config/nvim -name '*.lua' -print | sort
     )
     (( ${#nvim_lua[@]} )) && nvim --clean -l tooling/lint-nvim-seeds.lua "${nvim_lua[@]}"
 fi
@@ -78,7 +78,7 @@ done < <(grep -oE '`(config|rootfs|tooling)/[A-Za-z0-9._/-]*' AGENTS.md \
 # committed seeds (visible to CI even when live files are absent). gitleaks
 # above is the generic backstop; these catch the tool-specific shapes it misses
 # (e.g. the dash-broken context7 key gitleaks does not flag).
-ai_seeds=rootfs/usr/share/zirconium/zdots
+ai_seeds=rootfs/usr/share/workstation-os-image/dotfiles
 assert_absent() {
     # Fail if the extended-regexp $1 matches (case-insensitively) anywhere in
     # file $2. A plain `! grep` would be exempt from errexit and silently pass,
@@ -139,7 +139,7 @@ fi
 # domains. It regenerates constantly, this repository is public, and gitleaks
 # does not recognise any of it as a secret, so assert the scrub actually held.
 jq -e '.autoMode.environment == null' \
-    rootfs/usr/share/zirconium/zdots/dot_claude/create_settings.json >/dev/null
+    rootfs/usr/share/workstation-os-image/dotfiles/dot_claude/create_settings.json >/dev/null
 jq -e '.autoMode.environment == null' \
     tooling/ai/ai-cli-setup/config/claude/settings.json >/dev/null
 
@@ -148,10 +148,10 @@ jq -e '.autoMode.environment == null' \
 # committed .worktreeinclude through `git worktree add`, so assert the wiring
 # that keeps them in sync.
 grep -q 'workstation-worktree-sync' \
-    rootfs/usr/share/zirconium/zdots/dot_config/git/template/hooks/create_executable_post-checkout
+    rootfs/usr/share/workstation-os-image/dotfiles/dot_config/git/template/hooks/create_executable_post-checkout
 grep -q 'satococoa/tap/git-worktreeinclude' \
-    rootfs/usr/share/zirconium/zdots/dot_config/homebrew/create_Brewfile
-grep -q 'templateDir' rootfs/usr/share/zirconium/zdots/dot_config/git/create_config
+    rootfs/usr/share/workstation-os-image/dotfiles/dot_config/homebrew/create_Brewfile
+grep -q 'templateDir' rootfs/usr/share/workstation-os-image/dotfiles/dot_config/git/create_config
 [[ -x tooling/worktree-init ]]
 tooling/test-worktree-init
 
@@ -167,9 +167,9 @@ jq -n -e \
 tooling/test-dms-settings
 
 fish --no-execute \
-    rootfs/usr/share/zirconium/zdots/dot_config/fish/create_config.fish \
-    rootfs/usr/share/zirconium/zdots/dot_config/fish/conf.d/*.fish \
-    rootfs/usr/share/zirconium/zdots/dot_config/fish/functions/*.fish
+    rootfs/usr/share/workstation-os-image/dotfiles/dot_config/fish/create_config.fish \
+    rootfs/usr/share/workstation-os-image/dotfiles/dot_config/fish/conf.d/*.fish \
+    rootfs/usr/share/workstation-os-image/dotfiles/dot_config/fish/functions/*.fish
 
 tooling/validate-manifest
 tooling/validate-jetbrains-settings
@@ -184,7 +184,7 @@ trap 'rm -rf -- "$tmp"' EXIT
 # identity overrides in ~/.gitconfig continue to win.
 git_home="$tmp/git-home"
 install -D -m 0644 \
-    rootfs/usr/share/zirconium/zdots/dot_config/git/create_config \
+    rootfs/usr/share/workstation-os-image/dotfiles/dot_config/git/create_config \
     "$git_home/.config/git/config"
 git config --file "$git_home/.gitconfig" credential.helper store
 [[ $(
@@ -208,8 +208,8 @@ git config --file "$git_home/.gitconfig" user.name "Local Override"
 tooling/audit-workstation
 foot --check-config -c "$HOME/.config/foot/foot.ini"
 
-cp -a /usr/share/zirconium/zdots/. "$tmp/"
-cp -a rootfs/usr/share/zirconium/zdots/. "$tmp/"
+cp -a /usr/share/workstation-os-image/dotfiles/. "$tmp/"
+cp -a rootfs/usr/share/workstation-os-image/dotfiles/. "$tmp/"
 chezmoi managed -S "$tmp" > "$tmp/managed"
 
 for target in \

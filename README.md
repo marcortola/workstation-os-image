@@ -255,7 +255,7 @@ manages a live machine:
 
 | Directory | Holds | In the image? |
 | --- | --- | --- |
-| `rootfs/` | OS image payload copied into `/` (`COPY rootfs/ /`): systemd units, helpers, factory defaults, and the chezmoi seeds under `usr/share/zirconium/zdots/`. | Yes — the only tree in the build context |
+| `rootfs/` | OS image payload copied into `/` (`COPY rootfs/ /`): systemd units, helpers, factory defaults, and the chezmoi seeds under `usr/share/workstation-os-image/dotfiles/`. | Yes — the only tree in the build context |
 | `config/` | Repo-owned declarative source the tooling reads: the `dotfiles.manifest` inventory, JetBrains canonical settings, the AI-CLI MCP fragment, and policy deny-lists. | No — drives `just`/scripts |
 | `tooling/` | Host-side management scripts (audit/sync/validate/jetbrains/worktree), plus `ai/` (the AI-CLI machinery: the exportable `ai-cli-setup` bundle and the install/build/reset scripts) and `fixtures/` (test data). | No |
 

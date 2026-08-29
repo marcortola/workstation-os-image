@@ -22,7 +22,7 @@ set -uo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/.." && pwd)"
-hook_seed="$repo_root/rootfs/usr/share/zirconium/zdots/dot_config/git/template/hooks/create_executable_post-checkout"
+hook_seed="$repo_root/rootfs/usr/share/workstation-os-image/dotfiles/dot_config/git/template/hooks/create_executable_post-checkout"
 hook_live="${XDG_CONFIG_HOME:-$HOME/.config}/git/template/hooks/post-checkout"
 projects_root="${WORKSTATION_PROJECTS_ROOT:-$HOME/projects}"
 managed_marker="# workstation-worktree-init: managed post-checkout hook v1"

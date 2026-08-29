@@ -9,7 +9,7 @@ Documentation=https://github.com/Supreeeme/xwayland-satellite/issues/133
 # (e.g. Postman ships sockets=x11 only), and ELECTRON_OZONE_PLATFORM_HINT=auto
 # then makes Electron pick Wayland, so they run as native Wayland clients and
 # sidestep the gap. Set as a global Flatpak override rather than editing
-# Zirconium's base-owned overrides/global file. Re-asserted every login so it
+# the base-owned overrides/global file. Re-asserted every login so it
 # survives any base rewrite; idempotent.
 
 [Service]

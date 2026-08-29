@@ -2,8 +2,8 @@
 set -uo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-source_dir=/usr/share/zirconium/zdots
-config_file="${XDG_CONFIG_HOME:-$HOME/.config}/zirconium/chezmoi/chezmoi.toml"
+source_dir=/usr/share/workstation-os-image/dotfiles
+config_file="${XDG_CONFIG_HOME:-$HOME/.config}/workstation-os-image/chezmoi/chezmoi.toml"
 strict=false
 show_details=false
 status=0
@@ -27,7 +27,7 @@ for command in chezmoi niri; do
 done
 
 [[ -d $source_dir && -f $config_file ]] || {
-    echo "Zirconium chezmoi source or configuration is missing." >&2
+    echo "Image chezmoi source or configuration is missing." >&2
     exit 2
 }
 
@@ -40,7 +40,7 @@ done
     fi
 }
 
-printf '\nZirconium-managed configuration drift:\n'
+printf '\nImage-managed configuration drift:\n'
 
 show_diff() {
     local label=$1 severity=$2 output
@@ -52,7 +52,7 @@ show_diff() {
         return
     fi
     if [[ -n $output ]]; then
-        printf '%s differs from the installed Zirconium defaults.\n' "$label"
+        printf '%s differs from the installed image defaults.\n' "$label"
         if [[ $show_details == true ]]; then
             printf '%s\n' "$output"
         else
@@ -60,7 +60,7 @@ show_diff() {
         fi
         [[ $severity == critical || $strict == true ]] && status=1
     else
-        printf '%s matches the installed Zirconium defaults.\n' "$label"
+        printf '%s matches the installed image defaults.\n' "$label"
     fi
 }
 

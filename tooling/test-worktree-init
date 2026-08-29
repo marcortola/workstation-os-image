@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 worktree_init="$repo_root/tooling/worktree-init"
-hook_seed="$repo_root/rootfs/usr/share/zirconium/zdots/dot_config/git/template/hooks/create_executable_post-checkout"
+hook_seed="$repo_root/rootfs/usr/share/workstation-os-image/dotfiles/dot_config/git/template/hooks/create_executable_post-checkout"
 managed_marker="# workstation-worktree-init: managed post-checkout hook v1"
 workdir="$(mktemp -d)"
 trap 'rm -rf -- "$workdir"' EXIT
@@ -32,9 +32,9 @@ new_repo() {
 # fetched commit as the new branch's base. Updating local main can fail when it
 # is checked out in another worktree.
 ide_recipes=(
-    "$repo_root/rootfs/usr/share/zirconium/zdots/dot_claude/commands/create_worktree-create.md"
-    "$repo_root/rootfs/usr/share/zirconium/zdots/dot_codex/skills/worktree-create/create_SKILL.md"
-    "$repo_root/rootfs/usr/share/zirconium/zdots/dot_config/opencode/commands/create_worktree-create.md"
+    "$repo_root/rootfs/usr/share/workstation-os-image/dotfiles/dot_claude/commands/create_worktree-create.md"
+    "$repo_root/rootfs/usr/share/workstation-os-image/dotfiles/dot_codex/skills/worktree-create/create_SKILL.md"
+    "$repo_root/rootfs/usr/share/workstation-os-image/dotfiles/dot_config/opencode/commands/create_worktree-create.md"
 )
 for recipe in "${ide_recipes[@]}"; do
     grep -Fq 'git fetch origin +refs/heads/main:refs/remotes/origin/main' "$recipe" \
@@ -47,9 +47,9 @@ done
 # branch, so every remove recipe must delete it explicitly or the machine
 # accumulates dead local branches after each merged worktree.
 remove_recipes=(
-    "$repo_root/rootfs/usr/share/zirconium/zdots/dot_claude/commands/create_worktree-remove.md"
-    "$repo_root/rootfs/usr/share/zirconium/zdots/dot_codex/skills/worktree-remove/create_SKILL.md"
-    "$repo_root/rootfs/usr/share/zirconium/zdots/dot_config/opencode/commands/create_worktree-remove.md"
+    "$repo_root/rootfs/usr/share/workstation-os-image/dotfiles/dot_claude/commands/create_worktree-remove.md"
+    "$repo_root/rootfs/usr/share/workstation-os-image/dotfiles/dot_codex/skills/worktree-remove/create_SKILL.md"
+    "$repo_root/rootfs/usr/share/workstation-os-image/dotfiles/dot_config/opencode/commands/create_worktree-remove.md"
 )
 for recipe in "${remove_recipes[@]}"; do
     grep -Fq 'git branch -D' "$recipe" \

@@ -7,7 +7,7 @@ set -euo pipefail
 # b3fe82e6, which handed the DMS-generated fragment every key our forked
 # binds.kdl also claimed. Nothing surfaced that, so assert it here.
 
-system_binds=${WORKSTATION_NIRI_SYSTEM_BINDS:-/usr/share/zirconium/zdots/system/niri/includes/binds.kdl}
+system_binds=${WORKSTATION_NIRI_SYSTEM_BINDS:-/usr/share/workstation-os-image/niri/includes/binds.kdl}
 config=${WORKSTATION_NIRI_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/niri/config.kdl}
 dms_binds=${WORKSTATION_NIRI_DMS_BINDS:-${XDG_CONFIG_HOME:-$HOME/.config}/niri/dms/binds.kdl}
 overrides=${WORKSTATION_NIRI_LOCAL:-${XDG_CONFIG_HOME:-$HOME/.config}/niri/local.kdl}

@@ -6,7 +6,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$repo_root/tooling/lib/dotfiles.sh"
 
 manifest="$repo_root/config/dotfiles.manifest"
-dest="$repo_root/rootfs/usr/share/zirconium/zdots"
+dest="$repo_root/rootfs/usr/share/workstation-os-image/dotfiles"
 backup_root="$repo_root/config/jetbrains-settings"
 
 copy_default() {

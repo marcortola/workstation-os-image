@@ -9,7 +9,7 @@
 set -uo pipefail
 
 brew=/home/linuxbrew/.linuxbrew/bin/brew
-brewfile=/usr/share/zirconium/zdots/dot_config/homebrew/create_Brewfile
+brewfile=/usr/share/workstation-os-image/dotfiles/dot_config/homebrew/create_Brewfile
 
 [[ -x $brew ]] || {
     echo "brew is not provisioned at $brew yet; skipping trust seed." >&2

@@ -17,16 +17,16 @@ trap 'rm -rf -- "$workdir"' EXIT
 # GitHub dependency, so a transient clone failure can no longer block the
 # essential brew and Toolbox provisioning below.
 
-# Zirconium's brew image profile ships /usr/share/homebrew.tar.zst and
+# The ublue brew layer ships /usr/share/homebrew.tar.zst and
 # enables brew-setup.service, which unpacks it on first boot. Never install
 # Homebrew here; wait for the image-provided copy instead.
 [[ -x $brew ]] || {
-    echo "Waiting for Zirconium's brew-setup.service to provision $brew" >&2
+    echo "Waiting for brew-setup.service to provision $brew" >&2
     exit 1
 }
 
 [[ -f $brewfile ]] || {
-    echo "Waiting for Zirconium to create $brewfile" >&2
+    echo "Waiting for chezmoi to create $brewfile" >&2
     exit 1
 }
 
