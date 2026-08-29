@@ -6,7 +6,7 @@ Requires=workstation-dms-settings.service
 # graphical-session.target: we run after workstation-dms-settings.service (hence
 # after dms.service, which is After the target), so we must also order after the
 # target to avoid re-forming the ordering cycle that would drop dms.service.
-After=network-online.target chezmoi-init.service chezmoi-update.service \
+After=network-online.target workstation-chezmoi-init.service workstation-chezmoi-update.service \
     workstation-dms-settings.service graphical-session.target
 ConditionPathExists=!%h/.local/state/workstation-os-image/bootstrap-complete
 

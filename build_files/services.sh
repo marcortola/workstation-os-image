@@ -19,7 +19,7 @@ systemctl --global disable flatpak-user-update.timer
 systemctl preset \
     greetd.service \
     uupd.timer \
-    docker.service docker.socket containerd.service \
+    docker.service containerd.service \
     keyd.service \
     brew-setup.service brew-update.timer brew-upgrade.timer \
     workstation-brew-trust.service \

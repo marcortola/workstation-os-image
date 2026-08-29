@@ -1,0 +1,7 @@
+[Unit]
+Description=Reapply workstation dotfiles
+Documentation=https://github.com/marcortola/workstation-os-image
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/workstation-chezmoi-apply
