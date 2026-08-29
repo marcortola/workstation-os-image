@@ -39,6 +39,9 @@ command = "opencode"
 
 [ui]
 agent_panel_sort = "priority"
+# Worktree spaces are labelled "<repo>/<branch>" so the Agent rows keep the
+# repository, which costs columns. 36 is herdr's maximum.
+sidebar_width = 36
 
 # The Agent panel's second row defaults to the detected agent kind alone, which
 # reads "claude" on every row. herdr has no token for the `agent start` name, so
