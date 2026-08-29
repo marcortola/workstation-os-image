@@ -152,7 +152,7 @@ works in the other. Neovim runs stock LazyVim bindings — `lua/config/keymaps.l
 is deliberately empty, because a binding that exists in only one of the two
 editors is a habit that has to be unlearned later. The IDEs get the same set
 through **IdeaVim**, driven by `~/.ideavimrc` (a chezmoi seed; see
-`config/dotfiles.manifest`). Where LazyVim and JetBrains disagree, LazyVim wins
+`tooling/data/dotfiles.manifest`). Where LazyVim and JetBrains disagree, LazyVim wins
 and the displaced IDE action moves to its LazyVim `<leader>` key.
 
 Four Marketplace plugins in `_shared/plugins.list` back this: `IdeaVIM` itself,
@@ -261,10 +261,9 @@ manages a live machine:
 
 | Directory | Holds | In the image? |
 | --- | --- | --- |
-| `rootfs/` | OS image payload copied into `/` (`COPY rootfs/ /`): systemd units, helpers, factory defaults, the image-owned niri system config under `usr/share/workstation-os-image/niri/`, and the chezmoi seeds under `usr/share/workstation-os-image/dotfiles/`. | Yes — copied verbatim into `/` |
-| `config/` | Repo-owned declarative source the tooling reads: the `dotfiles.manifest` inventory, JetBrains canonical settings, the AI-CLI MCP fragment, and policy deny-lists. | No — drives `just`/scripts |
-| `tooling/` | Host-side management scripts (audit/sync/validate/jetbrains/worktree), plus `ai/` (the AI-CLI machinery: the exportable `ai-cli-setup` bundle and the install/build/reset scripts) and `fixtures/` (test data). | No |
-| `build/` | Everything the build reads and nothing it ships: `scripts/` (`toolchain.sh` runs first in its own stage, then `repos.sh`, `packages.sh`, `desktop.sh`, `services.sh`, `cleanup.sh`, `check-build.sh`, plus the `workstation-ocr` payload), `packages/` (one `.list` per group plus `exclude.list`), `repos/` (vendored `.repo` files, reviewed in Git rather than curled at build time and deleted again by `cleanup.sh`), and `src/` (`workstation-x11-clipsync.c`). | No — the whole tree is bind-mounted at `/ctx`, never `COPY`d into a layer |
+| `image/rootfs/` | OS image payload copied into `/` (`COPY image/rootfs/ /`): systemd units, helpers, factory defaults, the image-owned niri system config under `usr/share/workstation-os-image/niri/`, and the chezmoi seeds under `usr/share/workstation-os-image/dotfiles/`. | Yes — copied verbatim into `/` |
+| `image/build/` | Everything the build reads and nothing it ships: `scripts/` (`toolchain.sh` runs first in its own stage, then `repos.sh`, `packages.sh`, `desktop.sh`, `services.sh`, `cleanup.sh`, `check-build.sh`, plus the `workstation-ocr` payload), `packages/` (one `.list` per group plus `exclude.list`), `repos/` (vendored `.repo` files, deleted again by `cleanup.sh`), `src/` (`workstation-x11-clipsync.c`). | No — bind-mounted at `/ctx`, never `COPY`d into a layer |
+| `tooling/` | Host-side management scripts grouped by concern (`audit/`, `dms/`, `dotfiles/`, `jetbrains/`, `validate/`, `worktree/`), plus `data/` (the declarative source they read: the `dotfiles.manifest` inventory, JetBrains canonical settings, the AI-CLI MCP fragment, policy deny-lists), `ai/` (the AI-CLI machinery), `lib/`, `scrub/` and `fixtures/`. | No |
 
 Root files (`Containerfile`, `justfile`, `README.md`, `AGENTS.md`) stay at the
 top level.
@@ -295,14 +294,14 @@ The image owns its chezmoi source outright at
 manager, hardcode a username, or use rpm-ostree package layers.
 
 Image builds keep the slow runtime-package transaction ahead of the volatile
-`rootfs/` copy, while compiled helpers (keyd, clipsync, the FiraCode release)
+`image/rootfs/` copy, while compiled helpers (keyd, clipsync, the FiraCode release)
 are built once in a single isolated `toolchain` stage. CI
 stores Buildah intermediate layers in the companion GHCR cache repository and
 reuses cache entries for ordinary pushes and pull requests. The daily scheduled
 build deliberately skips cache reads so DNF metadata and packages are refreshed;
 it then replaces the remote cache. Changes that do not affect `Containerfile`,
-`rootfs/` or the build workflow still run their tests but skip the image
-job. The build context is `Containerfile`, `rootfs/` and `build/`; `build/`
+`image/rootfs/` or the build workflow still run their tests but skip the image
+job. The build context is `Containerfile`, `image/rootfs/` and `build/`; `build/`
 travels in a `scratch` stage that every `RUN` bind-mounts at `/ctx`, so build
 inputs never land in a layer of the shipped image.
 
@@ -311,13 +310,13 @@ inputs never land in a layer of the shipped image.
 This image used to derive from
 [Zirconium](https://github.com/zirconium-dev/zirconium). It no longer does, but
 the niri system configuration was carried over rather than rewritten. Six
-includes under `rootfs/usr/share/workstation-os-image/niri/includes/` —
+includes under `image/rootfs/usr/share/workstation-os-image/niri/includes/` —
 `dms-base.kdl`, `input.kdl`, `layout.kdl`, `misc.kdl`, `shadow.kdl` and
 `window-rules.kdl` — were copied verbatim from
 [zirconium-dev/zdots](https://github.com/zirconium-dev/zdots), and `binds.kdl`
 was substantially rewritten from the same source. That work is licensed under
 the Apache License 2.0; this repository's own code is MIT. The attribution
-lives in `rootfs/usr/share/workstation-os-image/niri/NOTICE`, ships inside the
+lives in `image/rootfs/usr/share/workstation-os-image/niri/NOTICE`, ships inside the
 image, and `workstation.kdl` points at it. Upstream no longer feeds these
 files: they are changed and reviewed here.
 
@@ -387,16 +386,16 @@ all validation and shows the resulting diff. Review that diff before committing.
 | `wjust build` | Build and lint the bootc image locally with Podman |
 | `wjust status` | Show the current Git branch and diff summary |
 
-For a new portable file, add one entry to `config/dotfiles.manifest`; it is the
+For a new portable file, add one entry to `tooling/data/dotfiles.manifest`; it is the
 only personal-file inventory. Do not add whole application directories.
 
 ### Share JetBrains IDE settings
 
 The repository keeps one canonical JetBrains configuration so every IDE feels the
 same, and applies it explicitly — it is not an automatic sync.
-`config/jetbrains-settings/_shared/` holds the portable "feel the same" subset
+`tooling/data/jetbrains-settings/_shared/` holds the portable "feel the same" subset
 once (keymaps, colour schemes, fonts, product-neutral editor/UI options); each
-`config/jetbrains-settings/<Product>/` holds only that IDE's product-specific
+`tooling/data/jetbrains-settings/<Product>/` holds only that IDE's product-specific
 remainder (code styles, templates, inspections, toolbars). Capture resolves the
 newest installed product directory, so no IDE version is pinned, and nothing is
 deployed by chezmoi. Only portable, secret-free files are tracked — `wjust
@@ -413,8 +412,8 @@ state, and enforces that a file lives in exactly one place.
 
 Plugins are declared as Marketplace IDs and installed headlessly with the IDE's
 `installPlugins` command; the JARs are fetched at apply time, never vendored.
-`config/jetbrains-settings/_shared/plugins.list` installs into every IDE, and each
-`config/jetbrains-settings/<Product>/plugins.list` adds plugins for just that IDE.
+`tooling/data/jetbrains-settings/_shared/plugins.list` installs into every IDE, and each
+`tooling/data/jetbrains-settings/<Product>/plugins.list` adds plugins for just that IDE.
 
 Typical unification: edit settings in the canonical IDE, `wjust jetbrains-promote`
 to capture them into `_shared/`, review the diff, then `wjust jetbrains-apply
@@ -437,7 +436,7 @@ wjust audit
 ```
 
 The tracked overlay is
-`rootfs/usr/share/workstation-os-image/dms-settings.json`. Simple values
+`image/rootfs/usr/share/workstation-os-image/dms-settings.json`. Simple values
 merge by top-level key; bar settings merge by bar ID and field so future DMS
 fields survive. Paths use portable tokens, and device pins, monitor layouts,
 histories and similar state are excluded from the interactive picker.
@@ -458,10 +457,10 @@ uncaptured.
 Use the smallest durable owner:
 
 - RPM, daemon, socket, privileged helper or system preset: `Containerfile` or
-  `rootfs/`.
+  `image/rootfs/`.
 - Homebrew formula, cask or Flatpak: `~/.config/homebrew/Brewfile`, then
   `wjust sync`.
-- Portable user configuration: add it to `config/dotfiles.manifest`, then
+- Portable user configuration: add it to `tooling/data/dotfiles.manifest`, then
   `wjust sync`.
 - Niri customization: `~/.config/niri/local.kdl`, never the upstream-managed
   `config.kdl` or DMS-generated fragments. A keybind DMS also claims wins only
@@ -547,7 +546,7 @@ and bootc modules. It runs them as the uid that owns the brew prefix — 1000,
 because `brew-setup.service` chowns `/home/linuxbrew` to `1000:1000`. There is
 no `linuxbrew` user on this image; that user came from brew-proxy, which is no
 longer installed. The brew payload's own `brew-update.timer` and
-`brew-upgrade.timer` are disabled by `build/scripts/services.sh`: on the previous
+`brew-upgrade.timer` are disabled by `image/build/scripts/services.sh`: on the previous
 base they were inert because brew-proxy broke their
 `ConditionPathIsSymbolicLink`, and with brew-proxy gone they would fire every
 six and eight hours alongside uupd's brew module. `uupd` is the single updater.

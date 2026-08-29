@@ -21,8 +21,8 @@ workstation_live_relative() {
 
 # Portable JetBrains settings that should feel identical across every IDE:
 # shortcuts, colours, fonts and product-neutral editor/UI behaviour. These are
-# maintained once in config/jetbrains-settings/_shared/ (the single canonical
-# source) and applied into each IDE by tooling/apply-jetbrains-settings. Each
+# maintained once in tooling/data/jetbrains-settings/_shared/ (the single canonical
+# source) and applied into each IDE by tooling/jetbrains/apply-settings. Each
 # entry is a path relative to a product configuration directory; directories are
 # handled recursively.
 workstation_jetbrains_shared_allowlist() {
@@ -43,7 +43,7 @@ workstation_jetbrains_shared_allowlist() {
 
 # Portable but product-specific JetBrains settings that legitimately differ per
 # IDE (a language code style and file/live templates). Captured per product into
-# config/jetbrains-settings/<Product>/ by sync-dotfiles and layered on top of the
+# tooling/data/jetbrains-settings/<Product>/ by sync-dotfiles and layered on top of the
 # shared canonical during apply.
 workstation_jetbrains_product_allowlist() {
     printf '%s\n' \
@@ -105,7 +105,7 @@ workstation_jetbrains_plugins() {
 }
 
 # Names that must never appear in the captured JetBrains backup tree. Enforced
-# by tooling/validate-jetbrains-settings as a backstop to the allow-list. A file
+# by tooling/jetbrains/validate as a backstop to the allow-list. A file
 # entry matches a basename glob; a bare name also matches any path segment so a
 # denied directory is caught anywhere in the tree.
 workstation_jetbrains_denylist() {

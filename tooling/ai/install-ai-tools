@@ -64,7 +64,7 @@ if [[ -f $fusion_installer ]]; then
     # merging the fragment. Harmless on a first install.
     node "$fusion_installer" apply \
         --profile opencode-go \
-        --config "$repo_root/config/ai-tools/opencode-mcp-fragment.json" \
+        --config "$repo_root/tooling/data/ai-tools/opencode-mcp-fragment.json" \
         --extras commands,plugin \
         --adopt-config
 else

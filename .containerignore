@@ -1,6 +1,4 @@
 **
 !Containerfile
-!build/
-!build/**
-!rootfs/
-!rootfs/**
+!image/
+!image/**

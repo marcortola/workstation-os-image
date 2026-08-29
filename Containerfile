@@ -22,7 +22,7 @@ ARG BASE_IMAGE=ghcr.io/ublue-os/base-main:latest
 # they cannot end up in a layer of the shipped image. This is base-main's own
 # pattern.
 FROM scratch AS ctx
-COPY build /build
+COPY image/build /build
 
 # Everything that is not packaged, compiled once into /staging. One builder
 # stage rather than three: the compiler is pulled in once and the layer is
@@ -58,7 +58,7 @@ COPY --from=ghcr.io/ublue-os/brew:latest /system_files/ /
 
 COPY --from=toolchain /staging/ /
 
-COPY rootfs/ /
+COPY image/rootfs/ /
 
 RUN --mount=type=bind,from=ctx,src=/,dst=/ctx \
     --mount=type=tmpfs,dst=/tmp \
