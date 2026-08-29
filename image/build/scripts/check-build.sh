@@ -47,6 +47,30 @@ assert_vendor dnf5       'Fedora Project'
 rpm -q libavcodec-freeworld >/dev/null 2>&1 \
     && fail "libavcodec-freeworld is installed: RPM Fusion is meant to be gone and it file-conflicts with negativo17's libavcodec"
 
+# --- cross-package version cohesion --------------------------------------
+# dms and dms-cli come from copr:avengemedia/dms; dms-greeter comes from
+# copr:avengemedia/danklinux. They are released together but published to two
+# separate COPRs, so a half-finished publish hands us dms at N and dms-greeter
+# at N-1. Nothing else here would notice: assert_vendor only checks WHERE a
+# package came from, and the desktop stack floats by design because COPR prunes
+# superseded builds, so there is no version to pin it to.
+#
+# This is the most likely silent breakage in the whole image -- a shell that
+# starts and then misbehaves, rather than a build that fails.
+cohort_version=""
+for p in dms dms-cli dms-greeter; do
+    v="$(rpm -q --qf '%{VERSION}' "$p")"
+    if [ -z "$cohort_version" ]; then
+        cohort_version="$v"
+    elif [ "$v" != "$cohort_version" ]; then
+        echo "--- DMS stack versions ---" >&2
+        rpm -q --qf '%{NAME} %{VERSION}-%{RELEASE} (%{VENDOR})\n' dms dms-cli dms-greeter >&2
+        fail "DMS stack version skew: $p is $v, expected $cohort_version.
+This usually means copr:avengemedia/dms and copr:avengemedia/danklinux are
+mid-publish. Re-run the build once both have caught up."
+    fi
+done
+
 # --- niri parses ---------------------------------------------------------
 # A transcription error in the vendored includes produces a subtly wrong
 # desktop that still boots, so parse both chains here.
