@@ -5,10 +5,7 @@ on:
     branches: [main]
     paths:
       - Containerfile
-      - build_files/**
-      - packages/**
-      - repos/**
-      - src/**
+      - build/**
       - rootfs/**
       - tooling/**
       - config/**
@@ -17,10 +14,7 @@ on:
   pull_request:
     paths:
       - Containerfile
-      - build_files/**
-      - packages/**
-      - repos/**
-      - src/**
+      - build/**
       - rootfs/**
       - tooling/**
       - config/**
@@ -67,7 +61,7 @@ jobs:
                 "${{ github.event_name }}" == workflow_dispatch ]]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           elif git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- \
-              Containerfile build_files packages repos src rootfs \
+              Containerfile build rootfs \
               .github/workflows/build.yml; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
@@ -88,7 +82,7 @@ jobs:
       - name: Shell lint
         run: |
           mapfile -t files < <(
-            find tooling build_files rootfs/usr/bin rootfs/usr/libexec -type f \
+            find tooling build rootfs/usr/bin rootfs/usr/libexec -type f \
               \( -perm /111 -o -name '*.sh' \) -print | sort
           )
           sudo apt-get update && sudo apt-get install --yes shellcheck

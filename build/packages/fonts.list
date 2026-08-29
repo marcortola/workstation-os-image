@@ -6,5 +6,5 @@ glibc-all-langpacks
 # GAP: FiraCode Nerd Font Mono is referenced by fontconfig/fonts.conf and by
 # dms-settings.json monoFontFamily, but is not in any image -- on this machine
 # fc-list resolves it from ~/.local/share/fonts/FiraCode, owned by no package.
-# Installed via a sha256-pinned GitHub release in build_files/toolchain.sh so
+# Installed via a sha256-pinned GitHub release in build/scripts/toolchain.sh so
 # it is pinnable and adds no repo. check-build.sh gates on fc-list.

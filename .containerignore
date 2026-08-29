@@ -1,12 +1,6 @@
 **
 !Containerfile
-!build_files/
-!build_files/**
-!packages/
-!packages/**
-!repos/
-!repos/**
+!build/
+!build/**
 !rootfs/
 !rootfs/**
-!src/
-!src/**

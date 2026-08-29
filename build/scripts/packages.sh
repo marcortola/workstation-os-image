@@ -4,11 +4,11 @@
 set -ouex pipefail
 
 # Hard excludes, applied to every transaction.
-mapfile -t excludes < <(sed -E 's/#.*//' /ctx/packages/exclude.list | grep -vE '^\s*$' | awk '{print $1}')
+mapfile -t excludes < <(sed -E 's/#.*//' /ctx/build/packages/exclude.list | grep -vE '^\s*$' | awk '{print $1}')
 exclude_args=()
 for e in "${excludes[@]}"; do exclude_args+=(--exclude="$e"); done
 
-for list in /ctx/packages/*.list; do
+for list in /ctx/build/packages/*.list; do
     [ "$(basename "$list")" = exclude.list ] && continue
     name="$(basename "$list" .list)"
     mapfile -t pkgs < <(sed -E 's/#.*//' "$list" | grep -vE '^\s*$' | awk '{print $1}')

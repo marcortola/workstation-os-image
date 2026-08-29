@@ -10,7 +10,7 @@ set -ouex pipefail
 
 rpm -q dnf5-plugins >/dev/null || dnf5 -y install dnf5-plugins
 
-install -Dm644 -t /etc/yum.repos.d/ /ctx/repos/*.repo
+install -Dm644 -t /etc/yum.repos.d/ /ctx/build/repos/*.repo
 
 # Insync signs with its own key and the repofile references it by URL.
 rpm --import https://d2t3ff60b2tol4.cloudfront.net/repomd.xml.key

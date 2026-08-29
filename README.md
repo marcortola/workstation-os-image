@@ -264,10 +264,7 @@ manages a live machine:
 | `rootfs/` | OS image payload copied into `/` (`COPY rootfs/ /`): systemd units, helpers, factory defaults, the image-owned niri system config under `usr/share/workstation-os-image/niri/`, and the chezmoi seeds under `usr/share/workstation-os-image/dotfiles/`. | Yes — copied verbatim into `/` |
 | `config/` | Repo-owned declarative source the tooling reads: the `dotfiles.manifest` inventory, JetBrains canonical settings, the AI-CLI MCP fragment, and policy deny-lists. | No — drives `just`/scripts |
 | `tooling/` | Host-side management scripts (audit/sync/validate/jetbrains/worktree), plus `ai/` (the AI-CLI machinery: the exportable `ai-cli-setup` bundle and the install/build/reset scripts) and `fixtures/` (test data). | No |
-| `build_files/` | Build modules: `toolchain.sh` runs first in its own stage; then `repos.sh`, `packages.sh`, `desktop.sh`, `services.sh`, `cleanup.sh`, `check-build.sh`. Also `workstation-ocr`, a payload `desktop.sh` installs. | No — bind-mounted at `/ctx`, never `COPY`d |
-| `packages/` | One `.list` per package group (`desktop`, `copr`, `terra`, `media`, `fonts`, `dev`, `docker`, `input-method`, `qt-style`, `insync`) plus `exclude.list`. | No — bind-mounted at `/ctx` |
-| `repos/` | Vendored `.repo` files (three COPRs, Terra, Docker CE, Insync), reviewed in Git rather than curled at build time. `cleanup.sh` deletes them again, so the shipped image carries only Fedora's own repos and negativo17. | No — bind-mounted at `/ctx` |
-| `src/` | `workstation-x11-clipsync.c`, compiled in the `toolchain` stage. | No — bind-mounted at `/ctx` |
+| `build/` | Everything the build reads and nothing it ships: `scripts/` (`toolchain.sh` runs first in its own stage, then `repos.sh`, `packages.sh`, `desktop.sh`, `services.sh`, `cleanup.sh`, `check-build.sh`, plus the `workstation-ocr` payload), `packages/` (one `.list` per group plus `exclude.list`), `repos/` (vendored `.repo` files, reviewed in Git rather than curled at build time and deleted again by `cleanup.sh`), and `src/` (`workstation-x11-clipsync.c`). | No — the whole tree is bind-mounted at `/ctx`, never `COPY`d into a layer |
 
 Root files (`Containerfile`, `justfile`, `README.md`, `AGENTS.md`) stay at the
 top level.
@@ -305,10 +302,9 @@ reuses cache entries for ordinary pushes and pull requests. The daily scheduled
 build deliberately skips cache reads so DNF metadata and packages are refreshed;
 it then replaces the remote cache. Changes that do not affect `Containerfile`,
 `rootfs/` or the build workflow still run their tests but skip the image
-job. The build context is `Containerfile`, `rootfs/`, `build_files/`,
-`packages/`, `repos/` and `src/`; the last four travel in a `scratch` stage
-that every `RUN` bind-mounts at `/ctx`, so build inputs never land in a layer
-of the shipped image.
+job. The build context is `Containerfile`, `rootfs/` and `build/`; `build/`
+travels in a `scratch` stage that every `RUN` bind-mounts at `/ctx`, so build
+inputs never land in a layer of the shipped image.
 
 ### Vendored from Zirconium
 
@@ -551,7 +547,7 @@ and bootc modules. It runs them as the uid that owns the brew prefix — 1000,
 because `brew-setup.service` chowns `/home/linuxbrew` to `1000:1000`. There is
 no `linuxbrew` user on this image; that user came from brew-proxy, which is no
 longer installed. The brew payload's own `brew-update.timer` and
-`brew-upgrade.timer` are disabled by `build_files/services.sh`: on the previous
+`brew-upgrade.timer` are disabled by `build/scripts/services.sh`: on the previous
 base they were inert because brew-proxy broke their
 `ConditionPathIsSymbolicLink`, and with brew-proxy gone they would fire every
 six and eight hours alongside uupd's brew module. `uupd` is the single updater.

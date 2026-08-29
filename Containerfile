@@ -19,10 +19,7 @@ ARG BASE_TAG=latest
 # they cannot end up in a layer of the shipped image. This is base-main's own
 # pattern.
 FROM scratch AS ctx
-COPY build_files /build_files
-COPY packages    /packages
-COPY repos       /repos
-COPY src         /src
+COPY build /build
 
 # Everything that is not packaged, compiled once into /staging. One builder
 # stage rather than three: the compiler is pulled in once and the layer is
@@ -37,7 +34,7 @@ RUN --mount=type=bind,from=ctx,src=/,dst=/ctx \
     --mount=type=tmpfs,dst=/tmp \
     KEYD_VERSION="${KEYD_VERSION}" KEYD_SHA256="${KEYD_SHA256}" \
     FIRACODE_VERSION="${FIRACODE_VERSION}" FIRACODE_SHA256="${FIRACODE_SHA256}" \
-    /ctx/build_files/toolchain.sh
+    /ctx/build/scripts/toolchain.sh
 
 FROM ${BASE_IMAGE}:${BASE_TAG}
 
@@ -49,7 +46,7 @@ LABEL org.opencontainers.image.description="Personal Fedora bootc image with hos
 RUN --mount=type=bind,from=ctx,src=/,dst=/ctx \
     --mount=type=cache,target=/var/cache/libdnf5,sharing=locked \
     --mount=type=tmpfs,dst=/tmp \
-    /ctx/build_files/repos.sh && /ctx/build_files/packages.sh
+    /ctx/build/scripts/repos.sh && /ctx/build/scripts/packages.sh
 
 # Homebrew payload: the tarball, brew-setup/update/upgrade units and the preset.
 # Before the rootfs overlay so our own files win on any collision. brew is
@@ -62,9 +59,9 @@ COPY rootfs/ /
 
 RUN --mount=type=bind,from=ctx,src=/,dst=/ctx \
     --mount=type=tmpfs,dst=/tmp \
-    /ctx/build_files/desktop.sh && \
-    /ctx/build_files/services.sh && \
-    /ctx/build_files/cleanup.sh && \
-    /ctx/build_files/check-build.sh
+    /ctx/build/scripts/desktop.sh && \
+    /ctx/build/scripts/services.sh && \
+    /ctx/build/scripts/cleanup.sh && \
+    /ctx/build/scripts/check-build.sh
 
 RUN ["bootc", "container", "lint"]

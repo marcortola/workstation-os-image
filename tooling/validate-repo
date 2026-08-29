@@ -34,14 +34,14 @@ fi
 # absolute image path named anywhere in the repo must correspond to a file the
 # image actually ships. Excluded: the dotfiles and greeter subtrees, whose
 # contents are checked by validate-manifest and check-build respectively, and
-# package-manifest.txt, which build_files/cleanup.sh generates at build time.
+# package-manifest.txt, which build/scripts/cleanup.sh generates at build time.
 while read -r image_path; do
     [[ -e "rootfs$image_path" ]] || {
         echo "Dangling image path referenced but not shipped: $image_path" >&2
         exit 1
     }
 done < <(grep -rhoE '/usr/share/workstation-os-image/[A-Za-z0-9._/-]+' \
-    tooling rootfs config build_files justfile 2>/dev/null \
+    tooling rootfs config build justfile 2>/dev/null \
     | grep -vE '/(dotfiles|greeter)/' \
     | grep -vE '\.\.\.|[/.]$' \
     | grep -vx '/usr/share/workstation-os-image/package-manifest.txt' \

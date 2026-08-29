@@ -9,8 +9,8 @@ validation are updated here.
 ## Repository layout
 
 - `rootfs/` — the OS image payload; the tree baked into `/` (`COPY rootfs/ /`).
-- `build_files/`, `packages/`, `repos/`, `src/` — build inputs bind-mounted at
-  `/ctx`, never baked into a layer.
+- `build/` — build inputs (`scripts/`, `packages/`, `repos/`, `src/`),
+  bind-mounted at `/ctx`, never baked into a layer.
 - `config/` — repo-owned declarative source the tooling reads; never baked.
 - `tooling/` — host-side management scripts, plus `tooling/ai/` (the AI-CLI
   machinery) and `tooling/fixtures/` (test data).
@@ -21,7 +21,7 @@ second inventory. `CLAUDE.md` imports this file for Claude Code.
 
 ## Sources of truth
 
-- `packages/`, `repos/` and `build_files/` own OS packages and build steps;
+- `build/` owns OS packages, repositories and build steps;
   `rootfs/` owns services and host integration.
 - `config/dotfiles.manifest` is the only inventory of captured personal config.
 - `rootfs/usr/share/workstation-os-image/` holds the chezmoi seeds under

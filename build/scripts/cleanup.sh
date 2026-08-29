@@ -18,6 +18,12 @@ install -d /usr/share/workstation-os-image
 rpm -qa --qf '%{NAME}-%{EPOCH}:%{VERSION}-%{RELEASE}.%{ARCH}\n' \
     | sed 's/-(none)://' | sort > /usr/share/workstation-os-image/package-manifest.txt
 
+# The dms-greeter package backs up any existing /etc/greetd/config.toml under a
+# timestamped name when it installs. One lands in every build, which makes the
+# image non-reproducible and ships junk; on a running machine they accumulate.
+# Ours is the config that matters and it is in the image already.
+rm -f /etc/greetd/config.toml.backup-*
+
 dnf5 clean all
 rm -rf /var/cache/libdnf5 /var/lib/dnf /var/log/dnf5.log* \
        /run/dnf /run/systemd/systemd-units-load
