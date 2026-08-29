@@ -65,6 +65,13 @@ second inventory. `CLAUDE.md` imports this file for Claude Code.
 - DMS settings are UI-owned after their one-time preference seed. Promote
   reviewed changes with `just dms-capture`; restore with `just dms-apply`. Never
   capture the complete settings or runtime state.
+- niri resolves duplicate binds last-definition-wins and `config.kdl` includes
+  `dms.kdl` after the system binds, so DMS owns every key its generated fragment
+  binds. Reclaim a key in `~/.config/niri/local.kdl`, the last include, and drop
+  it from the forked `binds.kdl`; or release it with
+  `dms keybinds remove niri <key>`. Never hand-edit `dms/binds.kdl`.
+  `tooling/audit-niri-binds` fails on a shadowed bind, since `niri validate`
+  does not.
 
 ### JetBrains
 
