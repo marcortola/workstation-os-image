@@ -42,7 +42,8 @@ config_layer=$(line_of Containerfile 'COPY rootfs/ /')
 # --- the chezmoi source must be immutable after COPY ---------------------
 # tooling/preflight-chezmoi-migration proves things about the REPO tree. That
 # proof only transfers to the machine if the image ships that tree byte for
-# byte, so nothing may patch it in place the way workstation-patch-zdots did.
+# byte, so nothing may patch it in place the way the old workstation-patch-zdots
+# helper (removed with the Zirconium base) did.
 if grep -n 'workstation-os-image/dotfiles' build_files/*.sh 2>/dev/null | grep -v '^build_files/check-build.sh:'; then
     fail "no build step may mutate the chezmoi source tree"
 fi

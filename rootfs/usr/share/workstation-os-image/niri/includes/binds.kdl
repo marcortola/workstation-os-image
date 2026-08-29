@@ -38,9 +38,9 @@
 // whose old key Mod+Shift+V is repurposed to dictation.
 //
 // KEYS THIS FILE CANNOT WIN. niri merges binds last-definition-wins across
-// includes, silently — `niri validate` passes either way — and since zdots
-// b3fe82e6 ("load DMS configs after zirconium's defaults") config.kdl includes
-// dms.kdl AFTER this file. So every key the DMS-generated dms/binds.kdl also
+// includes, silently — `niri validate` passes either way — and our own
+// config.kdl deliberately includes dms.kdl AFTER this file. So every key the
+// DMS-generated dms/binds.kdl also
 // binds is dead here, and the ones worth keeping are reclaimed in the last
 // include, ~/.config/niri/local.kdl (seeded from create_local.kdl.tmpl):
 //   Mod+M             maximize-column       (DMS: Task Manager)

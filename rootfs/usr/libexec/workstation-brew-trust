@@ -54,7 +54,7 @@ for entry in "${entries[@]}"; do
     # name is already trusted, and it records the name by string parsing, so it
     # needs neither the tap tapped nor the formula installed.
     if "$brew" trust "$flag" "$name"; then
-        echo "Trusted $name ($kind) for linuxbrew."
+        echo "Trusted $name ($kind) in the brew prefix's trust store."
     else
         echo "Failed to trust $name ($kind) for linuxbrew; continuing." >&2
         failures=$((failures + 1))

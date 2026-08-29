@@ -14,7 +14,6 @@
 # in cleanup.sh is the substitute for pinning the parts that float.
 ARG BASE_IMAGE=ghcr.io/ublue-os/base-main
 ARG BASE_TAG=latest
-ARG BREW_IMAGE=ghcr.io/ublue-os/brew:latest
 
 # Build inputs travel in a scratch stage and are bind-mounted, never COPYd, so
 # they cannot end up in a layer of the shipped image. This is base-main's own

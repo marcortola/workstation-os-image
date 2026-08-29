@@ -75,5 +75,5 @@ running and never touches auth stores, histories, sessions, or databases.
 
 `config/` and `opencode-mcp-fragment.json` are **generated** from the workstation
 repo's canonical seeds by `just ai-bundle` — don't hand-edit them; change the
-seeds and regenerate. `install.sh`, `reset.sh`, and `secrets.example` are
-maintained here directly.
+seeds and regenerate. `install.sh`, `reset.sh`, `secrets.example`, `vendor/` and
+this README are maintained here directly.

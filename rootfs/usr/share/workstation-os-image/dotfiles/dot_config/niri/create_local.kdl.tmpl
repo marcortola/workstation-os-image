@@ -1,8 +1,8 @@
-// Local workstation overrides. This file is preserved by Zirconium/chezmoi.
+// Local workstation overrides. Seeded create-only by chezmoi and never rewritten.
 //
 // niri merges binds across includes LAST-DEFINITION-WINS: a later `binds`
 // block drops every earlier bind with the same key, silently, and `niri
-// validate` still passes. config.kdl includes zirconium.kdl (the forked system
+// validate` still passes. config.kdl includes workstation.kdl (the image's system
 // binds) first, then dms.kdl, then this file, so this is the only include that
 // outranks the DMS-generated dms/binds.kdl.
 //
@@ -13,8 +13,8 @@
 // Super+/ overlay's titled section rather than in the fork's grouping; the
 // Maximize Column row is exempt, since niri pins fixed-block actions.
 binds {
-    // Deliberate divergence from upstream Zirconium, which hands Mod+M to the
-    // DMS process list (zdots b3fe82e6 kept it there on purpose); the process
+    // Deliberate divergence from the vendored zdots binds, which hand Mod+M to
+    // the DMS process list; the process
     // list stays reachable through the DMS panel.
     Mod+M hotkey-overlay-title="Maximize Column" { maximize-column; }
 
@@ -34,6 +34,6 @@ layout {
     // built-in always-empty trailing workspace. Makes Mod+Ctrl+Up land a column
     // in an existing empty workspace at the top instead of appearing to spawn
     // one, so the top edge behaves symmetrically with the bottom. (Merged with
-    // niri's other layout blocks from the DMS/Zirconium includes.)
+    // niri's other layout blocks from the system and DMS includes.)
     empty-workspace-above-first
 }

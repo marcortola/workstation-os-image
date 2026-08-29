@@ -3,9 +3,9 @@ set -euo pipefail
 
 # niri merges binds across includes last-definition-wins, silently: a later
 # `binds` block drops every earlier bind with the same key, and `niri validate`
-# still exits 0. Zirconium moved dms.kdl after the system includes in zdots
-# b3fe82e6, which handed the DMS-generated fragment every key our forked
-# binds.kdl also claimed. Nothing surfaced that, so assert it here.
+# still exits 0. Our own config.kdl deliberately includes dms.kdl AFTER the
+# system config, which hands the DMS-generated fragment every key our forked
+# binds.kdl also claims. Nothing surfaces that, so assert it here.
 
 system_binds=${WORKSTATION_NIRI_SYSTEM_BINDS:-/usr/share/workstation-os-image/niri/includes/binds.kdl}
 config=${WORKSTATION_NIRI_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/niri/config.kdl}

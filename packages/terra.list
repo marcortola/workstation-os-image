@@ -7,5 +7,5 @@ iio-niri                    # display autorotation; iio:device0 present on this 
 maple-fonts
 xdg-terminal-exec-nautilus
 # NOT openh264: fedora-cisco-openh264 is already in base-main.
-# NOT brew-proxy: dropped, see build_files/brew.sh.
+# NOT brew-proxy: dropped; Homebrew comes from ghcr.io/ublue-os/brew (Containerfile).
 # NOT cardwire: GPU management, inert on an Intel-only laptop.

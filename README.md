@@ -1,7 +1,7 @@
 # Workstation OS image
 
-A personal, reproducible Fedora bootc workstation built on
-[Zirconium](https://github.com/zirconium-dev/zirconium). The repository turns OS
+A personal, reproducible Fedora bootc workstation built on ublue's
+[base-main](https://github.com/ublue-os/main). The repository turns OS
 packages, services, desktop defaults and selected user preferences into one
 reviewable Git workflow. A new machine can switch to the published image, sign
 in and converge on the same working environment.
@@ -14,11 +14,16 @@ ghcr.io/marcortola/workstation-os-image:latest
 
 ## What it provides
 
-- Zirconium's Niri and DankMaterialShell desktop, still updated upstream.
-- DankSearch (`dsearch`) filesystem search, Zirconium-shipped and enabled here;
-  it powers the DMS launcher's `/` file search.
-- DankCalendar, which Zirconium delivers as the `com.danklinux.dankcalendar`
-  Flatpak rather than an RPM user service. The Brewfile declares it, a captured
+- The niri + DankMaterialShell desktop, installed from the `yalter/niri` and
+  `avengemedia` COPRs and driven by an image-owned niri system config under
+  `/usr/share/workstation-os-image/niri/`. Those COPRs float on HEAD; the NEVRA
+  manifest at `/usr/share/workstation-os-image/package-manifest.txt` is the
+  bisection record.
+- DankSearch (`dsearch`) filesystem search, installed from the
+  `avengemedia/danklinux` COPR and enabled here; it powers the DMS launcher's
+  `/` file search.
+- DankCalendar, which ships as the `com.danklinux.dankcalendar` Flatpak rather
+  than an RPM user service. The Brewfile declares it, a captured
   Flatpak override grants read-only access to the DMS colour cache so it follows
   the session palette, and a captured XDG autostart entry starts its daemon and
   tray icon at login.
@@ -61,12 +66,13 @@ ghcr.io/marcortola/workstation-os-image:latest
   and the JetBrains IDE (see [Worktree file propagation](#worktree-file-propagation)).
 - Brewfile and Flatpak restoration, JetBrains Toolbox, personal fonts and the
   accepted Microsoft-font installer.
-- Private video codecs (RPM Fusion), RAR extraction, `pandoc`, `mkcert`,
+- Private video codecs (negativo17, enabled from base-main at build time),
+  RAR5 extraction (`unar`), `pandoc`, `mkcert`,
   Insync and FileZilla.
 - System tuning: inotify watch limits for JetBrains/node file watchers,
   journald caps, and zstd-compressed zram sized to half of RAM.
-- Audits for image/package drift, portable personal configuration, upstream
-  Niri/DMS changes and captured DMS preferences.
+- Audits for image/package drift, portable personal configuration,
+  image-owned Niri/DMS scaffolding and captured DMS preferences.
 - Containerfile and workflow linting (`hadolint`, `actionlint`) and secret
   scanning (`gitleaks`), enforced by both local validation and CI.
 
@@ -255,15 +261,19 @@ manages a live machine:
 
 | Directory | Holds | In the image? |
 | --- | --- | --- |
-| `rootfs/` | OS image payload copied into `/` (`COPY rootfs/ /`): systemd units, helpers, factory defaults, and the chezmoi seeds under `usr/share/workstation-os-image/dotfiles/`. | Yes — the only tree in the build context |
+| `rootfs/` | OS image payload copied into `/` (`COPY rootfs/ /`): systemd units, helpers, factory defaults, the image-owned niri system config under `usr/share/workstation-os-image/niri/`, and the chezmoi seeds under `usr/share/workstation-os-image/dotfiles/`. | Yes — copied verbatim into `/` |
 | `config/` | Repo-owned declarative source the tooling reads: the `dotfiles.manifest` inventory, JetBrains canonical settings, the AI-CLI MCP fragment, and policy deny-lists. | No — drives `just`/scripts |
 | `tooling/` | Host-side management scripts (audit/sync/validate/jetbrains/worktree), plus `ai/` (the AI-CLI machinery: the exportable `ai-cli-setup` bundle and the install/build/reset scripts) and `fixtures/` (test data). | No |
+| `build_files/` | Build modules: `toolchain.sh` runs first in its own stage; then `repos.sh`, `packages.sh`, `desktop.sh`, `services.sh`, `cleanup.sh`, `check-build.sh`. Also `workstation-ocr`, a payload `desktop.sh` installs. | No — bind-mounted at `/ctx`, never `COPY`d |
+| `packages/` | One `.list` per package group (`desktop`, `copr`, `terra`, `media`, `fonts`, `dev`, `docker`, `input-method`, `qt-style`, `insync`) plus `exclude.list`. | No — bind-mounted at `/ctx` |
+| `repos/` | Vendored `.repo` files (three COPRs, Terra, Docker CE, Insync), reviewed in Git rather than curled at build time. `cleanup.sh` deletes them again, so the shipped image carries only Fedora's own repos and negativo17. | No — bind-mounted at `/ctx` |
+| `src/` | `workstation-x11-clipsync.c`, compiled in the `toolchain` stage. | No — bind-mounted at `/ctx` |
 
 Root files (`Containerfile`, `justfile`, `README.md`, `AGENTS.md`) stay at the
 top level.
 
 ```text
-Zirconium image ──> Containerfile + rootfs ──> GHCR image ──> bootc A/B OS
+ublue base-main ──> Containerfile + rootfs ──> GHCR image ──> bootc A/B OS
                               │
                               ├─> create-only chezmoi seeds ──> portable $HOME defaults
                               └─> partial DMS overlay ─────────> selected GUI preferences
@@ -273,24 +283,47 @@ local terminal/GUI edits ──> audit + interactive capture ──> Git branch/
 
 | Source | Owns | Update behavior |
 | --- | --- | --- |
-| Zirconium | Niri/DMS scaffolding and desktop integration | Continues moving with the base image |
+| COPR desktop stack | niri, DankMaterialShell, quickshell, dgop, matugen, danksearch | Floats on COPR HEAD; the NEVRA manifest baked by `cleanup.sh` is the bisection record |
+| Image-owned scaffolding | The niri system config, the niri/foot entrypoints, greetd and the greeter theme | Replaced on every image update; personal overrides live in `local.kdl` / `workstation.ini` |
 | This image | RPMs, daemons, sockets, privileged helpers and factory defaults | Replaced transactionally by bootc |
 | Chezmoi seeds | Portable Fish, Foot, herdr, Niri and application defaults | Create missing files; preserve later edits |
 | DMS overlay | Explicitly captured, portable GUI preferences | Seeds a new account once; later UI edits win unless explicitly restored |
 | JetBrains config | One shared canonical (`_shared/`) plus per-product remainder | Applied into the IDEs on demand; never auto-synced |
 | Persistent home | Secrets, projects, histories, device state and application databases | Never stored in the image or Git |
 
-The image extends Zirconium's existing chezmoi source. It does not introduce a
-second dotfile manager, hardcode a username, or use rpm-ostree package layers.
+The image owns its chezmoi source outright at
+`/usr/share/workstation-os-image/dotfiles/`, applied by
+`workstation-chezmoi-init.service` and refreshed by
+`workstation-chezmoi-update.timer`. It does not introduce a second dotfile
+manager, hardcode a username, or use rpm-ostree package layers.
 
 Image builds keep the slow runtime-package transaction ahead of the volatile
-`rootfs/` copy, while compiled helpers use isolated builder stages. CI
+`rootfs/` copy, while compiled helpers (keyd, clipsync, the FiraCode release)
+are built once in a single isolated `toolchain` stage. CI
 stores Buildah intermediate layers in the companion GHCR cache repository and
 reuses cache entries for ordinary pushes and pull requests. The daily scheduled
 build deliberately skips cache reads so DNF metadata and packages are refreshed;
 it then replaces the remote cache. Changes that do not affect `Containerfile`,
 `rootfs/` or the build workflow still run their tests but skip the image
-job. The build context contains only `Containerfile` and `rootfs/`.
+job. The build context is `Containerfile`, `rootfs/`, `build_files/`,
+`packages/`, `repos/` and `src/`; the last four travel in a `scratch` stage
+that every `RUN` bind-mounts at `/ctx`, so build inputs never land in a layer
+of the shipped image.
+
+### Vendored from Zirconium
+
+This image used to derive from
+[Zirconium](https://github.com/zirconium-dev/zirconium). It no longer does, but
+the niri system configuration was carried over rather than rewritten. Six
+includes under `rootfs/usr/share/workstation-os-image/niri/includes/` —
+`dms-base.kdl`, `input.kdl`, `layout.kdl`, `misc.kdl`, `shadow.kdl` and
+`window-rules.kdl` — were copied verbatim from
+[zirconium-dev/zdots](https://github.com/zirconium-dev/zdots), and `binds.kdl`
+was substantially rewritten from the same source. That work is licensed under
+the Apache License 2.0; this repository's own code is MIT. The attribution
+lives in `rootfs/usr/share/workstation-os-image/niri/NOTICE`, ships inside the
+image, and `workstation.kdl` points at it. Upstream no longer feeds these
+files: they are changed and reviewed here.
 
 ### XWayland interop
 
@@ -350,7 +383,7 @@ all validation and shows the resulting diff. Review that diff before committing.
 
 | Command | Purpose |
 | --- | --- |
-| `wjust audit` | Report deployment, packages, personal files, Zirconium and DMS drift |
+| `wjust audit` | Report deployment, packages, personal files, image-managed Niri scaffolding and DMS drift |
 | `wjust audit-diff` | Show the complete upstream Niri/DMS diff when diagnosing it |
 | `wjust sync` | Refresh manifest-listed create-only seeds from the live account |
 | `wjust capture` | Sync, validate and display the complete pending change |
@@ -420,10 +453,9 @@ The UI remains the live editor. Run `dms-capture` after a reviewed change to
 make it a default for reconstructed workstations. The image never writes live
 DMS changes back into Git automatically.
 
-`audit-diff` may still show the full generated DMS file differing from
-Zirconium's sparse seed. The actionable result is the later “Captured DMS
-preference defaults” section: it reports whether tracked values match and
-whether portable deviations remain uncaptured.
+The actionable result is the later “Captured DMS preference defaults” section:
+it reports whether tracked values match and whether portable deviations remain
+uncaptured.
 
 ## Add a feature
 
@@ -514,14 +546,17 @@ Do not install image-owned software with rpm-ostree layering. Add it to this
 repository so every future workstation gets the same result.
 
 Homebrew updates run automatically: Universal Blue's `uupd` runs `brew update`
-and `brew upgrade` daily as the `linuxbrew` user (`uupd.timer`, 04:00), next to
-its Flatpak, Distrobox and bootc modules. The standalone upstream
-`brew-update.timer` and `brew-upgrade.timer` stay inert here — brew-proxy
-replaces `/home/linuxbrew/.linuxbrew/bin/brew` with a dispatch wrapper, so their
-`ConditionPathIsSymbolicLink` never matches and every firing skips. That is
-expected, not drift; `uupd` owns brew upgrades. Force one with `brew upgrade`
-and authenticate the brew-proxy prompt so it runs as `linuxbrew`. Third-party
-tap formulae are trusted for `linuxbrew` automatically by
+and `brew upgrade` daily (`uupd.timer`, 04:00), next to its Flatpak, Distrobox
+and bootc modules. It runs them as the uid that owns the brew prefix — 1000,
+because `brew-setup.service` chowns `/home/linuxbrew` to `1000:1000`. There is
+no `linuxbrew` user on this image; that user came from brew-proxy, which is no
+longer installed. The brew payload's own `brew-update.timer` and
+`brew-upgrade.timer` are disabled by `build_files/services.sh`: on the previous
+base they were inert because brew-proxy broke their
+`ConditionPathIsSymbolicLink`, and with brew-proxy gone they would fire every
+six and eight hours alongside uupd's brew module. `uupd` is the single updater.
+Force an upgrade with `brew upgrade`; no authentication prompt is involved.
+Third-party tap formulae are trusted automatically by
 `workstation-brew-trust.service`, which re-derives the trust set from the
 Brewfile on every boot, so adding a tap-qualified `brew`/`cask` line is enough
 for it to be auto-upgraded. That line is not self-installing on an existing
