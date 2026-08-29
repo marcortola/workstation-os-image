@@ -436,7 +436,9 @@ Use the smallest durable owner:
 - Portable user configuration: add it to `config/dotfiles.manifest`, then
   `wjust sync`.
 - Niri customization: `~/.config/niri/local.kdl`, never the upstream-managed
-  `config.kdl` or DMS-generated fragments.
+  `config.kdl` or DMS-generated fragments. A keybind DMS also claims wins only
+  from `local.kdl`: it is the last include, and niri resolves duplicate binds
+  last-definition-wins.
 - DMS preference: change it in the GUI, then run `wjust dms-capture`.
 - Secret or machine-specific state: leave it untracked and document only the
   setup command when necessary.

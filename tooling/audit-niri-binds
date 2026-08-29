@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# niri merges binds across includes last-definition-wins, silently: a later
+# `binds` block drops every earlier bind with the same key, and `niri validate`
+# still exits 0. Zirconium moved dms.kdl after the system includes in zdots
+# b3fe82e6, which handed the DMS-generated fragment every key our forked
+# binds.kdl also claimed. Nothing surfaced that, so assert it here.
+
+system_binds=${WORKSTATION_NIRI_SYSTEM_BINDS:-/usr/share/zirconium/zdots/system/niri/includes/binds.kdl}
+config=${WORKSTATION_NIRI_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/niri/config.kdl}
+dms_binds=${WORKSTATION_NIRI_DMS_BINDS:-${XDG_CONFIG_HOME:-$HOME/.config}/niri/dms/binds.kdl}
+overrides=${WORKSTATION_NIRI_LOCAL:-${XDG_CONFIG_HOME:-$HOME/.config}/niri/local.kdl}
+status=0
+
+[[ -r $system_binds && -r $config ]] || {
+    echo "Niri system binds or entrypoint is missing." >&2
+    exit 2
+}
+
+# Bind keys are the first field of a non-comment line that opens a block; every
+# key starts with an upper-case token (Mod, Ctrl, Alt, Super, Print, XF86...),
+# while the section names around them are lower-case.
+bind_keys() {
+    [[ -r $1 ]] || return 0
+    awk '/^[[:space:]]*\/\// { next } /\{/ && $1 ~ /^[A-Z]/ { print $1 }' "$1" |
+        sort -u
+}
+
+last_include="$(grep -E '^[[:space:]]*include' "$config" | tail -n 1)"
+if [[ $last_include == *'"local.kdl"'* ]]; then
+    echo "Niri loads local.kdl last, so its binds outrank the DMS fragment."
+else
+    echo "Niri no longer loads local.kdl last; reclaimed binds are shadowed."
+    printf '  last include: %s\n' "${last_include:-none}"
+    echo "  Reorder the overrides or move them to whichever include now wins."
+    status=1
+fi
+
+mapfile -t shadowed < <(comm -12 <(bind_keys "$system_binds") \
+    <(bind_keys "$dms_binds"))
+if (( ${#shadowed[@]} > 0 )); then
+    printf 'DMS silently overrides binds in the system binds.kdl (%d).\n' \
+        "${#shadowed[@]}"
+    printf '  %s\n' "${shadowed[@]}"
+    echo "  Drop them from binds.kdl, and reclaim the wanted ones in local.kdl"
+    echo "  or release the key with 'dms keybinds remove niri <key>'."
+    status=1
+else
+    echo "No system bind is shadowed by the DMS-generated fragment."
+fi
+
+if grep -q 'maximize-column' "$overrides" 2>/dev/null; then
+    echo "Maximize Column is reclaimed in local.kdl."
+else
+    echo "Nothing in local.kdl binds maximize-column; DMS owns Mod+M upstream."
+    status=1
+fi
+
+exit "$status"

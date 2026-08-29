@@ -37,11 +37,21 @@
 // unbound fixed actions — quit and switch-focus-between-floating-and-tiling,
 // whose old key Mod+Shift+V is repurposed to dictation.
 //
-// Conflicts resolved (niri core wins; the DMS feature is dropped from the
-// overlay, the key keeps working):
-//   Mod+V       toggle-window-floating        (was DMS Clipboard Manager)
-//   Mod+Comma   consume-window-into-column    (was DMS Settings)
-//   Mod+M       maximize-column               (was DMS Task Manager; = Mod+F)
+// KEYS THIS FILE CANNOT WIN. niri merges binds last-definition-wins across
+// includes, silently — `niri validate` passes either way — and since zdots
+// b3fe82e6 ("load DMS configs after zirconium's defaults") config.kdl includes
+// dms.kdl AFTER this file. So every key the DMS-generated dms/binds.kdl also
+// binds is dead here, and the ones worth keeping are reclaimed in the last
+// include, ~/.config/niri/local.kdl (seeded from create_local.kdl.tmpl):
+//   Mod+M             maximize-column       (DMS: Task Manager)
+//   Mod+Space         spotlight toggle      (relabelled by DMS)
+//   Ctrl+Alt+Delete   btop                  (DMS: Task Manager)
+//   Mod+Y, Mod+Alt+L  DMS's own actions, re-hidden from the overlay
+// Mod+N and Mod+Shift+N are DMS's with an identical action and title, so they
+// are simply gone from here. Mod+V (toggle-window-floating) and Mod+Comma
+// (consume-window-into-column) stay: b3fe82e6 dropped both from the DMS
+// defaults, so nothing shadows them. tooling/audit-niri-binds fails if any of
+// that ever stops being true.
 //
 // Personal binds use spawn-sh with $HOME so no username is hardcoded.
 
@@ -56,7 +66,7 @@ binds {
 
     // ── Columns & window sizing ─────────────────────────────────────────
     Mod+R         hotkey-overlay-title="Switch Column Preset" { switch-preset-column-width; }
-    Mod+M         hotkey-overlay-title="Maximize Column" { maximize-column; }
+    // Mod+M (maximize-column) is claimed by DMS; reclaimed in local.kdl.
     Mod+Minus     hotkey-overlay-title="Decrease/Increase Column Width" { set-column-width "-10%"; }
     Mod+Equal     hotkey-overlay-title=null { set-column-width "+10%"; }
     Mod+C         hotkey-overlay-title="Center Column" { center-column; }
@@ -157,9 +167,7 @@ binds {
     Mod+O repeat=false hotkey-overlay-title="Show Overview" { toggle-overview; }
 
     // ── Launchers & apps ────────────────────────────────────────────────
-    Mod+Space hotkey-overlay-title="Application Launcher" {
-        spawn "dms" "ipc" "call" "spotlight" "toggle";
-    }
+    // Mod+Space (Application Launcher) is claimed by DMS; reclaimed in local.kdl.
     Mod+T hotkey-overlay-title="Terminal" { spawn "xdg-terminal-exec"; }
     // One herdr window, launched deliberately. Every attached client mirrors
     // the others, so herdr is never started from the shell rc: a second
@@ -174,20 +182,13 @@ binds {
     Mod+Shift+D hotkey-overlay-title="Monitor Docker Containers (lazydocker)" {
         spawn-sh "foot --working-directory=$HOME --title=Lazydocker --app-id=lazydocker /home/linuxbrew/.linuxbrew/bin/lazydocker";
     }
-    Ctrl+Alt+Delete hotkey-overlay-title="Task Manager and Activity (btop)" {
-        spawn-sh "foot --working-directory=$HOME --title=Activity --app-id=btop /usr/bin/btop";
-    }
+    // Ctrl+Alt+Delete (btop) is claimed by DMS; reclaimed in local.kdl.
 
     // ── System & utilities ──────────────────────────────────────────────
     Ctrl+Alt+U hotkey-overlay-title="Switch User" {
         spawn "/usr/libexec/workstation-switch-user";
     }
-    Mod+N hotkey-overlay-title="Notification Center" {
-        spawn "dms" "ipc" "call" "notifications" "toggle";
-    }
-    Mod+Shift+N hotkey-overlay-title="Notepad" {
-        spawn "dms" "ipc" "call" "notepad" "toggle";
-    }
+    // Mod+N and Mod+Shift+N are DMS's, with an identical action and title.
     Mod+Shift+S hotkey-overlay-title="Take a Screenshot" {
         spawn "dms" "ipc" "call" "niri" "screenshot";
     }
@@ -237,8 +238,7 @@ binds {
     Mod+Alt+Shift+S hotkey-overlay-title=null { spawn "zocr" "screenshot"; }
 
     // ── Hidden from overlay (null-titled; keys still work) ───────────────
-    Mod+Y hotkey-overlay-title=null { spawn "dms" "ipc" "call" "dankdash" "wallpaper"; }
-    Mod+Alt+L hotkey-overlay-title=null { spawn "dms" "ipc" "call" "lock" "lock"; }
+    // Mod+Y and Mod+Alt+L are claimed by DMS; reclaimed in local.kdl.
 
     Super+Alt+S allow-when-locked=true hotkey-overlay-title=null { spawn-sh "pkill orca || exec orca"; }
     Ctrl+Shift+Alt+Mod+L hotkey-overlay-title=null {

@@ -88,6 +88,12 @@ for override in /etc/niri/local.kdl "$HOME/.config/niri/local.kdl"; do
 done
 [[ $found == true ]] || echo "  none"
 
+printf '\nNiri bind ownership:\n'
+"$repo_root/tooling/audit-niri-binds" || {
+    binds_status=$?
+    (( binds_status > status )) && status=$binds_status
+}
+
 printf '\nEffective Niri validation:\n'
 if niri validate -c "$HOME/.config/niri/config.kdl"; then
     echo "Niri configuration is valid."
