@@ -80,8 +80,7 @@ COPY --from=workstation-x11-clipsync-builder \
   /usr/libexec/workstation-x11-clipsync
 COPY --from=keyd-builder /staging/ /
 
-RUN /usr/libexec/workstation-patch-zdots && \
-    dockerd --validate \
+RUN dockerd --validate \
       --config-file=/usr/share/factory/etc/docker/daemon.json && \
     keyd check /usr/share/factory/etc/keyd/default.conf && \
     systemd-analyze verify \
