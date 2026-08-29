@@ -1,0 +1,39 @@
+// Local workstation overrides. Seeded create-only by chezmoi and never rewritten.
+//
+// niri merges binds across includes LAST-DEFINITION-WINS: a later `binds`
+// block drops every earlier bind with the same key, silently, and `niri
+// validate` still passes. config.kdl includes workstation.kdl (the image's system
+// binds) first, then dms.kdl, then this file, so this is the only include that
+// outranks the DMS-generated dms/binds.kdl.
+//
+// Only the keys DMS also claims are reclaimed here; every other keybind stays
+// in the forked system binds.kdl
+// (image/rootfs/usr/share/workstation-os-image/niri/includes/binds.kdl). Because
+// these binds resolve last, their custom-titled rows sit at the END of the
+// Super+/ overlay's titled section rather than in the fork's grouping; the
+// Maximize Column row is exempt, since niri pins fixed-block actions.
+binds {
+    // Deliberate divergence from the vendored zdots binds, which hand Mod+M to
+    // the DMS process list; the process
+    // list stays reachable through the DMS panel.
+    Mod+M hotkey-overlay-title="Maximize Column" { maximize-column; }
+
+    // Same actions DMS binds; reclaimed only to keep the fork's labelling.
+    Mod+Space hotkey-overlay-title="Application Launcher" {
+        spawn "dms" "ipc" "call" "spotlight" "toggle";
+    }
+    Ctrl+Alt+Delete hotkey-overlay-title="Task Manager and Activity (btop)" {
+        spawn-sh "foot --working-directory=$HOME --title=Activity --app-id=btop /usr/bin/btop";
+    }
+    Mod+Y hotkey-overlay-title=null { spawn "dms" "ipc" "call" "dankdash" "wallpaper"; }
+    Mod+Alt+L hotkey-overlay-title=null { spawn "dms" "ipc" "call" "lock" "lock"; }
+}
+
+layout {
+    // Keep an always-empty workspace above the first one, mirroring niri's
+    // built-in always-empty trailing workspace. Makes Mod+Ctrl+Up land a column
+    // in an existing empty workspace at the top instead of appearing to spawn
+    // one, so the top edge behaves symmetrically with the bottom. (Merged with
+    // niri's other layout blocks from the system and DMS includes.)
+    empty-workspace-above-first
+}

@@ -1,0 +1,139 @@
+{
+  "acLockTimeout": 3600,
+  "acMonitorTimeout": 3600,
+  "acSuspendTimeout": 0,
+  "animationSpeed": 4,
+  "barConfigs": [
+    {
+      "centerWidgets": [
+        {
+          "enabled": true,
+          "id": "privacyIndicator"
+        },
+        "music",
+        "clock",
+        {
+          "enabled": true,
+          "id": "weather"
+        },
+        "notificationButton"
+      ],
+      "id": "default",
+      "openOnOverview": true,
+      "rightWidgets": [
+        {
+          "enabled": true,
+          "id": "cpuUsage",
+          "minimumWidth": true
+        },
+        {
+          "enabled": true,
+          "id": "cpuTemp",
+          "minimumWidth": true
+        },
+        {
+          "enabled": true,
+          "id": "memUsage",
+          "minimumWidth": true,
+          "showInGb": false
+        },
+        {
+          "enabled": true,
+          "id": "separator"
+        },
+        "systemTray",
+        "clipboard",
+        "battery",
+        {
+          "enabled": true,
+          "id": "vpn"
+        },
+        "controlCenterButton"
+      ],
+      "spacing": 0,
+      "squareCorners": true
+    }
+  ],
+  "barElevationEnabled": false,
+  "batteryLockTimeout": 3600,
+  "batteryMonitorTimeout": 1200,
+  "batterySuspendTimeout": 3600,
+  "blurWallpaperOnOverview": true,
+  "builtInPluginSettings": {
+    "dms_clipboard_search": {
+      "trigger": "cb"
+    },
+    "dms_settings_search": {
+      "trigger": "?"
+    }
+  },
+  "cornerRadius": 12,
+  "currentThemeCategory": "registry",
+  "currentThemeName": "custom",
+  "customAnimationDuration": 167,
+  "customThemeFile": "${HOME}/.config/DankMaterialShell/themes/tokyoNightDark/theme.json",
+  "dashTabs": [
+    {
+      "enabled": true,
+      "id": "overview"
+    },
+    {
+      "enabled": true,
+      "id": "media"
+    },
+    {
+      "enabled": false,
+      "id": "wallpaper"
+    },
+    {
+      "enabled": true,
+      "id": "weather"
+    },
+    {
+      "enabled": false,
+      "id": "settings"
+    }
+  ],
+  "enableFprint": true,
+  "firstDayOfWeek": 1,
+  "fontFamily": "Noto Sans",
+  "launcherLogoColorOverride": "surface",
+  "launcherLogoMode": "apps",
+  "launcherLogoSizeOffset": 12,
+  "launcherStyle": "spotlight",
+  "lockBeforeSuspend": true,
+  "loginctlLockIntegration": true,
+  "maxFprintTries": 3,
+  "monoFontFamily": "FiraCode Nerd Font Mono",
+  "niriLayoutBorderSize": 1,
+  "notificationRules": [
+    {
+      "action": "mute",
+      "enabled": true,
+      "field": "appName",
+      "matchType": "exact",
+      "pattern": "Insync",
+      "urgency": "default"
+    }
+  ],
+  "powerMenuActions": [
+    "reboot",
+    "logout",
+    "poweroff",
+    "lock",
+    "suspend",
+    "restart"
+  ],
+  "runningAppsCurrentWorkspace": false,
+  "showCpuTemp": false,
+  "showCpuUsage": false,
+  "showGpuTemp": false,
+  "showMemUsage": false,
+  "showWeather": false,
+  "spotlightSectionViewModes": {
+    "apps": "list"
+  },
+  "updaterCustomCommand": "sudo bootc upgrade",
+  "updaterIntervalSeconds": 3600,
+  "updaterUseCustomCommand": true
+}

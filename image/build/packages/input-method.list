@@ -1,0 +1,17 @@
+# base-main installs the fcitx5 stack only for its kinoite variant; the base
+# variant gets none of it. fcitx5.service is enabled on this machine and
+# workstation-cycle-keyboard-layout shells out to fcitx5-remote.
+fcitx5
+fcitx5-data
+fcitx5-gtk
+fcitx5-gtk3
+fcitx5-gtk4
+fcitx5-qt
+fcitx5-qt5
+fcitx5-qt6
+fcitx5-configtool
+fcitx5-lua
+fcitx5-mozc
+fcitx5-chinese-addons
+fcitx5-rime
+librime-lua

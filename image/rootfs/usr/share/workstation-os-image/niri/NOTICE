@@ -1,0 +1,30 @@
+This directory contains work derived from Zirconium.
+
+    zirconium-dev/zdots
+    https://github.com/zirconium-dev/zdots
+    Copyright the Zirconium contributors
+    Licensed under the Apache License, Version 2.0
+
+The following files are vendored from that project. They were copied
+verbatim at the point this image stopped deriving from the Zirconium base
+image, and are modified here only where noted in the files themselves:
+
+    includes/dms-base.kdl
+    includes/input.kdl
+    includes/layout.kdl
+    includes/misc.kdl
+    includes/shadow.kdl
+    includes/window-rules.kdl
+
+    includes/binds.kdl      -- substantially rewritten; originally derived
+                               from the same source
+
+You may obtain a copy of the Apache License, Version 2.0 at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+License for the specific language governing permissions and limitations
+under the License.

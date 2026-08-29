@@ -1,0 +1,67 @@
+# Compositor, shell and session. None of this is in ublue base-main.
+niri                        # copr:yalter/niri
+xwayland-satellite
+xorg-x11-server-Xwayland
+greetd
+greetd-selinux
+foot
+xdg-terminal-exec
+xdg-desktop-portal-gnome
+xdg-desktop-portal-gtk
+
+# Keyring. gnome-keyring-pam is the load-bearing half: without it the
+# pam_gnome_keyring line in /etc/pam.d/greetd cannot unlock the login keyring
+# and every app prompts. Assert the .so exists at build time.
+gnome-keyring
+gnome-keyring-pam
+gcr
+
+# File manager and thumbnailing
+nautilus
+nautilus-python
+glycin-thumbnailer
+gst-thumbnailers
+gnome-disk-utility
+
+# gvfs: absent from base-main. Needed for network browsing in the file
+# manager; there is an NFS NAS in /etc/fstab. The fstab mount itself uses
+# kernel NFS via nfs-utils, which base-main already ships.
+gvfs
+gvfs-fuse
+gvfs-nfs
+gvfs-smb
+gvfs-mtp                    # phones
+gvfs-gphoto2                # cameras
+
+# DMS runtime dependencies it does not declare. Found by diffing the built
+# image against the old one and grepping DMS's QML: `rpm -qR dms` lists none
+# of these, and a missing one produces a shell that starts and then quietly
+# misbehaves rather than a build failure.
+cava                        # Modules/DankBar/Widgets/Media.qml, Modules/Lock/LockScreenContent.qml
+khal                        # Services/CalendarKhalBackend.qml, Modules/Settings/TimeWeatherTab.qml
+swaybg                      # Modules/Settings/WallpaperTab.qml
+
+# GTK side of the Breeze theme, so GTK apps match the Qt shell.
+breeze-gtk-gtk3
+breeze-gtk-gtk4
+
+# Session utilities referenced by the niri binds or our own scripts
+brightnessctl               # binds.kdl volume/brightness
+playerctl                   # binds.kdl media keys
+ddcutil
+kanshi
+udiskie
+btop                        # bound to Ctrl+Alt+Delete in local.kdl
+wl-mirror
+wtype                       # workstation-dictate
+wev
+tesseract                   # workstation-ocr (replaces Zirconium's zocr)
+tesseract-langpack-eng
+gum
+chezmoi                     # ABSENT from base-main; seeding and `just audit` both die without it
+fish                        # the image owns /usr/bin/fish; never install via brew
+bolt                        # thunderbolt: /sys/bus/thunderbolt/devices/domain0 present
+NetworkManager-tui          # nmtui
+nm-connection-editor        # GUI for the two configured WireGuard VPNs
+openssh-askpass             # GUI ssh prompts, e.g. git from a JetBrains IDE
+input-remapper              # was installed and configured on the old image

@@ -2,7 +2,7 @@
 
 A portable setup for three AI coding CLIs — **codex**, **Claude Code**, and
 **opencode** — that you can drop onto any Linux/macOS account. No workstation
-image, chezmoi, or Zirconium required.
+image or chezmoi required.
 
 `install.sh` does two things: lays down this repo's **personal config**
 (secret-free — no keys, tokens, or machine paths) create-only, then installs the
@@ -75,5 +75,5 @@ running and never touches auth stores, histories, sessions, or databases.
 
 `config/` and `opencode-mcp-fragment.json` are **generated** from the workstation
 repo's canonical seeds by `just ai-bundle` — don't hand-edit them; change the
-seeds and regenerate. `install.sh`, `reset.sh`, and `secrets.example` are
-maintained here directly.
+seeds and regenerate. `install.sh`, `reset.sh`, `secrets.example`, `vendor/` and
+this README are maintained here directly.

@@ -1,0 +1,6 @@
+# Rootful Docker, usable without sudo via dynamic group provisioning.
+docker-ce
+docker-ce-cli
+docker-buildx-plugin
+docker-compose-plugin
+containerd.io

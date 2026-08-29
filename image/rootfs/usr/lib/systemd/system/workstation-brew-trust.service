@@ -1,0 +1,22 @@
+[Unit]
+Description=Trust third-party Homebrew tap formulae
+Documentation=https://github.com/marcortola/workstation-os-image
+# Order after brew-setup.service, which untars /home/linuxbrew and chowns it
+# to uid 1000. The condition below no-ops cleanly on a boot where brew is not
+# provisioned yet; the next boot, or the uupd drop-in that runs this inside
+# uupd's own transaction, covers it.
+After=brew-setup.service
+ConditionPathExists=/home/linuxbrew/.linuxbrew/bin/brew
+
+[Service]
+Type=oneshot
+# uid 1000, not the linuxbrew user: that user came from brew-proxy, which this
+# image no longer installs. brew-setup.service chowns the prefix to 1000:1000.
+User=1000
+# brew needs an unconfined SELinux context for its operations, matching
+# uupd.service which runs brew the same way.
+SELinuxContext=system_u:unconfined_r:unconfined_t:s0
+ExecStart=/usr/libexec/workstation-brew-trust
+
+[Install]
+WantedBy=multi-user.target

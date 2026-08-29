@@ -1,0 +1,23 @@
+#!/usr/bin/bash
+# Screenshot -> OCR -> clipboard. Replaces Zirconium's zocr.
+set -euo pipefail
+shot=$(mktemp --suffix=.png)
+trap 'rm -f "$shot" "${shot%.png}.txt"' EXIT
+
+niri msg action "${1:-screenshot}" --path "$shot"
+
+# niri writes the file asynchronously after the region is picked.
+for _ in $(seq 1 300); do
+    [ -s "$shot" ] && break
+    sleep 0.1
+done
+[ -s "$shot" ] || { notify-send -u critical "OCR" "No screenshot captured"; exit 1; }
+
+tesseract "$shot" "${shot%.png}" >/dev/null 2>&1
+if [ -s "${shot%.png}.txt" ]; then
+    wl-copy < "${shot%.png}.txt"
+    notify-send "OCR" "Text copied to clipboard"
+else
+    notify-send -u critical "OCR" "No text recognised"
+    exit 1
+fi

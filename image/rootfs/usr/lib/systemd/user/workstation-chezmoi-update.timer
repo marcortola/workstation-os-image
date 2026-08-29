@@ -1,0 +1,11 @@
+[Unit]
+Description=Timer for the workstation dotfiles reapply
+# Only for an account that has already been seeded.
+ConditionPathExists=%h/.config/workstation-os-image/chezmoi
+
+[Timer]
+OnBootSec=5m
+OnUnitInactiveSec=1d
+
+[Install]
+WantedBy=timers.target

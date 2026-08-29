@@ -1,0 +1,10 @@
+# Known Homebrew shadows. The image-provided /usr/bin binaries are authoritative.
+btop
+cabextract
+chezmoi
+ffmpeg
+fzf
+git
+just
+mkcert
+unar

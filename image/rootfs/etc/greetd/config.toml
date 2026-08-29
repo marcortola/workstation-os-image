@@ -1,0 +1,24 @@
+# Image-owned greetd configuration.
+#
+# Shipped directly into /etc rather than via /usr/share/factory plus a tmpfiles
+# symlink, which is what the previous base did: its `L /etc/greetd/config.toml`
+# line never fired, because the greetd RPM already ships that path as a %config
+# file, so the symlink was never created and the live file came from
+# `dms greeter install` instead.
+#
+# NOTE for existing machines: ostree three-way-merges /etc and keeps locally
+# modified files. `rpm -V greetd` reporting this path as modified means this
+# file will NOT land on upgrade until the local copy is removed. See the
+# cutover runbook.
+#
+# There is deliberately no [general] service line. greetd-spawn existed
+# upstream to force XDG_SESSION_TYPE=wayland via pam_env, but the session is
+# already Type=wayland without it, so the extra PAM stack is dead weight around
+# the one path that must never break.
+
+[terminal]
+vt = 1
+
+[default_session]
+command = "/usr/bin/dms-greeter --command niri --cache-dir /var/cache/dms-greeter -C /etc/greetd/niri/config.kdl"
+user = "greeter"

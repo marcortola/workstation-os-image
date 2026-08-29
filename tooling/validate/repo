@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# Host-independent repository gates.
+#
+# Split out of tooling/validate/all so CI can run them: validate itself ends in
+# audit-workstation and a live `chezmoi managed`, which need the machine to be
+# booted into this image, so it can only ever run locally. These checks need
+# nothing but the repository, niri and chezmoi, and until now CI ran no gates
+# of any kind.
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$repo_root"
+
+# --- namespace ----------------------------------------------------------
+# The rename is only real if nothing still POINTS AT the removed tree. Prose
+# about Zirconium is history and attribution, and is meant to stay -- what must
+# not survive is a path into an image tree that no longer exists.
+#
+# image/rootfs/usr/libexec/workstation-chezmoi-apply deliberately names the legacy
+# per-user config dir (~/.config/zirconium/chezmoi) as its migration source.
+# That is a different path and does not match.
+if grep -rnI '/usr/share/zirconium' rootfs config justfile 2>/dev/null | grep . ; then
+    echo "A path into the removed /usr/share/zirconium tree survived." >&2
+    exit 1
+fi
+[[ ! -e image/rootfs/usr/share/zirconium ]]
+[[ ! -e image/rootfs/usr/share/workstation-os-image/dotfiles/system ]]
+[[ -f image/rootfs/usr/share/workstation-os-image/niri/workstation.kdl ]]
+[[ -f image/rootfs/usr/share/workstation-os-image/niri/NOTICE ]]
+(( $(find image/rootfs/usr/share/workstation-os-image/dotfiles -type f | wc -l) >= 87 ))
+
+# --- no dangling image paths --------------------------------------------
+# Catches a half-finished rename in a script nobody thought to grep: every
+# absolute image path named anywhere in the repo must correspond to a file the
+# image actually ships. Excluded: the dotfiles and greeter subtrees, whose
+# contents are checked by validate-manifest and check-build respectively, and
+# package-manifest.txt, which image/build/scripts/cleanup.sh generates at build time.
+while read -r image_path; do
+    [[ -e "image/rootfs$image_path" ]] || {
+        echo "Dangling image path referenced but not shipped: $image_path" >&2
+        exit 1
+    }
+done < <(grep -rhoE '/usr/share/workstation-os-image/[A-Za-z0-9._/-]+' \
+    tooling rootfs config build justfile 2>/dev/null \
+    | grep -vE '/(dotfiles|greeter)/' \
+    | grep -vE '\.\.\.|[/.]$' \
+    | grep -vx '/usr/share/workstation-os-image/package-manifest.txt' \
+    | sort -u)
+
+# The remaining gates need niri and chezmoi. On a GitHub runner they are
+# absent; CI covers them by running the same assertions inside the built image,
+# which ships both. Skipping here is therefore not a hole -- but say so loudly
+# rather than passing silently.
+if ! command -v chezmoi >/dev/null || ! command -v niri >/dev/null; then
+    echo "Repository gates passed (niri/chezmoi absent: their gates run against the image)."
+    exit 0
+fi
+
+# --- the seed tree applies to a clean account ---------------------------
+# CI never boots the image, so this is the cheapest proof that every template
+# renders and the whole source parses: apply it to an empty throwaway HOME.
+seed_home="$(mktemp -d)"
+seed_cfg="$(mktemp -d)"
+: > "$seed_cfg/chezmoi.toml"
+HOME="$seed_home" chezmoi apply --dry-run --no-tty \
+    -S image/rootfs/usr/share/workstation-os-image/dotfiles \
+    --config "$seed_cfg/chezmoi.toml" >/dev/null
+rm -rf "$seed_home" "$seed_cfg"
+
+# --- the niri config chain parses ---------------------------------------
+niri_tmp="$(mktemp -d)"
+cp -a image/rootfs/usr/share/workstation-os-image/niri "$niri_tmp/sys"
+mkdir -p "$niri_tmp/user"
+sed "s#/usr/share/workstation-os-image/niri/workstation.kdl#$niri_tmp/sys/workstation.kdl#" \
+    image/rootfs/usr/share/workstation-os-image/dotfiles/dot_config/niri/config.kdl \
+    > "$niri_tmp/user/config.kdl"
+cp image/rootfs/usr/share/workstation-os-image/dotfiles/dot_config/niri/dms.kdl "$niri_tmp/user/"
+niri validate -c "$niri_tmp/user/config.kdl" >/dev/null 2>&1
+niri validate -c "$niri_tmp/sys/workstation.kdl" >/dev/null 2>&1
+rm -rf "$niri_tmp"
+
+# --- the greeter config parses ------------------------------------------
+niri validate -c image/rootfs/etc/greetd/niri/config.kdl >/dev/null 2>&1
+
+echo "Repository gates passed."

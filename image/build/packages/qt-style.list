@@ -1,0 +1,16 @@
+# DMS runs on quickshell, which is Qt/QML. `rpm -qR dms` declares only
+# quickshell, dgop, dms-cli, accountsservice, python3 and bash -- none of the
+# QML modules it imports at runtime. A missing one gives a compositor that
+# starts and a shell that silently dies, and no container gate can catch it.
+# This list is therefore explicit on purpose; do not trim it without booting.
+plasma-breeze
+kf6-qqc2-desktop-style
+kf6-kirigami
+kf6-kimageformats
+qt6-qtimageformats
+qt6-qtmultimedia
+qt6-qtdeclarative
+qt6-qt5compat
+qt6-qtsvg
+qt6-qtshadertools
+# NOT qt6-qtwayland: libQt6WaylandClient.so.6 comes from qt6-qtbase-gui on F44.

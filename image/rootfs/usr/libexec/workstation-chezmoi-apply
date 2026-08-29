@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Apply the image's chezmoi seeds to the calling user's home.
+#
+# One script rather than the previous base's three inline ExecStart= lines,
+# because the state-database migration below has to be conditional and
+# idempotent, which a systemd ExecStart chain cannot express -- and because a
+# shell file gets shellchecked by tooling/validate/all.
+set -uo pipefail
+
+src=/usr/share/workstation-os-image/dotfiles
+dir="${XDG_CONFIG_HOME:-$HOME/.config}/workstation-os-image/chezmoi"
+legacy="${XDG_CONFIG_HOME:-$HOME/.config}/zirconium/chezmoi"
+
+mkdir -p "$dir"
+
+# One-time, idempotent, copy-never-move.
+#
+# chezmoi's entry-state database is what lets `yes s` answer "skip" to the
+# "this file changed since chezmoi last wrote it" prompt. With an empty state
+# no prompt fires at all, and chezmoi silently rewrites every managed target --
+# measured at 20 files on this machine, including the DMS settings, the saved
+# session and its wallpaper path, and the mode on ~/.config/opencode, which
+# holds API keys.
+#
+# The database is keyed by absolute destination path and references neither the
+# source directory nor the config path, so a plain file copy is a complete and
+# lossless migration. Copy, never move: the legacy directory stays intact as a
+# rollback.
+if [[ ! -e $dir/chezmoistate.boltdb && -r $legacy/chezmoistate.boltdb ]]; then
+    install -D -m 0600 "$legacy/chezmoistate.boltdb" "$dir/chezmoistate.boltdb"
+fi
+
+[[ -e $dir/chezmoi.toml ]] || : > "$dir/chezmoi.toml"
+
+if [[ ${1:-} == --init ]]; then
+    exec chezmoi apply -S "$src" --config "$dir/chezmoi.toml"
+fi
+
+# `yes s` skips any target the user has edited since chezmoi last wrote it.
+# --keep-going so one bad entry does not strand the rest.
+exec sh -c "yes s | chezmoi apply --no-tty --keep-going -S '$src' --verbose --config '$dir/chezmoi.toml'"

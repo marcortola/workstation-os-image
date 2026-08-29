@@ -1,0 +1,12 @@
+# Toolchain and CLI. Homebrew needs a linker and a compiler for source builds.
+binutils
+gcc
+cabextract                  # workstation-install-microsoft-fonts
+cpio
+unzip
+shadow-utils                # usermod, used by workstation-configure-user-groups
+mariadb
+postgresql
+mkcert
+slurp                       # workstation-screenrecord
+wf-recorder                 # workstation-screenrecord
