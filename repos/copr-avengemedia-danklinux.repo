@@ -9,4 +9,4 @@ gpgkey=https://download.copr.fedorainfracloud.org/results/avengemedia/danklinux/
 repo_gpgcheck=0
 enabled=1
 priority=1
-includepkgs=quickshell,dgop,danksearch,matugen,cpptrace
+includepkgs=dms-greeter,quickshell,dgop,danksearch,matugen,cpptrace

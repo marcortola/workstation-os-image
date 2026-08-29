@@ -20,6 +20,12 @@ sed -i -E '/pam_gnome_keyring\.so/ s/^-(auth|session)/\1/' /etc/pam.d/greetd
 # future base ships a headless default, the greeter would simply never start.
 ln -snf graphical.target /usr/lib/systemd/system/default.target
 
+# --- font cache ----------------------------------------------------------
+# toolchain.sh drops FiraCode Nerd Font into /usr/share/fonts, but fontconfig
+# only sees a font once its cache has been rebuilt, so without this fc-list
+# finds nothing and every consumer silently falls back to a default monospace.
+fc-cache --force --really-force --system-only
+
 # --- OCR -----------------------------------------------------------------
 # binds.kdl calls this on Mod+Print and Mod+Alt+Shift+S. It replaces
 # Zirconium's /usr/bin/zocr, which disappears with that base. niri validate

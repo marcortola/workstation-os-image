@@ -7,6 +7,11 @@
 # regressions live, and none of it is visible to `bootc container lint`.
 set -ouex pipefail
 
+# NOTE: never use `grep -q` in a pipeline here. It exits on the first match,
+# SIGPIPEs the writer, and `pipefail` turns that into a non-zero pipeline --
+# so the gate fails precisely when the thing it checks for IS present.
+# Use `grep ... >/dev/null`, which reads the whole stream.
+
 fail() { echo "check-build: $*" >&2; exit 1; }
 
 # --- packages present ----------------------------------------------------
@@ -73,7 +78,7 @@ test -e /usr/lib64/security/pam_gnome_keyring.so || fail "pam_gnome_keyring.so a
 # --- preset effects ------------------------------------------------------
 # Highest-value class here: preset composition is where regressions hide, and
 # a preset file cannot undo an enablement symlink another layer already wrote.
-readlink /etc/systemd/system/display-manager.service | grep -q greetd.service \
+readlink /etc/systemd/system/display-manager.service | grep greetd.service >/dev/null \
     || fail "greetd is not the display manager"
 test -L /etc/systemd/system/timers.target.wants/uupd.timer || fail "uupd.timer not enabled"
 for t in rpm-ostreed-automatic.timer flatpak-system-update.timer; do
@@ -83,7 +88,7 @@ done
 test -e /etc/systemd/user/timers.target.wants/flatpak-user-update.timer \
     && fail "flatpak-user-update.timer is still enabled and will race uupd"
 test -L /etc/systemd/user/graphical-session.target.wants/dms.service || fail "dms.service not enabled"
-readlink /usr/lib/systemd/system/default.target | grep -q graphical.target \
+readlink /usr/lib/systemd/system/default.target | grep graphical.target >/dev/null \
     || fail "default.target is not graphical.target"
 
 # --- unit syntax ---------------------------------------------------------
@@ -113,15 +118,34 @@ test -f /usr/lib/systemd/system/brew-setup.service || fail "brew-setup.service m
 # --- fonts ---------------------------------------------------------------
 # fonts.conf and the DMS mono font setting both name this family. It was
 # shipped by no image before, resolving from an untracked ~/.local/share/fonts.
-fc-list | grep -q 'FiraCode Nerd Font Mono' || fail "FiraCode Nerd Font Mono not installed"
+if ! fc-list | grep 'FiraCode Nerd Font Mono' >/dev/null; then
+    echo "--- font diagnostics ---" >&2
+    ls -la /usr/share/fonts/ >&2 || true
+    find /usr/share/fonts/firacode-nerd-fonts/ -type f -printf '%f\n' 2>&1 | head -5 >&2 || true
+    echo "fc-list entries: $(fc-list | wc -l)" >&2
+    fc-list | grep -i fira >&2 || echo "(no fira in fc-list)" >&2
+    fail "FiraCode Nerd Font Mono not installed"
+fi
 
 # --- config validators ---------------------------------------------------
 dockerd --validate --config-file=/usr/share/factory/etc/docker/daemon.json
 keyd check /usr/share/factory/etc/keyd/default.conf
 
 # --- namespace -----------------------------------------------------------
-if grep -rlI zirconium /usr/lib /usr/bin /usr/libexec /etc 2>/dev/null | grep -qv NOTICE; then
-    fail "a zirconium reference survived into the image"
+# Scoped to files this image owns. Third-party packages are not our problem:
+# DMS's own SystemLogo.qml hardcodes a Zirconium logo path, but it is guarded
+# on $LOGO from os-release, which is "fedora" here, so that branch is dead.
+#
+# Attribution prose is fine. So is the single deliberate reference to the
+# legacy per-user chezmoi dir in workstation-chezmoi-apply, which is the
+# migration source -- hence matching the image tree path specifically.
+stale=$(grep -rlI '/usr/share/zirconium' \
+    /usr/share/workstation-os-image /usr/libexec /etc/greetd \
+    /usr/lib/systemd /usr/lib/tmpfiles.d 2>/dev/null || true)
+if [ -n "$stale" ]; then
+    echo "$stale" >&2
+    fail "a reference to the removed /usr/share/zirconium tree survived into image-owned files"
 fi
+test ! -e /usr/share/zirconium || fail "/usr/share/zirconium still exists in the image"
 
 echo "check-build: all gates passed"

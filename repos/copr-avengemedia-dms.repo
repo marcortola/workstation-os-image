@@ -1,4 +1,5 @@
-# DankMaterialShell proper.
+# DankMaterialShell proper. dms-cli is a subpackage of the dms source package;
+# dms-greeter is built in the danklinux project, not this one.
 [copr:copr.fedorainfracloud.org:avengemedia:dms]
 name=Copr repo for dms owned by avengemedia
 baseurl=https://download.copr.fedorainfracloud.org/results/avengemedia/dms/fedora-$releasever-$basearch/
@@ -8,4 +9,4 @@ gpgkey=https://download.copr.fedorainfracloud.org/results/avengemedia/dms/pubkey
 repo_gpgcheck=0
 enabled=1
 priority=1
-includepkgs=dms,dms-cli,dms-greeter
+includepkgs=dms,dms-cli

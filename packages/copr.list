@@ -4,7 +4,7 @@
 # substitute -- see repos/ for the includepkgs fencing.
 dms
 dms-cli
-dms-greeter
+dms-greeter                 # built in danklinux, not the dms COPR
 quickshell
 dgop
 danksearch                  # ships /usr/bin/dsearch and dsearch.service; the unit is NOT named danksearch.service

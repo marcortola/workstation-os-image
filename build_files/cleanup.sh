@@ -19,6 +19,6 @@ rpm -qa --qf '%{NAME}-%{EPOCH}:%{VERSION}-%{RELEASE}.%{ARCH}\n' \
     | sed 's/-(none)://' | sort > /usr/share/workstation-os-image/package-manifest.txt
 
 dnf5 clean all
-rm -rf /var/cache/libdnf5 /var/lib/dnf /var/log/dnf5.log \
+rm -rf /var/cache/libdnf5 /var/lib/dnf /var/log/dnf5.log* \
        /run/dnf /run/systemd/systemd-units-load
 find /tmp -mindepth 1 -delete
