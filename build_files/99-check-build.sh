@@ -105,17 +105,43 @@ test -e /usr/lib64/security/pam_gnome_keyring.so || fail "pam_gnome_keyring.so a
 readlink /etc/systemd/system/display-manager.service | grep greetd.service >/dev/null \
     || fail "greetd is not the display manager"
 test -L /etc/systemd/system/timers.target.wants/uupd.timer || fail "uupd.timer not enabled"
-for t in rpm-ostreed-automatic.timer flatpak-system-update.timer; do
-    test -e "/etc/systemd/system/timers.target.wants/$t" \
-        && fail "$t is still enabled and will race uupd"
-done
-test -e /etc/systemd/user/timers.target.wants/flatpak-user-update.timer \
-    && fail "flatpak-user-update.timer is still enabled and will race uupd"
+test -e /etc/systemd/system/timers.target.wants/rpm-ostreed-automatic.timer \
+    && fail "rpm-ostreed-automatic.timer is still enabled and will race uupd"
+# The flatpak update timers came from ublue-os-update-services. Asserting the
+# package is absent is stronger than asserting its symlinks are: the package
+# ships enable-at-priority-10 presets that would re-create them.
+rpm -q ublue-os-update-services >/dev/null \
+    && fail "ublue-os-update-services is installed; its presets re-enable the flatpak timers"
 for t in brew-update.timer brew-upgrade.timer; do
     test -e "/etc/systemd/system/timers.target.wants/$t" \
         && fail "$t is still enabled; uupd is the single brew updater"
 done
 test -L /etc/systemd/user/graphical-session.target.wants/dms.service || fail "dms.service not enabled"
+
+# --- every preset `enable` line actually took effect ------------------------
+# The preset files and the explicit `systemctl enable` argument lists in
+# 50-services.sh are two copies of the same intent with nothing keeping them in
+# sync. A unit added to a preset and forgotten in the script ships, passes
+# systemd-analyze verify, and is simply never enabled -- silently. Asserting the
+# effect rather than the arguments also catches a preset line naming a unit that
+# does not exist at all.
+#
+# Matched by link TARGET, not by a .wants path: greetd.service is enabled
+# through its Alias=display-manager.service, so it produces
+# /etc/systemd/system/display-manager.service and no .wants entry at all.
+while read -r unit; do
+    find /etc/systemd/system -type l -lname "*/$unit" \
+        | grep . >/dev/null \
+        || fail "system preset enables $unit but nothing links to it under /etc"
+done < <(sed -n 's/^enable //p' \
+    /usr/lib/systemd/system-preset/10-workstation-os-image.preset)
+
+while read -r unit; do
+    find /etc/systemd/user -type l -lname "*/$unit" \
+        | grep . >/dev/null \
+        || fail "user preset enables $unit but nothing links to it under /etc"
+done < <(sed -n 's/^enable //p' \
+    /usr/lib/systemd/user-preset/10-workstation-os-image.preset)
 readlink /usr/lib/systemd/system/default.target | grep graphical.target >/dev/null \
     || fail "default.target is not graphical.target"
 

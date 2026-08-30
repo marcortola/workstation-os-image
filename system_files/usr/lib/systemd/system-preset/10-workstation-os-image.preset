@@ -13,7 +13,6 @@ enable workstation-user-groups.service
 # real /etc symlinks that a preset cannot undo -- build_files/50-services.sh
 # disables them explicitly. These lines are defence in depth.
 disable rpm-ostreed-automatic.timer
-disable flatpak-system-update.timer
 disable bootc-fetch-apply-updates.timer
 disable brew-update.timer
 disable brew-upgrade.timer
