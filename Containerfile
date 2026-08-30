@@ -6,23 +6,20 @@
 # compositor or greeter of its own -- so there is nothing to strip before
 # adding niri and DankMaterialShell.
 #
-# Pin BASE_DIGEST, not just BASE_TAG. It pins the kernel, systemd, mesa and the
-# whole negativo17 codec stack in one go, which is the overwhelming majority of
-# this image by bytes and the only pin available that actually holds: the
-# desktop stack comes from COPRs that prune superseded builds, so versionlock
-# to an older NEVRA is impossible there. Bisectability via the NEVRA manifest
-# in 90-cleanup.sh is the substitute for pinning the parts that float.
-# One knob, a full image reference -- the same shape the CI repository variable
-# and the justfile pass. Splitting it into image + tag invited
+# Pin the base by digest, not just by tag. The digest pins the kernel, systemd,
+# mesa and the whole negativo17 codec stack in one go -- the overwhelming
+# majority of this image by bytes, and the only pin available that actually
+# holds: the desktop stack comes from COPRs that prune superseded builds, so
+# versionlock to an older NEVRA is impossible there. Bisectability via the NEVRA
+# manifest in 90-cleanup.sh is the substitute for pinning the parts that float.
+#
+# One knob holding a full image reference -- the same shape the CI repository
+# variable and the Justfile pass. Splitting it into image + tag invited
 # `${BASE_IMAGE}:${BASE_TAG}` to become `...:latest:latest` the moment CI passed
 # a tagged reference, which is exactly what happened.
-# Pinned by digest, not just tag. This is the only pin available that actually
-# holds: the desktop stack comes from COPRs that prune superseded builds, so
-# versionlock is impossible there. The digest pins the kernel, systemd, mesa and
-# the whole negativo17 codec stack -- most of this image by bytes.
 #
 # tooling/validate/source-images cosign-verifies both pinned digests against
-# ublue's public key before any build runs. Dependabot bumps them as PRs.
+# ublue's public key before any build runs.
 ARG BASE_IMAGE=ghcr.io/ublue-os/base-main:latest@sha256:9b43dba0dea1987005cbf8cbc64727564b40ec5a162f7c51e3c6f7f36b6d3863
 
 # Build inputs travel in a scratch stage and are bind-mounted, never COPYd, so
@@ -44,8 +41,6 @@ ARG FIRACODE_SHA256=68e3bd6164864b8b514605bc34e3a87ac401c8c48682fcce6478c7026334
 RUN --mount=type=bind,from=ctx,src=/,dst=/ctx \
     --mount=type=cache,target=/var/cache/libdnf5,sharing=locked \
     --mount=type=tmpfs,dst=/tmp \
-    KEYD_VERSION="${KEYD_VERSION}" KEYD_SHA256="${KEYD_SHA256}" \
-    FIRACODE_VERSION="${FIRACODE_VERSION}" FIRACODE_SHA256="${FIRACODE_SHA256}" \
     /ctx/build_files/00-toolchain.sh
 
 FROM ${BASE_IMAGE}
@@ -86,4 +81,4 @@ RUN --mount=type=bind,from=ctx,src=/,dst=/ctx \
     /ctx/build_files/90-cleanup.sh && \
     /ctx/build_files/99-check-build.sh
 
-RUN ["bootc", "container", "lint"]
+RUN --network=none ["bootc", "container", "lint"]

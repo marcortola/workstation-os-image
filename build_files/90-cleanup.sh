@@ -27,4 +27,3 @@ rm -f /etc/greetd/config.toml.backup-*
 dnf5 clean all
 rm -rf /var/cache/libdnf5 /var/lib/dnf /var/log/dnf5.log* \
        /run/dnf /run/systemd/systemd-units-load
-find /tmp -mindepth 1 -delete
