@@ -481,9 +481,15 @@ to those current defaults:
 ```bash
 wjust dms-capture   # Tab selects portable values to add or update
 wjust dms-remove    # Tab selects tracked overrides to stop applying
-wjust dms-apply     # explicitly restore the tracked overlay
+wjust dms-apply     # explicitly restore the tracked overlay (prompts)
 wjust audit
 ```
+
+`dms-apply` overwrites live DMS settings with no backup, so it asks before
+acting. That prompt needs a terminal: it aborts under a non-interactive shell,
+which includes an agent running without a tty. Invoke
+`system_files/usr/bin/workstation-apply-dms-settings --force` directly if you
+genuinely need it unattended, and understand that it will not ask.
 
 The tracked overlay is
 `system_files/usr/share/workstation-os-image/dms-settings.json`. Simple values
@@ -668,7 +674,7 @@ journalctl --user -u workstation-bootstrap.service -b
 journalctl --user -u workstation-microsoft-fonts.service -b
 journalctl --user -u workstation-dms-settings.service -b
 journalctl --user -u workstation-claude-mcp-seed.service -b
-wjust dms-apply  # only when intentionally restoring captured DMS defaults
+wjust dms-apply  # only when intentionally restoring captured DMS defaults; prompts
 ```
 
 Create-only chezmoi targets and the one-time DMS preference seed intentionally
