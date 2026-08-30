@@ -106,22 +106,15 @@ jq -e '.mcp.context7.headers.CONTEXT7_API_KEY
         | startswith("{file:") or startswith("{env:")' \
     tooling/data/ai-tools/opencode-mcp-fragment.json >/dev/null
 codex_config="$ai_seeds/dot_codex/create_config.toml"
-# Only canonical, secret-free Help Scout and OpenAI developer-docs MCP tables
-# may survive codex scrub.
+# Only the canonical, secret-free OpenAI developer-docs MCP table may survive
+# codex scrub.
 if grep '^\[' "$codex_config" \
     | grep -Fvx \
-        -e '[mcp_servers.helpscout]' \
         -e '[mcp_servers.openaiDeveloperDocs]' >/dev/null; then
     echo "Unapproved table leaked into $codex_config" >&2
     exit 1
 fi
-[[ $(grep -Fxc '[mcp_servers.helpscout]' "$codex_config") -eq 1 ]]
 [[ $(grep -Fxc '[mcp_servers.openaiDeveloperDocs]' "$codex_config") -eq 1 ]]
-grep -Fqx 'command = "bash"' "$codex_config"
-# Match literal $HOME in canonical TOML.
-# shellcheck disable=SC2016
-grep -Fqx 'args = ["-c", "exec bash \"$HOME/.codex/bin/helpscout-mcp\""]' \
-    "$codex_config"
 grep -Fqx 'url = "https://developers.openai.com/mcp"' "$codex_config"
 assert_absent 'HELPSCOUT_APP_(ID|SECRET)[[:space:]]*=' "$codex_config"
 assert_absent '/(var/)?home/' "$codex_config"
@@ -129,8 +122,7 @@ assert_absent \
     '(\.local/share/opencode/auth\.json|\.codex/auth\.json|\.claude/\.credentials\.json)' \
     tooling/data/dotfiles.manifest
 # The portable bundle is a projection of the seeds; it too must carry no key or
-# absolute home path. Help Scout identifiers are expected; credential values
-# remain only in local 0600 files.
+# absolute home path.
 if grep -rIliE 'ctx7sk-|/home/[a-z]' \
     tooling/ai/ai-cli-setup/config tooling/ai/ai-cli-setup/opencode-mcp-fragment.json \
     >/dev/null 2>&1; then

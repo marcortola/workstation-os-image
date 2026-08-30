@@ -6,10 +6,9 @@
 # Reads the live config on stdin, writes the secret-free seed to stdout.
 set -euo pipefail
 
-# The Help Scout launcher reads credentials from local 0600 files; OpenAI's
-# official developer-docs MCP needs no credentials. Keeping both tables
-# canonical instead of copying live blocks prevents env or inline secrets from
-# entering the seed. Reset re-adds only live trust/NUX tables.
+# OpenAI's official developer-docs MCP needs no credentials. Keeping the table
+# canonical instead of copying the live block prevents env or inline secrets
+# from entering the seed. Reset re-adds only live trust/NUX tables.
 awk '
     /^\[/  { stop = 1 }
     !stop  { lines[n++] = $0 }
@@ -17,11 +16,6 @@ awk '
         end = n
         while (end > 0 && lines[end - 1] ~ /^[[:space:]]*$/) end--
         for (i = 0; i < end; i++) print lines[i]
-        print ""
-        print "[mcp_servers.helpscout]"
-        print "command = \"bash\""
-        print "args = [\"-c\", \"exec bash \\\"$HOME/.codex/bin/helpscout-mcp\\\"\"]"
-        print "startup_timeout_sec = 30"
         print ""
         print "[mcp_servers.openaiDeveloperDocs]"
         print "url = \"https://developers.openai.com/mcp\""
