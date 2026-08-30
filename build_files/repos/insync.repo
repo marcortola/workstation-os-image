@@ -1,6 +1,6 @@
 [insync]
 name=insync repo
-baseurl=http://yum.insync.io/fedora/$releasever/
+baseurl=https://yum.insync.io/fedora/$releasever/
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/insync.asc
 enabled=1

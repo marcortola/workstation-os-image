@@ -76,9 +76,16 @@ curl -fL --retry 3 "$toolbox_url" -o "$workdir/$toolbox_archive"
 curl -fL --retry 3 "$toolbox_checksum_url" -o "$workdir/$toolbox_archive.sha256"
 (cd "$workdir" && sha256sum -c "$toolbox_archive.sha256")
 tar -xzf "$workdir/$toolbox_archive" -C "$HOME/.local/opt"
+# sort -V, not sort: lexicographically 3.6.1 sorts above 3.10.0, so a plain
+# sort silently pins the older Toolbox forever once a two-digit minor ships.
 toolbox_bin="$(find "$HOME/.local/opt" -path '*/bin/jetbrains-toolbox' \
-    -type f | sort | tail -n 1)"
+    -type f | sort -V | tail -n 1)"
 [[ -n $toolbox_bin ]]
+
+# This script now re-runs whenever its own hash changes, not once per account,
+# so every extracted tree would otherwise accumulate at ~221 MB each.
+find "$HOME/.local/opt" -maxdepth 1 -name 'jetbrains-toolbox-*' -type d \
+    -not -path "${toolbox_bin%/bin/jetbrains-toolbox}" -exec rm -rf {} +
 ln -sfn "$toolbox_bin" "$HOME/.local/bin/jetbrains-toolbox"
 
 printf '%s\n' "$script_hash" > "$marker"
