@@ -6,6 +6,11 @@ Wants=network-online.target
 # workstation-bootstrap.service, whose DMS-dependent chain we run after.
 After=network-online.target workstation-bootstrap.service graphical-session.target
 ConditionPathExists=!%h/.local/state/workstation-os-image/claude-mcp-seeded
+# Every user manager reaches default.target, including the one pam_systemd
+# starts for greetd's `greeter` account, whose home is read-only. Without this
+# the unit fails on every login screen. `!@system` excludes accounts below
+# SYS_UID_MAX.
+ConditionUser=!@system
 
 [Service]
 Type=oneshot

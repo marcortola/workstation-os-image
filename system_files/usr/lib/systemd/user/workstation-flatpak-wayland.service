@@ -11,6 +11,11 @@ Documentation=https://github.com/Supreeeme/xwayland-satellite/issues/133
 # sidestep the gap. Set as a global Flatpak override rather than editing
 # the base-owned overrides/global file. Re-asserted every login so it
 # survives any base rewrite; idempotent.
+# Every user manager reaches default.target, including the one pam_systemd
+# starts for greetd's `greeter` account, whose home is read-only. Without this
+# the unit fails on every login screen. `!@system` excludes accounts below
+# SYS_UID_MAX.
+ConditionUser=!@system
 
 [Service]
 Type=oneshot

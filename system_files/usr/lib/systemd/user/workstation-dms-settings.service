@@ -9,6 +9,11 @@ Requires=dms.service
 # dms.service, leaving the session with no DMS bar/launcher.
 After=dms.service graphical-session.target
 Before=workstation-bootstrap.service
+# Every user manager reaches default.target, including the one pam_systemd
+# starts for greetd's `greeter` account, whose home is read-only. Without this
+# the unit fails on every login screen. `!@system` excludes accounts below
+# SYS_UID_MAX.
+ConditionUser=!@system
 
 [Service]
 Type=oneshot

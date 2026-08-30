@@ -3,6 +3,11 @@ Description=Mirror the Xwayland (X11) clipboard into the Wayland clipboard
 Documentation=https://github.com/marcortola/workstation-os-image
 PartOf=graphical-session.target
 After=graphical-session.target
+# Every user manager reaches default.target, including the one pam_systemd
+# starts for greetd's `greeter` account, whose home is read-only. Without this
+# the unit fails on every login screen. `!@system` excludes accounts below
+# SYS_UID_MAX.
+ConditionUser=!@system
 
 [Service]
 Type=simple
