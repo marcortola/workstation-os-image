@@ -12,6 +12,17 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$repo_root"
 
 # --- namespace ----------------------------------------------------------
+# Both gates below scan a fixed list of roots. When a restructure moves one,
+# grep writes to stderr and the gate silently scans nothing and passes --
+# which is how the image/ move shipped four dangling references. Assert the
+# roots exist so a future move fails here instead of going quiet.
+for root in image/rootfs tooling justfile; do
+    [[ -e $root ]] || {
+        echo "Scan root '$root' is missing; the gates below would pass without reading anything." >&2
+        exit 1
+    }
+done
+
 # The rename is only real if nothing still POINTS AT the removed tree. Prose
 # about Zirconium is history and attribution, and is meant to stay -- what must
 # not survive is a path into an image tree that no longer exists.
@@ -19,7 +30,7 @@ cd "$repo_root"
 # image/rootfs/usr/libexec/workstation-chezmoi-apply deliberately names the legacy
 # per-user config dir (~/.config/zirconium/chezmoi) as its migration source.
 # That is a different path and does not match.
-if grep -rnI '/usr/share/zirconium' rootfs config justfile 2>/dev/null | grep . ; then
+if grep -rnI '/usr/share/zirconium' image/rootfs justfile | grep . ; then
     echo "A path into the removed /usr/share/zirconium tree survived." >&2
     exit 1
 fi
@@ -41,7 +52,7 @@ while read -r image_path; do
         exit 1
     }
 done < <(grep -rhoE '/usr/share/workstation-os-image/[A-Za-z0-9._/-]+' \
-    tooling rootfs config build justfile 2>/dev/null \
+    tooling image justfile \
     | grep -vE '/(dotfiles|greeter)/' \
     | grep -vE '\.\.\.|[/.]$' \
     | grep -vx '/usr/share/workstation-os-image/package-manifest.txt' \

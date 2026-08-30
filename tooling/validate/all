@@ -73,7 +73,7 @@ while read -r path; do
     [[ -e $path ]] && continue
     echo "AGENTS.md references missing path: $path" >&2
     agents_stale=1
-done < <(grep -oE '`(config|rootfs|tooling)/[A-Za-z0-9._/-]*' AGENTS.md \
+done < <(grep -oE '`(image|tooling|config|rootfs)/[A-Za-z0-9._/-]*' AGENTS.md \
     | tr -d '`' | sort -u)
 (( agents_stale == 0 ))
 
