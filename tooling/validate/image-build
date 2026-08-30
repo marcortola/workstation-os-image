@@ -74,6 +74,13 @@ if grep -Eq 'config-manager +addrepo +--from-repofile' build_files/*.sh Containe
 fi
 for r in build_files/repos/*.repo; do
     grep -q '^gpgcheck=1' "$r" || fail "$r must set gpgcheck=1"
+    # A network-fetched key defeats the vendored trust anchors entirely: the
+    # repo would hand us whatever key it liked at build time. This gate used to
+    # live in 99-check-build.sh against /etc/yum.repos.d, where it could never
+    # fire -- 90-cleanup.sh deletes those files earlier in the same RUN chain,
+    # so all six iterations hit `continue`. Source-side it actually runs, and it
+    # drops the hardcoded six-name list.
+    grep -q '^gpgkey=file://' "$r" || fail "$r must reference a vendored key by file://"
 done
 
 # --- workflow ------------------------------------------------------------
