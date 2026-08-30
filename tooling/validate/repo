@@ -16,7 +16,7 @@ cd "$repo_root"
 # grep writes to stderr and the gate silently scans nothing and passes --
 # which is how the image/ move shipped four dangling references. Assert the
 # roots exist so a future move fails here instead of going quiet.
-for root in system_files tooling justfile; do
+for root in system_files tooling Justfile; do
     [[ -e $root ]] || {
         echo "Scan root '$root' is missing; the gates below would pass without reading anything." >&2
         exit 1
@@ -30,7 +30,7 @@ done
 # system_files/usr/libexec/workstation-chezmoi-apply deliberately names the legacy
 # per-user config dir (~/.config/zirconium/chezmoi) as its migration source.
 # That is a different path and does not match.
-if grep -rnI '/usr/share/zirconium' system_files justfile | grep . ; then
+if grep -rnI '/usr/share/zirconium' system_files Justfile | grep . ; then
     echo "A path into the removed /usr/share/zirconium tree survived." >&2
     exit 1
 fi
@@ -52,7 +52,7 @@ while read -r image_path; do
         exit 1
     }
 done < <(grep -rhoE '/usr/share/workstation-os-image/[A-Za-z0-9._/-]+' \
-    tooling system_files build_files justfile \
+    tooling system_files build_files Justfile \
     | grep -vE '/(dotfiles|greeter)/' \
     | grep -vE '\.\.\.|[/.]$' \
     | grep -vx '/usr/share/workstation-os-image/package-manifest.txt' \

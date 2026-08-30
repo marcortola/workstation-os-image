@@ -16,4 +16,9 @@ elif [[ ! -d $repo/.git ]]; then
     exit 1
 fi
 
-exec just --justfile "$repo/justfile" --working-directory "$repo" "$@"
+# cd rather than --justfile/--working-directory: just requires --justfile
+# whenever --working-directory is given, which would hardcode the file name
+# into the image. Searching from the checkout keeps the launcher agnostic to
+# justfile vs Justfile, so a rename never needs a matching bootc upgrade.
+cd "$repo"
+exec just "$@"
