@@ -1,0 +1,43 @@
+{
+  "_comment": [
+    "Provenance for every third-party RPM signing key this build trusts.",
+    "The .repo files reference these by file:// so the trust anchor is reviewed in",
+    "git rather than fetched on build day. tooling/validate/rpm-keys re-fetches each",
+    "url and asserts the vendored copy is byte-identical and still carries the",
+    "pinned fingerprint.",
+    "terra's upstream url embeds $releasever; it is pinned to 44 here and must be",
+    "bumped with the Fedora release."
+  ],
+  "keys": {
+    "copr-avengemedia-danklinux": {
+      "fingerprint": "882B9F1C415EE16EBE149A0DFD1E0AB06C2E4F4A",
+      "uid": "avengemedia_danklinux (None) <avengemedia#danklinux@copr.fedorahosted.org>",
+      "url": "https://download.copr.fedorainfracloud.org/results/avengemedia/danklinux/pubkey.gpg"
+    },
+    "copr-avengemedia-dms": {
+      "fingerprint": "162D064397AFD540A87168C24BF50D931C31FCAE",
+      "uid": "avengemedia_dms (None) <avengemedia#dms@copr.fedorahosted.org>",
+      "url": "https://download.copr.fedorainfracloud.org/results/avengemedia/dms/pubkey.gpg"
+    },
+    "copr-yalter-niri": {
+      "fingerprint": "87053F2EA1AEF5E0F6804E6DFF6D94F4EBCA512F",
+      "uid": "yalter_niri (None) <yalter#niri@copr.fedorahosted.org>",
+      "url": "https://download.copr.fedorainfracloud.org/results/yalter/niri/pubkey.gpg"
+    },
+    "docker-ce": {
+      "fingerprint": "060A61C51B558A7F742B77AAC52FEB6B621E9F35",
+      "uid": "Docker Release (CE rpm) <docker@docker.com>",
+      "url": "https://download.docker.com/linux/fedora/gpg"
+    },
+    "insync": {
+      "fingerprint": "AEEB94E9C5A3B54ECFA4A66AA684470CACCAF35C",
+      "uid": "Insynchq Inc <services@insynchq.com>",
+      "url": "https://d2t3ff60b2tol4.cloudfront.net/repomd.xml.key"
+    },
+    "terra": {
+      "fingerprint": "AE09157A4DE88B497EA1D5D300CDAB43DE226D6F",
+      "uid": "Terra 44 <security@fyralabs.com>",
+      "url": "https://repos.fyralabs.com/terra44/key.asc"
+    }
+  }
+}

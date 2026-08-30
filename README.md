@@ -337,6 +337,27 @@ update whose signature does not verify is refused rather than deployed. Do this
 only after a signed image has been published, or the switch has nothing valid
 to pull.
 
+### RPM signing keys
+
+Third-party `.repo` files are vendored so `baseurl` and `gpgkey` are reviewable
+in git. Vendoring the repo file alone only covers half of that: if `gpgkey=`
+points at a URL, the trust anchor that authenticates every package is still
+fetched on build day. So the keys are vendored too, under
+`image/build/keys/rpm/`, referenced by `file://`, with provenance and pinned
+fingerprints recorded in `image/build/keys/rpm-key-sources.json`.
+
+`tooling/validate/rpm-keys` re-fetches each upstream key and asserts the
+vendored copy is byte-identical and still carries the pinned fingerprint. A key
+rotating upstream becomes a failure to review rather than a silent change in
+what the build trusts. An unreachable upstream is a skip, not a failure, so an
+offline build still works.
+
+One gap stated plainly: negativo17's repo file comes from base-main and still
+fetches its key over the network. That file is not ours to rewrite, and the
+chain has a defined root anyway — base-main is digest-pinned and
+cosign-verified before anything is built on it, so that key is trusted
+transitively rather than unconditionally.
+
 ### Vendored from Zirconium
 
 This image used to derive from

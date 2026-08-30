@@ -10,10 +10,14 @@ set -ouex pipefail
 
 rpm -q dnf5-plugins >/dev/null || dnf5 -y install dnf5-plugins
 
-install -Dm644 -t /etc/yum.repos.d/ /ctx/build/repos/*.repo
+# Vendored signing keys first: every .repo references its key by file://, so
+# the key must be on disk before dnf reads the repo. Fetching the trust anchor
+# on build day was the gap that made vendoring the .repo files only half a
+# policy -- baseurl was reviewable, the key that authenticates it was not.
+install -Dm644 -t /etc/pki/rpm-gpg/ /ctx/build/keys/rpm/*.asc
+for k in /etc/pki/rpm-gpg/*.asc; do rpm --import "$k"; done
 
-# Insync signs with its own key and the repofile references it by URL.
-rpm --import https://d2t3ff60b2tol4.cloudfront.net/repomd.xml.key
+install -Dm644 -t /etc/yum.repos.d/ /ctx/build/repos/*.repo
 
 # negativo17 ships in base-main with enabled=0 and NO priority= line (so the
 # default 99). base-main enables it during its own build, installs ffmpeg and

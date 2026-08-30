@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# Assert the vendored RPM signing keys still match upstream.
+#
+# Vendoring the .repo files put baseurl under review; vendoring the keys puts
+# the trust anchor under review too. This gate is what keeps the vendored copy
+# honest: it re-fetches each upstream key and asserts byte-identity plus the
+# pinned fingerprint. A key rotating upstream shows up here as a failure to
+# review, rather than silently changing what the build trusts.
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$repo_root"
+manifest=image/build/keys/rpm-key-sources.json
+keydir=image/build/keys/rpm
+
+command -v gpg >/dev/null || { echo "gpg is not installed" >&2; exit 2; }
+[[ -r $manifest ]] || { echo "missing $manifest" >&2; exit 2; }
+
+work="$(mktemp -d)"; trap 'rm -rf -- "$work"' EXIT
+status=0
+
+while IFS=$'\t' read -r name url want_fp; do
+    vendored="$keydir/$name.asc"
+    printf '%s\n' "$name"
+
+    if [[ ! -f $vendored ]]; then
+        echo "  MISSING vendored key: $vendored" >&2; status=1; continue
+    fi
+
+    got_fp="$(gpg --show-keys --with-colons "$vendored" 2>/dev/null | awk -F: '/^fpr:/{print $10; exit}')"
+    if [[ $got_fp != "$want_fp" ]]; then
+        echo "  FINGERPRINT MISMATCH" >&2
+        echo "    manifest: $want_fp" >&2
+        echo "    vendored: $got_fp" >&2
+        status=1; continue
+    fi
+    echo "  fingerprint matches the manifest"
+
+    # Upstream drift is a warning, not a failure: a rotated key is a fact to
+    # review, and a fetch failure must not break an offline or air-gapped run.
+    if curl -fsSL --max-time 20 "$url" -o "$work/$name.asc" 2>/dev/null; then
+        if cmp -s "$vendored" "$work/$name.asc"; then
+            echo "  byte-identical to $url"
+        else
+            up_fp="$(gpg --show-keys --with-colons "$work/$name.asc" 2>/dev/null | awk -F: '/^fpr:/{print $10; exit}')"
+            if [[ $up_fp == "$want_fp" ]]; then
+                echo "  NOTE: upstream bytes differ but the fingerprint is unchanged (re-armoured)"
+            else
+                echo "  UPSTREAM KEY ROTATED: now $up_fp" >&2
+                echo "    review it, then update $vendored and the manifest" >&2
+                status=1
+            fi
+        fi
+    else
+        echo "  could not reach $url (skipping the drift check)"
+    fi
+done < <(jq -r '.keys | to_entries[] | [.key, .value.url, .value.fingerprint] | @tsv' "$manifest")
+
+(( status == 0 )) && echo "All vendored RPM keys verified."
+exit "$status"

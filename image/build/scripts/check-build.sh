@@ -188,6 +188,30 @@ jq -e '.transports.docker | has("ghcr.io/ublue-os")' /etc/containers/policy.json
 grep -q 'use-sigstore-attachments: true' /etc/containers/registries.d/marcortola.yaml \
     || fail "registries.d does not enable sigstore attachments; the signature would never be fetched"
 
+# --- RPM trust anchors are vendored, not fetched --------------------------
+# Vendoring the .repo files only put baseurl under review. If a gpgkey still
+# points at a URL, the key that authenticates everything is fetched on build
+# day and the policy is half a policy.
+for k in copr-yalter-niri copr-avengemedia-dms copr-avengemedia-danklinux \
+         terra docker-ce insync; do
+    test -f "/etc/pki/rpm-gpg/$k.asc" || fail "vendored signing key missing: $k.asc"
+done
+# Scoped to the repos WE vendor. negativo17's repo file comes from base-main
+# and still fetches its key over the network; we do not own that file, and
+# rewriting a base-owned repo would collide with future base updates. The chain
+# still has a defined root: base-main is digest-pinned and cosign-verified
+# before we build on it, so that key is trusted transitively rather than
+# unconditionally.
+for r in copr-yalter-niri copr-avengemedia-dms copr-avengemedia-danklinux \
+         terra docker-ce insync; do
+    f="/etc/yum.repos.d/$r.repo"
+    [ -f "$f" ] || continue
+    if grep -q 'gpgkey=http' "$f"; then
+        grep -n 'gpgkey=http' "$f" >&2
+        fail "$r fetches its signing key over the network"
+    fi
+done
+
 # --- config validators ---------------------------------------------------
 dockerd --validate --config-file=/usr/share/factory/etc/docker/daemon.json
 keyd check /usr/share/factory/etc/keyd/default.conf

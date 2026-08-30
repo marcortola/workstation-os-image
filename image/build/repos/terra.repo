@@ -12,7 +12,7 @@ metalink=https://tetsudou.fyralabs.com/metalink?repo=terra$releasever&arch=$base
 metadata_expire=6h
 type=rpm
 gpgcheck=1
-gpgkey=https://repos.fyralabs.com/terra$releasever/key.asc
+gpgkey=file:///etc/pki/rpm-gpg/terra.asc
 repo_gpgcheck=0
 enabled=1
 priority=100
