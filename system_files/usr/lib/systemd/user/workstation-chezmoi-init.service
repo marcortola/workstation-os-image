@@ -2,6 +2,11 @@
 Description=Seed workstation dotfiles for a new account
 Documentation=https://github.com/marcortola/workstation-os-image
 ConditionPathExists=!%h/.config/workstation-os-image/chezmoi/chezmoi.toml
+# Every user manager reaches default.target, including the one pam_systemd
+# starts for greetd's `greeter` account, whose home is read-only. Without this
+# the unit fails on every login screen. `!@system` excludes accounts below
+# SYS_UID_MAX.
+ConditionUser=!@system
 
 [Service]
 Type=oneshot

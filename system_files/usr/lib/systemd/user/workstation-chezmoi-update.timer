@@ -2,6 +2,11 @@
 Description=Timer for the workstation dotfiles reapply
 # Only for an account that has already been seeded.
 ConditionPathExists=%h/.config/workstation-os-image/chezmoi
+# Every user manager reaches default.target, including the one pam_systemd
+# starts for greetd's `greeter` account, whose home is read-only. Without this
+# the unit fails on every login screen. `!@system` excludes accounts below
+# SYS_UID_MAX.
+ConditionUser=!@system
 
 [Timer]
 OnBootSec=5m
