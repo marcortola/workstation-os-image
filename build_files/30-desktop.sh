@@ -25,9 +25,3 @@ ln -snf graphical.target /usr/lib/systemd/system/default.target
 # only sees a font once its cache has been rebuilt, so without this fc-list
 # finds nothing and every consumer silently falls back to a default monospace.
 fc-cache --force --really-force --system-only
-
-# --- OCR -----------------------------------------------------------------
-# binds.kdl calls this on Mod+Print and Mod+Alt+Shift+S. It replaces
-# Zirconium's /usr/bin/zocr, which disappears with that base. niri validate
-# does not check that a spawn target exists, so losing this would be silent.
-install -Dm755 /ctx/build_files/workstation-ocr /usr/bin/workstation-ocr
