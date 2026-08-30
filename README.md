@@ -305,6 +305,38 @@ job. The build context is `Containerfile`, `image/rootfs/` and `build/`; `build/
 travels in a `scratch` stage that every `RUN` bind-mounts at `/ctx`, so build
 inputs never land in a layer of the shipped image.
 
+### Image signing
+
+Published images are signed with cosign and the machine is configured to require
+that signature. Three pieces have to line up, and the third is the one whose
+absence looks like success:
+
+- `cosign.pub` in this repository is the public half. CI signs the **digest**
+  (a tag can move; a digest cannot), then immediately verifies the result
+  against this file, so a key or format mismatch fails the build rather than
+  publishing something the machine will refuse.
+- `/etc/containers/policy.json` carries a `sigstoreSigned` entry for
+  `ghcr.io/marcortola`, merged into what base-main ships. The
+  `ghcr.io/ublue-os` entry must survive that merge or the machine cannot pull
+  its own base.
+- `/etc/containers/registries.d/marcortola.yaml` sets
+  `use-sigstore-attachments: true`. Without it the signature is never fetched
+  and the policy has nothing to check.
+
+Signing alone changes nothing on the host: a deployment whose origin is
+`ostree-unverified-registry:` ignores `policy.json` entirely. Enforcement is a
+one-time switch:
+
+```bash
+sudo bootc switch --enforce-container-sigpolicy \
+  ghcr.io/marcortola/workstation-os-image:latest
+```
+
+`rpm-ostree status` then shows an `ostree-image-signed:` origin, and any future
+update whose signature does not verify is refused rather than deployed. Do this
+only after a signed image has been published, or the switch has nothing valid
+to pull.
+
 ### Vendored from Zirconium
 
 This image used to derive from
