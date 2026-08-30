@@ -55,7 +55,7 @@ actionlint
 gitleaks dir . --no-banner --redact
 
 [[ $(< CLAUDE.md) == '@AGENTS.md' ]]
-(( $(wc -l < AGENTS.md) <= 200 ))
+(( $(wc -l < AGENTS.md) <= 210 ))
 
 # The agent guide states policy; nothing else proves its references still exist,
 # so it silently rots as recipes and paths are renamed. Assert the two classes

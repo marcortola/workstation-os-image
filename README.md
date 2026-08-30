@@ -536,6 +536,41 @@ immutable commit tag. Image builds consume and update
 `ghcr.io/marcortola/workstation-os-image-cache`; scheduled builds bypass that
 cache on input and repopulate it after refreshing packages.
 
+## Fork this image
+
+The image is personal but the skeleton is not. Everything below is what a fork
+has to touch, and nothing else needs attention.
+
+**Edit**
+
+| Path | Why |
+|---|---|
+| `image.env` | Image name, registry owner, description. The only place the identity is written; the Justfile, `tooling/audit/deployment`, the OCI labels, the signing policy scope and `wjust`'s clone URL all derive from it. |
+| `cosign.pub` and `system_files/etc/pki/containers/workstation-signing.pub` | Your own signing keys. Generate with `COSIGN_PASSWORD="" cosign generate-key-pair`, store the private half as the `SIGNING_SECRET` repository secret, and never commit `cosign.key`. |
+| `system_files/usr/share/workstation-os-image/dotfiles/` | The chezmoi seed tree is one person's dotfiles. Replace wholesale. |
+| `Documentation=` URLs in `system_files/usr/lib/systemd/**` | Ten units point at this repo. Cosmetic, but wrong on a fork. |
+
+**Delete if you do not want it**
+
+| Path | What it is |
+|---|---|
+| `build_files/packages/insync.list`, `build_files/repos/insync.repo`, the `insync` entry in `build_files/keys/rpm-key-sources.json` | Insync is proprietary and needs a licence. Self-contained: one package, one repo, one key. |
+| `tooling/data/jetbrains-settings/` and `tooling/jetbrains/` | Repo-owned JetBrains config plus the machinery that applies it. The settings are personal; the machinery is generic, so you may want to keep `tooling/jetbrains/` and empty the data. |
+| `tooling/data/ai-tools/`, `tooling/ai/` | The AI-CLI seeds and bundle. |
+
+**Do not touch**
+
+| Path | Why |
+|---|---|
+| `system_files/usr/share/workstation-os-image/niri/NOTICE` | Apache-2.0 attribution for the niri includes vendored verbatim from Zirconium. Stripping it breaks the licence terms. |
+| `tooling/validate/`, `tooling/scrub/` | The gates. `tooling/scrub/` is the real secret boundary: gitleaks does not know these tools' key shapes. Fix the input, never the check. |
+
+**Not included:** there is no `disk_config/` and no ISO pipeline, so the only
+install path is rebasing an already-bootc machine (see *Install a workstation*).
+There is also no `artifacthub-repo.yml`; add one with the `repositoryID` Artifact
+Hub issues you if you want the image indexed there.
+
+
 ## Install a workstation
 
 The target must already be bootc-based. Inspect and switch it once:
