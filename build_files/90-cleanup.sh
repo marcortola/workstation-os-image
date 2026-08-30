@@ -26,4 +26,8 @@ rm -f /etc/greetd/config.toml.backup-*
 
 dnf5 clean all
 rm -rf /var/cache/libdnf5 /var/lib/dnf /var/log/dnf5.log* \
-       /run/dnf /run/systemd/systemd-units-load
+       /run/dnf /run/selinux-policy
+
+# A regular file in /var cannot be expressed as a tmpfiles entry, so bootc
+# container lint rejects it outright. ldconfig regenerates this on demand.
+rm -f /var/cache/ldconfig/aux-cache
