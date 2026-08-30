@@ -8,7 +8,6 @@ Requires=workstation-dms-settings.service
 # target to avoid re-forming the ordering cycle that would drop dms.service.
 After=network-online.target workstation-chezmoi-init.service workstation-chezmoi-update.service \
     workstation-dms-settings.service graphical-session.target
-ConditionPathExists=!%h/.local/state/workstation-os-image/bootstrap-complete
 # Every user manager reaches default.target, including the one pam_systemd
 # starts for greetd's `greeter` account, whose home is read-only. Without this
 # the unit fails on every login screen. `!@system` excludes accounts below

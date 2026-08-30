@@ -7,6 +7,25 @@ jq=/home/linuxbrew/.linuxbrew/bin/jq
 brewfile="${XDG_CONFIG_HOME:-$HOME/.config}/homebrew/Brewfile"
 marker="$state_home/workstation-os-image/bootstrap-complete"
 
+# The marker records the hash of THIS script, not merely that it once ran.
+# A plain existence check made every later edit here dead code on any account
+# that had already bootstrapped -- a new tool, a changed Toolbox path, a fixed
+# derivation, none of it would land, and the unit would report success by not
+# running. Hashing the script itself cannot be forgotten the way a hand-bumped
+# version counter can (bazzite is on USER_SETUP_VER=51).
+#
+# Deliberately scoped to this script. The sibling marker in
+# workstation-apply-dms-settings is one-shot forever on purpose: DMS settings
+# are UI-owned after their seed, so re-running would stomp the user's edits.
+#
+# Checked before the first mkdir and well before the ~70 MB Toolbox fetch
+# below, so a no-op re-run costs a sha256sum.
+script_hash="$(tr -d "[:space:]" <"$0" | sha256sum | cut -d " " -f 1)"
+if [[ -f $marker && "$(cat "$marker")" == "$script_hash" ]]; then
+    echo "Workstation user bootstrap already current."
+    exit 0
+fi
+
 mkdir -p "$(dirname "$marker")" "$HOME/.local/bin" "$HOME/.local/opt"
 
 workdir="$(mktemp -d)"
@@ -62,5 +81,5 @@ toolbox_bin="$(find "$HOME/.local/opt" -path '*/bin/jetbrains-toolbox' \
 [[ -n $toolbox_bin ]]
 ln -sfn "$toolbox_bin" "$HOME/.local/bin/jetbrains-toolbox"
 
-touch "$marker"
+printf '%s\n' "$script_hash" > "$marker"
 echo "Workstation user bootstrap complete."
