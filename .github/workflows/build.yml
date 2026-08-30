@@ -30,10 +30,10 @@ concurrency:
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/workstation-os-image
   CACHE_IMAGE: ghcr.io/${{ github.repository_owner }}/workstation-os-image-cache
-  # ublue base-main. Bump deliberately rather than floating: the desktop stack
-  # already floats on COPR HEAD and cannot be pinned, so the base is the one
-  # pin available that actually holds.
-  BASE_IMAGE: ${{ vars.BASE_IMAGE || 'ghcr.io/ublue-os/base-main:latest' }}
+  # The base reference lives in the Containerfile, digest-pinned, and is read
+  # from there at build time -- see the "Resolve the pinned base" step. A
+  # repository variable still overrides it for emergencies.
+  BASE_IMAGE_OVERRIDE: ${{ vars.BASE_IMAGE }}
 
 jobs:
   image-inputs:
@@ -74,6 +74,14 @@ jobs:
         run: |
           tooling/validate/repo
           tooling/validate/image-build
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: "v3.1.3"
+
+      - name: Verify every input image before building on it
+        run: tooling/validate/source-images
 
       - name: Shell lint
         run: |
@@ -118,6 +126,15 @@ jobs:
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: echo "$GHCR_TOKEN" | buildah login --username "$GITHUB_ACTOR" --password-stdin ghcr.io
+
+      - name: Resolve the pinned base
+        run: |
+          # Single source of truth: the Containerfile's own ARG. CI passing a
+          # different reference than the file declares is how the tag ended up
+          # doubled as ":latest:latest" before.
+          resolved="${BASE_IMAGE_OVERRIDE:-$(sed -n 's/^ARG BASE_IMAGE=//p' Containerfile)}"
+          echo "BASE_IMAGE=$resolved" >> "$GITHUB_ENV"
+          echo "building on $resolved"
 
       - name: Build image with registry cache
         env:

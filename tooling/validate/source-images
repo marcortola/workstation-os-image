@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Verify every input image this build consumes, before it consumes it.
+#
+# Both inputs are pinned by digest in the Containerfile and both are signed by
+# ublue. Without this gate a compromised GHCR account or a bad push lands on the
+# machine unremarked, and no historical build is reproducible. It is also the
+# only pin that holds: the desktop stack floats because COPR prunes superseded
+# builds, so there is nothing to versionlock there.
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$repo_root"
+key=image/build/keys/ublue-os.pub
+
+command -v cosign >/dev/null || { echo "cosign is not installed" >&2; exit 2; }
+[[ -r $key ]] || { echo "vendored ublue key missing: $key" >&2; exit 2; }
+
+# Every image reference the Containerfile pins, taken from the file itself so
+# this cannot drift away from what actually gets built.
+mapfile -t refs < <(
+    grep -oE 'ghcr\.io/ublue-os/[a-z-]+:[A-Za-z0-9._-]+@sha256:[0-9a-f]{64}' Containerfile | sort -u
+)
+(( ${#refs[@]} )) || { echo "no digest-pinned ublue images found in Containerfile" >&2; exit 1; }
+
+status=0
+for ref in "${refs[@]}"; do
+    printf '%s\n' "$ref"
+    if cosign verify --new-bundle-format=false --key "$key" "$ref" >/dev/null 2>&1; then
+        echo "  signature verified against $key"
+    else
+        echo "  SIGNATURE VERIFICATION FAILED" >&2
+        status=1
+        continue
+    fi
+    # The digest must still be fetchable; a pin to a pruned image fails the
+    # build later and more confusingly than it fails here.
+    #
+    # skopeo rejects the combined repo:tag@digest form that cosign accepts, so
+    # strip the tag for this lookup.
+    canonical="${ref%%:*}@${ref#*@}"
+    if skopeo inspect --no-tags "docker://$canonical" >/dev/null 2>&1; then
+        echo "  digest still present in the registry"
+    else
+        echo "  DIGEST NO LONGER FETCHABLE -- bump the pin" >&2
+        status=1
+    fi
+done
+
+(( status == 0 )) && echo "All source images verified." 
+exit "$status"
