@@ -63,6 +63,7 @@ COPY image/rootfs/ /
 RUN --mount=type=bind,from=ctx,src=/,dst=/ctx \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/build/scripts/desktop.sh && \
+    /ctx/build/scripts/signing.sh && \
     /ctx/build/scripts/services.sh && \
     /ctx/build/scripts/cleanup.sh && \
     /ctx/build/scripts/check-build.sh

@@ -148,6 +148,34 @@ jobs:
           buildah push "$IMAGE_NAME:latest" "docker://$IMAGE_NAME:latest"
           buildah push "$IMAGE_NAME:$GITHUB_SHA" "docker://$IMAGE_NAME:$GITHUB_SHA"
 
+      - name: Install cosign
+        if: github.event_name != 'pull_request'
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: "v3.1.3"
+
+      - name: Sign the published image
+        if: github.event_name != 'pull_request'
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+        run: |
+          # Sign the digest, not the tag: a tag can move, a digest cannot.
+          digest="$(skopeo inspect --no-tags "docker://$IMAGE_NAME:latest" --format '{{ .Digest }}')"
+          echo "signing $IMAGE_NAME@$digest"
+
+          # --new-bundle-format=false: bootc and rpm-ostree read the legacy
+          # simple-signing attachment, not the new bundle format.
+          cosign sign -y --new-bundle-format=false --use-signing-config=false \
+            --key env://COSIGN_PRIVATE_KEY "$IMAGE_NAME@$digest"
+
+          # Verify what we just published against the in-repo public key, so a
+          # key or format mismatch fails the job rather than shipping an image
+          # the machine will refuse to pull.
+          cosign verify --new-bundle-format=false \
+            --key cosign.pub "$IMAGE_NAME@$digest" >/dev/null
+          echo "signature verified against cosign.pub"
+
       - name: Smoke test the built image
         run: |
           # CI never boots the image, so this is the boundary of what can be
