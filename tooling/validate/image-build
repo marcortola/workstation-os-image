@@ -40,6 +40,13 @@ require_literal Containerfile 'COPY image.env /usr/share/workstation-os-image/im
 # Nothing else asserts the image is linted, or that warnings are fatal.
 require_literal Containerfile 'bootc container lint --fatal-warnings'
 
+# cosign.pub verifies the published image in CI; the copy under system_files is
+# what the machine's policy.json points at. They are the same key, and a
+# half-finished rotation that updates one keeps CI green while locking every
+# machine out of its own updates.
+cmp -s cosign.pub system_files/etc/pki/containers/workstation-signing.pub \
+    || fail "cosign.pub and the shipped signing pubkey differ"
+
 # image.env is the single identity source, but the Containerfile carries ARG
 # defaults so `podman build` alone still produces correct labels. They must not
 # drift: a caller that forgets a --build-arg would otherwise ship
@@ -95,6 +102,13 @@ for r in build_files/repos/*.repo; do
     # so all six iterations hit `continue`. Source-side it actually runs, and it
     # drops the hardcoded six-name list.
     grep -q '^gpgkey=file://' "$r" || fail "$r must reference a vendored key by file://"
+    # skip_if_unavailable turns a fetch failure into a silently incomplete
+    # image, so a cleartext source is a downgrade window with no alarm.
+    # Either key is valid -- terra uses metalink, the rest use baseurl.
+    grep -qE '^(baseurl|metalink)=http://' "$r" \
+        && fail "$r fetches over cleartext http"
+    grep -qE '^(baseurl|metalink)=https://' "$r" \
+        || fail "$r declares no https baseurl or metalink"
 done
 
 # --- workflow ------------------------------------------------------------

@@ -226,6 +226,40 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Smoke test the built image
+        run: |
+          # Runs BEFORE the push: this is the gate that stops a broken image being
+          # published, and it spent one commit sitting after push, sign and :latest,
+          # where it could only report a fact already shipped.
+          #
+          # Every assertion this step used to make now lives in
+          # build_files/99-check-build.sh, which runs INSIDE the build and is
+          # therefore reachable from `just build` too. Nothing mutates the image
+          # between that script and this push -- no rechunk, no relabel -- so a
+          # second copy out here could only drift.
+          #
+          # What is left is the one thing check-build cannot prove about itself:
+          # that the published artifact can be instantiated at all. The manifest
+          # diff above carries continue-on-error, so without this an image that
+          # cannot start would still be published.
+          podman run --rm "$IMAGE_REF:$GITHUB_SHA" true
+
+          # Group provisioning cannot be asserted from inside the build: it needs a
+          # real useradd, and 99-check-build.sh mutates nothing. It also fails
+          # SILENTLY -- usermod resolves a group through NSS to validate the name but
+          # only ever writes /etc/group, so a group living solely in /usr/lib/group
+          # makes usermod exit 0 having joined nobody. That is the normal state here,
+          # since 90-cleanup.sh relocates build-created accounts to /usr/lib.
+          podman run --rm "$IMAGE_REF:$GITHUB_SHA" bash -euo pipefail -c '
+            useradd -m -u 1000 ciuser
+            /usr/libexec/workstation-configure-user-groups
+            for g in docker input; do
+              id -nG ciuser | tr " " "\n" | grep -qx "$g" \
+                || { echo "ciuser did not join $g"; id ciuser; exit 1; }
+            done
+            echo "group provisioning ok: $(id -nG ciuser)"
+          '
+
       - name: Push image
         if: github.event_name != 'pull_request'
         run: |
@@ -291,36 +325,6 @@ jobs:
             sleep $(( attempt * 5 ))
           done
           exit 1
-
-      - name: Smoke test the built image
-        run: |
-          # Every assertion this step used to make now lives in
-          # build_files/99-check-build.sh, which runs INSIDE the build and is
-          # therefore reachable from `just build` too. Nothing mutates the image
-          # between that script and this push -- no rechunk, no relabel -- so a
-          # second copy out here could only drift.
-          #
-          # What is left is the one thing check-build cannot prove about itself:
-          # that the published artifact can be instantiated at all. The manifest
-          # diff above carries continue-on-error, so without this an image that
-          # cannot start would still be published.
-          podman run --rm "$IMAGE_REF:$GITHUB_SHA" true
-
-          # Group provisioning cannot be asserted from inside the build: it needs a
-          # real useradd, and 99-check-build.sh mutates nothing. It also fails
-          # SILENTLY -- usermod resolves a group through NSS to validate the name but
-          # only ever writes /etc/group, so a group living solely in /usr/lib/group
-          # makes usermod exit 0 having joined nobody. That is the normal state here,
-          # since 90-cleanup.sh relocates build-created accounts to /usr/lib.
-          podman run --rm "$IMAGE_REF:$GITHUB_SHA" bash -euo pipefail -c '
-            useradd -m -u 1000 ciuser
-            /usr/libexec/workstation-configure-user-groups
-            for g in docker input; do
-              id -nG ciuser | tr " " "\n" | grep -qx "$g" \
-                || { echo "ciuser did not join $g"; id ciuser; exit 1; }
-            done
-            echo "group provisioning ok: $(id -nG ciuser)"
-          '
 
       - name: Log out of GHCR
         if: always()
