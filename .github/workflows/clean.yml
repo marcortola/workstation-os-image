@@ -1,0 +1,48 @@
+name: Clean old images
+
+# Two GHCR packages grow without bound otherwise: the image itself, and the
+# build cache, which every non-PR build writes with --cache-to.
+#
+# keep-n floors matter more than the age rule here. This repository publishes
+# for one machine, so a quiet fortnight is normal -- an age-only policy would
+# happily delete the only images left to roll back to.
+on:
+  schedule:
+    - cron: "15 0 * * 0"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
+
+permissions:
+  contents: read
+
+jobs:
+  clean:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      # Same action, same pin and the same inputs ublue-os/main runs against
+      # base-main, which is the image this one is built from.
+      - name: Prune published images
+        uses: dataaxiom/ghcr-cleanup-action@d52806a0dc70b430571a37da1fde39733ffd640f # v1.2.2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          packages: workstation-os-image
+          older-than: 90 days
+          delete-orphaned-images: true
+          keep-n-tagged: 10
+          keep-n-untagged: 5
+
+      # The cache is regenerated on every build and referenced by nothing once
+      # superseded, so it wants a far tighter rule than the image.
+      - name: Prune the build cache
+        uses: dataaxiom/ghcr-cleanup-action@d52806a0dc70b430571a37da1fde39733ffd640f # v1.2.2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          packages: workstation-os-image-cache
+          older-than: 14 days
+          delete-orphaned-images: true
+          keep-n-tagged: 2
+          keep-n-untagged: 2

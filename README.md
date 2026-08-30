@@ -558,8 +558,11 @@ wjust build
 
 GitHub Actions also builds every relevant PR. A separate lint workflow runs
 `hadolint`, `actionlint` and `gitleaks` on every push and pull request. Merges
-to `main` and the daily scheduled workflow publish both `latest` and an
-immutable commit tag. Image builds consume and update
+to `main` and the daily scheduled workflow publish `latest`, a per-commit tag
+and a `YYYYMMDD.<run>` tag. The commit tag alone is not durable: the daily
+build rebuilds `main` HEAD and overwrites it, and those images genuinely differ
+because the desktop stack floats on COPR HEAD. The run tag is what stays
+addressable. Image builds consume and update
 `ghcr.io/marcortola/workstation-os-image-cache`; scheduled builds bypass that
 cache on input and repopulate it after refreshing packages.
 
@@ -642,6 +645,12 @@ sudo bootc upgrade
 sudo bootc status --verbose
 systemctl reboot
 ```
+
+`bootc rollback` reaches exactly one deployment back. Past that, run the
+**Roll back :latest** workflow with a digest from
+`skopeo list-tags docker://ghcr.io/marcortola/workstation-os-image`. It
+re-verifies the signature before moving the tag, because `policy.json` would
+otherwise leave every machine unable to pull what was just published.
 
 After reboot:
 

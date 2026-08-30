@@ -1,0 +1,75 @@
+name: Roll back :latest
+
+# Server-side rollback. `bootc rollback` on the machine reaches exactly one
+# deployment back; past that there is nothing to roll back TO unless :latest can
+# be pointed at an older image.
+#
+# Rebuilding the same commit is not a substitute: the desktop stack floats on
+# COPR HEAD, so a rebuild of the same SHA is a different image.
+on:
+  workflow_dispatch:
+    inputs:
+      digest:
+        description: "Digest to publish as :latest (sha256:...). Find one with: skopeo list-tags docker://ghcr.io/OWNER/workstation-os-image"
+        required: true
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Confirm
+        run: |
+          echo "About to move :latest to ${{ inputs.digest }}"
+          echo "Every machine tracking :latest adopts this on its next upgrade."
+          echo "Cancel now if this is not what you meant."
+          sleep 30
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: "v3.1.3"
+
+      - name: Log in to GHCR
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GHCR_TOKEN" | skopeo login --username "$GITHUB_ACTOR" --password-stdin ghcr.io
+
+      - name: Roll back
+        env:
+          DIGEST: ${{ inputs.digest }}
+        run: |
+          set -a; . ./image.env; set +a
+          ref="ghcr.io/${GITHUB_REPOSITORY_OWNER}/${IMAGE_NAME}"
+
+          [[ $DIGEST =~ ^sha256:[0-9a-f]{64}$ ]] \
+            || { echo "not a digest: $DIGEST" >&2; exit 1; }
+
+          # Refuse to publish something the machine would then refuse to pull.
+          # policy.json requires a signature for this scope, so an unsigned
+          # rollback target bricks updates until the next green build.
+          cosign verify --new-bundle-format=false --key cosign.pub "$ref@$DIGEST" >/dev/null
+          echo "signature verified against cosign.pub"
+
+          skopeo copy "docker://$ref@$DIGEST" "docker://$ref:latest"
+
+          published="$(skopeo inspect --no-tags "docker://$ref:latest" --format '{{ .Digest }}')"
+          [[ "$published" == "$DIGEST" ]] \
+            || { echo ":latest is $published, expected $DIGEST" >&2; exit 1; }
+          echo ":latest now resolves to $DIGEST"
+
+      - name: Log out of GHCR
+        if: always()
+        run: skopeo logout ghcr.io
