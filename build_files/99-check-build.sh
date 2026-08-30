@@ -233,6 +233,19 @@ for k in copr-yalter-niri copr-avengemedia-dms copr-avengemedia-danklinux \
          terra docker-ce insync; do
     test -f "/etc/pki/rpm-gpg/$k.asc" || fail "vendored signing key missing: $k.asc"
 done
+# --- the shipped chezmoi source actually applies ---------------------------
+# tooling/validate/repo dry-applies the source tree in the REPO. This proves the
+# copy that shipped still applies, which is the only version the machine ever
+# runs. Read-only: --dry-run into a throwaway HOME on the build's tmpfs.
+# tooling/validate/image-build:75 exempts this file by name from the
+# "no build step may touch the chezmoi source" rule, precisely so this can live
+# here rather than only in CI.
+test -d /usr/share/workstation-os-image/dotfiles \
+    || fail "the chezmoi source tree did not ship"
+HOME="$(mktemp -d)" chezmoi apply --dry-run --no-tty \
+    -S /usr/share/workstation-os-image/dotfiles >/dev/null \
+    || fail "the shipped chezmoi source does not apply cleanly"
+
 # --- config validators ---------------------------------------------------
 dockerd --validate --config-file=/usr/share/factory/etc/docker/daemon.json
 keyd check /usr/share/factory/etc/keyd/default.conf

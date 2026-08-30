@@ -288,24 +288,17 @@ jobs:
 
       - name: Smoke test the built image
         run: |
-          # CI never boots the image, so this is the boundary of what can be
-          # proven: the artifact's own tools, run against the artifact.
-          img="$IMAGE_REF:$GITHUB_SHA"
-          podman run --rm "$img" bash -euxc '
-            command -v chezmoi niri
-            test -d /usr/share/workstation-os-image/dotfiles
-            test -f /usr/share/workstation-os-image/niri/workstation.kdl
-            test ! -e /usr/share/zirconium
-            niri validate -c /etc/greetd/niri/config.kdl
-            niri validate -c /usr/share/workstation-os-image/niri/workstation.kdl
-            systemd-analyze verify \
-              /usr/lib/systemd/user/workstation-chezmoi-init.service \
-              /usr/lib/systemd/user/workstation-chezmoi-update.service \
-              /usr/lib/systemd/user/workstation-chezmoi-update.timer
-            readlink /etc/systemd/system/display-manager.service | grep greetd >/dev/null
-            HOME=$(mktemp -d) chezmoi apply --dry-run --no-tty \
-              -S /usr/share/workstation-os-image/dotfiles >/dev/null
-          '
+          # Every assertion this step used to make now lives in
+          # build_files/99-check-build.sh, which runs INSIDE the build and is
+          # therefore reachable from `just build` too. Nothing mutates the image
+          # between that script and this push -- no rechunk, no relabel -- so a
+          # second copy out here could only drift.
+          #
+          # What is left is the one thing check-build cannot prove about itself:
+          # that the published artifact can be instantiated at all. The manifest
+          # diff above carries continue-on-error, so without this an image that
+          # cannot start would still be published.
+          podman run --rm "$IMAGE_REF:$GITHUB_SHA" true
 
       - name: Log out of GHCR
         if: always()
