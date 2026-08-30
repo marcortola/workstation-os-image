@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-expected_image=ghcr.io/marcortola/workstation-os-image:
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/../../image.env"
+expected_image="ghcr.io/${REPO_ORGANIZATION}/${IMAGE_NAME}:"
 
 echo "Atomic deployment drift:"
 if ! command -v rpm-ostree >/dev/null || ! command -v jq >/dev/null; then

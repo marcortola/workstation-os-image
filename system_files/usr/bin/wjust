@@ -10,7 +10,9 @@ repo="$HOME/projects/personal/workstation-os-image"
 
 if [[ ! -e $repo ]]; then
     mkdir -p "$(dirname "$repo")"
-    git clone https://github.com/marcortola/workstation-os-image.git "$repo"
+    # shellcheck source=/dev/null
+    source /usr/share/workstation-os-image/image.env
+    git clone "https://github.com/${REPO_ORGANIZATION}/${IMAGE_NAME}.git" "$repo"
 elif [[ ! -d $repo/.git ]]; then
     echo "wjust: $repo exists but is not a Git checkout." >&2
     exit 1

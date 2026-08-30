@@ -45,7 +45,9 @@ fi
 # absolute image path named anywhere in the repo must correspond to a file the
 # image actually ships. Excluded: the dotfiles and greeter subtrees, whose
 # contents are checked by validate-manifest and check-build respectively, and
-# package-manifest.txt, which build_files/90-cleanup.sh generates at build time.
+# package-manifest.txt, which build_files/90-cleanup.sh generates at build time,
+# and image.env, which is COPYd from the repo root rather than from system_files
+# -- validate/image-build asserts that COPY line instead.
 while read -r image_path; do
     [[ -e "system_files$image_path" ]] || {
         echo "Dangling image path referenced but not shipped: $image_path" >&2
@@ -56,6 +58,7 @@ done < <(grep -rhoE '/usr/share/workstation-os-image/[A-Za-z0-9._/-]+' \
     | grep -vE '/(dotfiles|greeter)/' \
     | grep -vE '\.\.\.|[/.]$' \
     | grep -vx '/usr/share/workstation-os-image/package-manifest.txt' \
+    | grep -vx '/usr/share/workstation-os-image/image.env' \
     | sort -u)
 
 # The remaining gates need niri and chezmoi. On a GitHub runner they are

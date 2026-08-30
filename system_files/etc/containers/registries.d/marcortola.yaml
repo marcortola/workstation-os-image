@@ -1,6 +1,0 @@
-# Without this, the signature is never fetched and policy.json silently has
-# nothing to verify against -- the failure mode looks like "signing works"
-# right up until it doesn't.
-docker:
-  ghcr.io/marcortola:
-    use-sigstore-attachments: true

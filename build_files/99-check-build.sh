@@ -173,19 +173,24 @@ done < <(grep -hoE 'spawn "[^"]+"' \
 # Three pieces, and the third is the one that silently breaks the other two:
 # a key, a policy entry that names it, and a registries.d entry telling
 # containers/image to fetch the sigstore attachment at all.
-test -f /etc/pki/containers/marcortola.pub || fail "signing pubkey missing"
-grep -q 'BEGIN PUBLIC KEY' /etc/pki/containers/marcortola.pub || fail "signing pubkey is not a public key"
+# shellcheck source=/dev/null
+source /usr/share/workstation-os-image/image.env
+signing_scope="ghcr.io/${REPO_ORGANIZATION}"
+test -f /etc/pki/containers/workstation-signing.pub || fail "signing pubkey missing"
+grep -q 'BEGIN PUBLIC KEY' /etc/pki/containers/workstation-signing.pub || fail "signing pubkey is not a public key"
 
 jq -e '.default[0].type == "reject"' /etc/containers/policy.json >/dev/null \
     || fail "policy.json is not deny-by-default"
-jq -e '.transports.docker["ghcr.io/marcortola"][0]
-       | .type == "sigstoreSigned" and .keyPath == "/etc/pki/containers/marcortola.pub"' \
+jq -e --arg scope "$signing_scope" '.transports.docker[$scope][0]
+       | .type == "sigstoreSigned" and .keyPath == "/etc/pki/containers/workstation-signing.pub"' \
     /etc/containers/policy.json >/dev/null \
-    || fail "policy.json does not require a signature for ghcr.io/marcortola"
+    || fail "policy.json does not require a signature for $signing_scope"
 # Dropping ublue's entry would leave the machine unable to pull its own base.
 jq -e '.transports.docker | has("ghcr.io/ublue-os")' /etc/containers/policy.json >/dev/null \
     || fail "policy.json lost the ublue-os entry"
-grep -q 'use-sigstore-attachments: true' /etc/containers/registries.d/marcortola.yaml \
+grep -q "^  ${signing_scope}:" /etc/containers/registries.d/workstation-signing.yaml \
+    || fail "registries.d is not scoped to $signing_scope"
+grep -q 'use-sigstore-attachments: true' /etc/containers/registries.d/workstation-signing.yaml \
     || fail "registries.d does not enable sigstore attachments; the signature would never be fetched"
 
 # --- RPM trust anchors are vendored, not fetched --------------------------

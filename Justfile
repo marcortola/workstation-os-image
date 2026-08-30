@@ -1,4 +1,6 @@
 set shell := ["bash", "-euo", "pipefail", "-c"]
+set dotenv-filename := "image.env"
+set dotenv-load
 
 default:
     @just --list

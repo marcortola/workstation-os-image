@@ -36,6 +36,7 @@ if grep -qE '^ARG BASE_TAG' Containerfile; then
 fi
 require_literal Containerfile 'FROM scratch AS ctx'
 require_literal Containerfile 'COPY system_files/ /'
+require_literal Containerfile 'COPY image.env /usr/share/workstation-os-image/image.env'
 require_literal Containerfile '/ctx/build_files/99-check-build.sh'
 
 # Build inputs must be bind-mounted from the ctx stage, never COPYd into the
