@@ -1,0 +1,46 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "rebaseWhen": "never",
+  "schedule": ["before 6am on monday"],
+
+  // Renovate exists here for exactly one job that Dependabot cannot do.
+  //
+  // Dependabot's docker parser is a regex over literal FROM lines, so it bumps
+  // the brew stage at `FROM ghcr.io/ublue-os/brew:latest@sha256:...` and
+  // silently skips the base, which lives in `ARG BASE_IMAGE=`. That pin carries
+  // the kernel, systemd, mesa and the whole negativo17 codec stack -- most of
+  // this image by bytes -- so leaving it to Dependabot froze it permanently.
+  //
+  // The built-in dockerfile manager is disabled so the two bots never touch the
+  // same line: Dependabot keeps the literal FROMs, Renovate takes only the ARG
+  // below. Renovate's documented ARG support expands a TAG into a FROM
+  // (`ARG TAG=3.19.4` / `FROM alpine:${TAG}`); ours is a full reference with
+  // registry, repository, tag and digest in one variable, which that example
+  // does not cover, so this uses the documented customManagers regex instead of
+  // relying on unproven expansion.
+  "dockerfile": { "enabled": false },
+
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Bump the digest-pinned ublue base held in ARG BASE_IMAGE",
+      "managerFilePatterns": ["/^Containerfile$/"],
+      "matchStrings": [
+        "ARG BASE_IMAGE=(?<depName>[^\\s:]+):(?<currentValue>[^\\s@]+)@(?<currentDigest>sha256:[a-f0-9]+)"
+      ],
+      "datasourceTemplate": "docker"
+    }
+  ],
+
+  "packageRules": [
+    {
+      // Never automerged. tooling/validate/source-images cosign-verifies this
+      // digest against ublue's public key, and the NEVRA manifest diff in CI is
+      // the only place a base change is visible before it reaches the machine.
+      "matchManagers": ["custom.regex"],
+      "automerge": false,
+      "commitMessageTopic": "ublue base image"
+    }
+  ]
+}

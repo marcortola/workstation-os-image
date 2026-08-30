@@ -4,9 +4,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
-  # Bumps the digest-pinned ublue inputs in the Containerfile. Without this the
-  # pin is just a freeze: base-main updates -- kernel, systemd, mesa, codecs --
-  # would only ever arrive by hand.
+  # Bumps the digest-pinned inputs on LITERAL FROM lines -- currently the brew
+  # stage. This parser is a regex over FROM, so it cannot see the base, which
+  # lives in ARG BASE_IMAGE; .github/renovate.json5 owns that one.
   - package-ecosystem: docker
     directory: /
     schedule:
