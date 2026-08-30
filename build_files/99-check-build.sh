@@ -193,6 +193,30 @@ grep -q "^  ${signing_scope}:" /etc/containers/registries.d/workstation-signing.
 grep -q 'use-sigstore-attachments: true' /etc/containers/registries.d/workstation-signing.yaml \
     || fail "registries.d does not enable sigstore attachments; the signature would never be fetched"
 
+# --- build-created accounts did not stay in /etc --------------------------
+# base-main keeps /etc/passwd at the root line alone and /etc/group at root and
+# wheel; scriptlets in our packages layer add four accounts between them.
+# 90-cleanup.sh relocates those to /usr/lib. If that ever stops working they
+# become machine-local /etc merge state on first boot, and a later uid change
+# can no longer reach them.
+if grep -vE '^root:' /etc/passwd >/dev/null; then
+    grep -vE '^root:' /etc/passwd >&2
+    fail "build-created accounts stayed in /etc/passwd"
+fi
+if grep -vE '^(root|wheel):' /etc/group >/dev/null; then
+    grep -vE '^(root|wheel):' /etc/group >&2
+    fail "build-created groups stayed in /etc/group"
+fi
+for u in greetd greeter wsdd; do
+    grep -q "^$u:" /usr/lib/passwd || fail "account $u did not reach /usr/lib/passwd"
+done
+for g in greetd greeter wsdd docker; do
+    grep -q "^$g:" /usr/lib/group || fail "group $g did not reach /usr/lib/group"
+done
+for f in /etc/.pwd.lock /etc/passwd- /etc/group- /etc/shadow- /etc/gshadow-; do
+    test ! -e "$f" || fail "shadow-utils leftover shipped: $f"
+done
+
 # --- RPM trust anchors are vendored, not fetched --------------------------
 # Vendoring the .repo files only put baseurl under review; the key that
 # authenticates everything has to be on disk too. That the .repo files REFERENCE
