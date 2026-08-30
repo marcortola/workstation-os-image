@@ -151,6 +151,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Log in to GHCR
+        # Not on pull_request: this job carries packages: write, and a PR never
+        # pushes. The cache package pulls anonymously.
+        if: github.event_name != 'pull_request'
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: echo "$GHCR_TOKEN" | buildah login --username "$GITHUB_ACTOR" --password-stdin ghcr.io
@@ -179,6 +182,14 @@ jobs:
             cache_args+=(--cache-to "$CACHE_IMAGE")
           fi
 
+          # :$GITHUB_SHA alone is not durable: the nightly cron rebuilds main's
+          # HEAD and overwrites it, and those images differ because the desktop
+          # stack floats on COPR HEAD and the scheduled build skips the cache.
+          # BUILD_TAG is unique per run, so every published image stays
+          # addressable for rollback.
+          BUILD_TAG="$(date -u +%Y%m%d).${GITHUB_RUN_NUMBER}"
+          echo "BUILD_TAG=$BUILD_TAG" >> "$GITHUB_ENV"
+
           # Identity comes from image.env, the same file the image bakes and the
           # build scripts source. Safe to source here only because the workflow's
           # own full reference is IMAGE_REF, not IMAGE_NAME.
@@ -194,6 +205,7 @@ jobs:
             --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --tag "$IMAGE_REF:latest" \
             --tag "$IMAGE_REF:$GITHUB_SHA" \
+            --tag "$IMAGE_REF:$BUILD_TAG" \
             "${cache_args[@]}" \
             .
 
@@ -282,6 +294,7 @@ jobs:
             return 1
           }
           push_retry "$IMAGE_REF:$GITHUB_SHA"
+          push_retry "$IMAGE_REF:$BUILD_TAG"
 
       - name: Install cosign
         if: github.event_name != 'pull_request'
@@ -304,6 +317,8 @@ jobs:
 
           # Sign the digest, not the tag: a tag can move, a digest cannot.
           digest="$(skopeo inspect --no-tags "docker://$IMAGE_REF:$GITHUB_SHA" --format '{{ .Digest }}')"
+          [[ -n $digest ]] || { echo "could not resolve the pushed digest" >&2; exit 1; }
+          echo "SIGNED_DIGEST=$digest" >> "$GITHUB_ENV"
           echo "signing $IMAGE_REF@$digest"
 
           # --new-bundle-format=false: bootc and rpm-ostree read the legacy
@@ -321,15 +336,26 @@ jobs:
       - name: Publish :latest
         if: github.event_name != 'pull_request'
         run: |
-          # Same digest, already signed and verified above, so :latest is never
-          # published unsigned. buildah push is a no-op on the blobs here; it
-          # only moves the tag.
+          # Copy from the digest that was signed and verified above, rather than
+          # pushing :latest again from local storage. A second push produces the
+          # same digest by construction, not by definition -- nothing asserted
+          # the two matched, and policy.json on the machine rejects any :latest
+          # that is not the signed one. skopeo copy makes it the same image by
+          # definition, and moves no blobs since they are already in the registry.
           for attempt in 1 2 3; do
-            buildah push "$IMAGE_REF:latest" "docker://$IMAGE_REF:latest" && exit 0
-            echo "push of :latest failed (attempt $attempt/3); retrying" >&2
+            skopeo copy \
+              "docker://$IMAGE_REF@$SIGNED_DIGEST" \
+              "docker://$IMAGE_REF:latest" && break
+            echo "publishing :latest failed (attempt $attempt/3); retrying" >&2
             sleep $(( attempt * 5 ))
+            [[ $attempt == 3 ]] && exit 1
           done
-          exit 1
+
+          # Prove it, rather than trusting the copy.
+          published="$(skopeo inspect --no-tags "docker://$IMAGE_REF:latest" --format '{{ .Digest }}')"
+          [[ "$published" == "$SIGNED_DIGEST" ]] \
+            || { echo ":latest is $published but the signed digest is $SIGNED_DIGEST" >&2; exit 1; }
+          echo ":latest resolves to the signed digest $SIGNED_DIGEST"
 
       - name: Log out of GHCR
         if: always()
