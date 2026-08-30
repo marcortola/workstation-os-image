@@ -22,7 +22,7 @@ cd "$repo_root"
 # references still exist, so they silently rot as recipes and paths are renamed.
 # Assert the two classes that are mechanically checkable: every `just`/`wjust`
 # target either names must be a real recipe, and every repo-root-relative path
-# AGENTS.md cites must exist. Prose stays the author's problem; dangling
+# AGENTS.md and README.md cite must exist. Prose stays the author's problem; dangling
 # pointers do not. The path alternation must name the CURRENT top-level trees --
 # it named the deleted ones for two commits and matched nothing under either
 # new tree.
@@ -36,9 +36,9 @@ done < <(grep -ohE '`w?just [a-z][a-z0-9-]*' AGENTS.md README.md \
     | sed -E 's/`w?just //' | sort -u)
 while read -r path; do
     [[ -e $path ]] && continue
-    echo "AGENTS.md references missing path: $path" >&2
+    echo "AGENTS.md or README.md references missing path: $path" >&2
     agents_stale=1
-done < <(grep -oE '`(system_files|build_files|tooling)/[A-Za-z0-9._/-]*' AGENTS.md \
+done < <(grep -ohE '`(system_files|build_files|tooling)/[A-Za-z0-9._/-]*' AGENTS.md README.md \
     | tr -d '`' | sort -u)
 (( agents_stale == 0 ))
 

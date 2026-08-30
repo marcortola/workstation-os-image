@@ -67,7 +67,7 @@ RUN --mount=type=bind,from=ctx,src=/,dst=/ctx \
     /ctx/build_files/10-repos.sh && /ctx/build_files/20-packages.sh
 
 # Homebrew payload: the tarball, brew-setup/update/upgrade units and the preset.
-# Before the rootfs overlay so our own files win on any collision. brew is
+# Before the system_files overlay so our own files win on any collision. brew is
 # never run during the build; brew-setup.service unpacks it on first boot.
 #
 # A named stage rather than `COPY --from=<image>`: dependabot updates FROM
