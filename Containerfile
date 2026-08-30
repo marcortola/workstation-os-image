@@ -31,7 +31,7 @@ ARG BASE_IMAGE=ghcr.io/ublue-os/base-main:latest@sha256:9b43dba0dea1987005cbf8cb
 FROM ghcr.io/ublue-os/brew:latest@sha256:bed056871da6edd8c6ee455a274283ae83bf269461dcad758a7729aaad018401 AS brew
 
 FROM scratch AS ctx
-COPY image/build /build
+COPY build_files /build_files
 
 # Everything that is not packaged, compiled once into /staging. One builder
 # stage rather than three: the compiler is pulled in once and the layer is
@@ -46,7 +46,7 @@ RUN --mount=type=bind,from=ctx,src=/,dst=/ctx \
     --mount=type=tmpfs,dst=/tmp \
     KEYD_VERSION="${KEYD_VERSION}" KEYD_SHA256="${KEYD_SHA256}" \
     FIRACODE_VERSION="${FIRACODE_VERSION}" FIRACODE_SHA256="${FIRACODE_SHA256}" \
-    /ctx/build/scripts/toolchain.sh
+    /ctx/build_files/toolchain.sh
 
 FROM ${BASE_IMAGE}
 
@@ -58,7 +58,7 @@ LABEL org.opencontainers.image.description="Personal Fedora bootc image with hos
 RUN --mount=type=bind,from=ctx,src=/,dst=/ctx \
     --mount=type=cache,target=/var/cache/libdnf5,sharing=locked \
     --mount=type=tmpfs,dst=/tmp \
-    /ctx/build/scripts/repos.sh && /ctx/build/scripts/packages.sh
+    /ctx/build_files/repos.sh && /ctx/build_files/packages.sh
 
 # Homebrew payload: the tarball, brew-setup/update/upgrade units and the preset.
 # Before the rootfs overlay so our own files win on any collision. brew is
@@ -74,10 +74,10 @@ COPY system_files/ /
 
 RUN --mount=type=bind,from=ctx,src=/,dst=/ctx \
     --mount=type=tmpfs,dst=/tmp \
-    /ctx/build/scripts/desktop.sh && \
-    /ctx/build/scripts/signing.sh && \
-    /ctx/build/scripts/services.sh && \
-    /ctx/build/scripts/cleanup.sh && \
-    /ctx/build/scripts/check-build.sh
+    /ctx/build_files/desktop.sh && \
+    /ctx/build_files/signing.sh && \
+    /ctx/build_files/services.sh && \
+    /ctx/build_files/cleanup.sh && \
+    /ctx/build_files/check-build.sh
 
 RUN ["bootc", "container", "lint"]

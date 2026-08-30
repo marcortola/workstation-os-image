@@ -9,8 +9,9 @@ validation are updated here.
 ## Repository layout
 
 - `system_files/` — the OS image payload; copied verbatim into `/`.
-- `image/build/` — everything the build reads and nothing it ships (`scripts/`,
-  `packages/`, `repos/`, `src/`): bind-mounted at `/ctx`, never reaching a layer.
+- `build_files/` — everything the build reads and nothing it ships: the build
+  scripts, plus `packages/`, `repos/`, `keys/`, `src/`. Bind-mounted at `/ctx`,
+  never reaching a layer.
 - `tooling/` — host-side management scripts, grouped by concern, plus
   `tooling/data/` (repo-owned declarative source the scripts read; never baked),
   `tooling/ai/` (the AI-CLI machinery) and `tooling/fixtures/` (test data).
@@ -21,7 +22,7 @@ second inventory. `CLAUDE.md` imports this file for Claude Code.
 
 ## Sources of truth
 
-- `image/build/` owns OS packages, repositories and build steps;
+- `build_files/` owns OS packages, repositories and build steps;
   `system_files/` owns services and host integration.
 - `tooling/data/dotfiles.manifest` is the only inventory of captured personal
   config. `tooling/data/` is the declarative source the scripts read; never baked.

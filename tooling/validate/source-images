@@ -10,7 +10,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$repo_root"
-key=image/build/keys/ublue-os.pub
+key=build_files/keys/ublue-os.pub
 
 command -v cosign >/dev/null || { echo "cosign is not installed" >&2; exit 2; }
 [[ -r $key ]] || { echo "vendored ublue key missing: $key" >&2; exit 2; }

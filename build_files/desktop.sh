@@ -30,4 +30,4 @@ fc-cache --force --really-force --system-only
 # binds.kdl calls this on Mod+Print and Mod+Alt+Shift+S. It replaces
 # Zirconium's /usr/bin/zocr, which disappears with that base. niri validate
 # does not check that a spawn target exists, so losing this would be silent.
-install -Dm755 /ctx/build/scripts/workstation-ocr /usr/bin/workstation-ocr
+install -Dm755 /ctx/build_files/workstation-ocr /usr/bin/workstation-ocr
