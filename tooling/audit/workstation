@@ -6,6 +6,12 @@ status=0
 
 "$repo_root/tooling/audit/deployment" || status=$?
 printf '\n'
+# Machine-state, not image-state: /etc is a three-way merge and a local mask or
+# rewrite outlives every upgrade, so nothing in the build can assert either.
+"$repo_root/tooling/audit/units" || status=$?
+printf '\n'
+"$repo_root/tooling/audit/etc-drift" || status=$?
+printf '\n'
 "$repo_root/tooling/audit/packages" || status=$?
 printf '\n'
 "$repo_root/tooling/audit/dotfiles" "$@" || {
