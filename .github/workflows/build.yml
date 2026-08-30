@@ -83,6 +83,9 @@ jobs:
       - name: Verify every input image before building on it
         run: tooling/validate/source-images
 
+      - name: Verify the vendored RPM signing keys
+        run: tooling/validate/rpm-keys
+
       - name: Shell lint
         run: |
           mapfile -t files < <(
@@ -158,6 +161,40 @@ jobs:
             --tag "$IMAGE_NAME:$GITHUB_SHA" \
             "${cache_args[@]}" \
             .
+
+      - name: Diff the package manifest against the published image
+        continue-on-error: true
+        run: |
+          # The image bakes a sorted NEVRA manifest. Until now nothing read it.
+          # The desktop stack floats permanently -- COPR prunes superseded
+          # builds, so versionlock is impossible -- which makes this diff the
+          # substitute for pinning: it turns "the desktop broke this week" into
+          # "niri went 26.04 to 26.05 on Tuesday".
+          m=/usr/share/workstation-os-image/package-manifest.txt
+          podman run --rm "$IMAGE_NAME:$GITHUB_SHA" cat "$m" > /tmp/new.txt
+
+          if podman run --rm "$IMAGE_NAME:latest" cat "$m" > /tmp/old.txt 2>/dev/null; then
+            :
+          elif skopeo inspect --no-tags "docker://$IMAGE_NAME:latest" >/dev/null 2>&1 \
+               && podman pull -q "$IMAGE_NAME:latest" >/dev/null 2>&1 \
+               && podman run --rm "$IMAGE_NAME:latest" cat "$m" > /tmp/old.txt 2>/dev/null; then
+            :
+          else
+            echo "No previously published manifest to compare against." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          {
+            echo "## Package changes since the last published image"
+            echo
+            if diff -q /tmp/old.txt /tmp/new.txt >/dev/null; then
+              echo "No package changes."
+            else
+              echo '```diff'
+              diff -U0 /tmp/old.txt /tmp/new.txt | grep -E '^[+-][^+-]' | sort -k1.2 || true
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Push image
         if: github.event_name != 'pull_request'
