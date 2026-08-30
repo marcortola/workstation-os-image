@@ -57,23 +57,27 @@ gitleaks dir . --no-banner --redact
 [[ $(< CLAUDE.md) == '@AGENTS.md' ]]
 (( $(wc -l < AGENTS.md) <= 210 ))
 
-# The agent guide states policy; nothing else proves its references still exist,
-# so it silently rots as recipes and paths are renamed. Assert the two classes
-# that are mechanically checkable: every `just <target>` it names must be a real
-# recipe, and every repo-root-relative path it cites must exist. Prose stays the
-# author's problem; dangling pointers do not.
+# The agent guide and the README state policy; nothing else proves their
+# references still exist, so they silently rot as recipes and paths are renamed.
+# Assert the two classes that are mechanically checkable: every `just`/`wjust`
+# target either names must be a real recipe, and every repo-root-relative path
+# AGENTS.md cites must exist. Prose stays the author's problem; dangling
+# pointers do not. The path alternation must name the CURRENT top-level trees --
+# it named the deleted ones for two commits and matched nothing under either
+# new tree.
 agents_stale=0
 recipes=" $(just --summary) "
 while read -r target; do
     [[ $recipes == *" $target "* ]] && continue
     echo "AGENTS.md references unknown recipe: just $target" >&2
     agents_stale=1
-done < <(grep -oE '`just [a-z][a-z0-9-]*' AGENTS.md | sed 's/`just //' | sort -u)
+done < <(grep -ohE '`w?just [a-z][a-z0-9-]*' AGENTS.md README.md \
+    | sed -E 's/`w?just //' | sort -u)
 while read -r path; do
     [[ -e $path ]] && continue
     echo "AGENTS.md references missing path: $path" >&2
     agents_stale=1
-done < <(grep -oE '`(image|tooling|config|rootfs)/[A-Za-z0-9._/-]*' AGENTS.md \
+done < <(grep -oE '`(system_files|build_files|tooling)/[A-Za-z0-9._/-]*' AGENTS.md \
     | tr -d '`' | sort -u)
 (( agents_stale == 0 ))
 
