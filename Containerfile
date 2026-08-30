@@ -16,11 +16,20 @@
 # and the justfile pass. Splitting it into image + tag invited
 # `${BASE_IMAGE}:${BASE_TAG}` to become `...:latest:latest` the moment CI passed
 # a tagged reference, which is exactly what happened.
-ARG BASE_IMAGE=ghcr.io/ublue-os/base-main:latest
+# Pinned by digest, not just tag. This is the only pin available that actually
+# holds: the desktop stack comes from COPRs that prune superseded builds, so
+# versionlock is impossible there. The digest pins the kernel, systemd, mesa and
+# the whole negativo17 codec stack -- most of this image by bytes.
+#
+# tooling/validate/source-images cosign-verifies both pinned digests against
+# ublue's public key before any build runs. Dependabot bumps them as PRs.
+ARG BASE_IMAGE=ghcr.io/ublue-os/base-main:latest@sha256:9b43dba0dea1987005cbf8cbc64727564b40ec5a162f7c51e3c6f7f36b6d3863
 
 # Build inputs travel in a scratch stage and are bind-mounted, never COPYd, so
 # they cannot end up in a layer of the shipped image. This is base-main's own
 # pattern.
+FROM ghcr.io/ublue-os/brew:latest@sha256:bed056871da6edd8c6ee455a274283ae83bf269461dcad758a7729aaad018401 AS brew
+
 FROM scratch AS ctx
 COPY image/build /build
 
@@ -54,7 +63,10 @@ RUN --mount=type=bind,from=ctx,src=/,dst=/ctx \
 # Homebrew payload: the tarball, brew-setup/update/upgrade units and the preset.
 # Before the rootfs overlay so our own files win on any collision. brew is
 # never run during the build; brew-setup.service unpacks it on first boot.
-COPY --from=ghcr.io/ublue-os/brew:latest /system_files/ /
+#
+# A named stage rather than `COPY --from=<image>`: dependabot updates FROM
+# lines and cannot see an image reference buried in a COPY.
+COPY --from=brew /system_files/ /
 
 COPY --from=toolchain /staging/ /
 

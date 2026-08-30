@@ -7,6 +7,7 @@ cd "$repo_root"
 git diff --check
 
 tooling/validate/repo
+command -v cosign >/dev/null && tooling/validate/source-images
 
 mapfile -t shell_files < <(
     find tooling image/rootfs/usr/bin image/rootfs/usr/libexec -type f \
