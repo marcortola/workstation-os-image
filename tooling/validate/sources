@@ -12,9 +12,15 @@
 # against $HOME, audit/workstation) deliberately stays in validate/all.
 set -euo pipefail
 
+# A `while read ... done < <(grep FILE)` on a missing FILE iterates zero times
+# and passes. Assert the inputs exist so a rename breaks the gate loudly.
+require_file() { test -f "$1" || { echo "gate input is missing: $1" >&2; exit 1; }; }
+
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$repo_root"
 
+require_file AGENTS.md
+require_file README.md
 [[ $(< CLAUDE.md) == '@AGENTS.md' ]]
 (( $(wc -l < AGENTS.md) <= 210 ))
 
