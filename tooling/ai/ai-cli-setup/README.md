@@ -8,7 +8,7 @@ image or chezmoi required.
 (secret-free — no keys, tokens, or machine paths) create-only, then installs the
 **AI tools via their own official installers** (nothing third-party is vendored
 here). You supply secrets afterwards via each CLI's `auth login` and local
-Context7/Help Scout credential files (see `secrets.example`).
+the Context7 credential file (see `secrets.example`).
 
 ## Prerequisites
 
@@ -52,10 +52,6 @@ Nothing secret ships here. After install:
 - **Context7 key** (opencode MCP): the config references
   `{file:~/.config/opencode/context7-key}` — put your key in that 0600 file
   (install.sh offers to do this interactively).
-- **Help Scout MCP credentials** (Codex and opencode): put the app ID and app
-  secret in `~/.config/opencode/helpscout-app-id` and
-  `~/.config/opencode/helpscout-app-secret`, both mode `0600`. Codex's tracked
-  launcher reads those files and starts `npx -y help-scout-mcp-server`.
 
 ## Reset
 

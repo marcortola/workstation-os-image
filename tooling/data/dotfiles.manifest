@@ -11,7 +11,6 @@ scaffold|.config/foot/foot.ini|dot_config/foot/foot.ini.tmpl|-
 scaffold|.config/foot/dank-colors.ini|dot_config/foot/create_dank-colors.ini|-
 copy|.codex/AGENTS.md|dot_codex/create_AGENTS.md|-
 scrub|.codex/config.toml|dot_codex/create_config.toml|codex-config
-copy|.codex/bin/helpscout-mcp|dot_codex/bin/create_helpscout-mcp|-
 copy|.claude/CLAUDE.md|dot_claude/create_CLAUDE.md|-
 scrub|.claude/settings.json|dot_claude/create_settings.json|claude-settings
 copy|.claude/rules/context7.md|dot_claude/rules/create_context7.md|-

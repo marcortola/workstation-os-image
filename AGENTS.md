@@ -127,8 +127,7 @@ second inventory. `CLAUDE.md` imports this file for Claude Code.
   Brewfile install them. Post-install drift (the rtk hook, `@RTK.md`) is
   expected, not captured.
 - `opencode.json` is fusion-generated and never captured. Only our context7
-  fragment (`tooling/data/ai-tools/opencode-mcp-fragment.json`) and the secret-free
-  Codex Help Scout launcher/config are tracked.
+  fragment (`tooling/data/ai-tools/opencode-mcp-fragment.json`) is tracked.
 - `just ai-reset` merges canonical over preserved machine state (trust grants,
   keys) and never touches auth stores or histories.
 

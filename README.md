@@ -229,12 +229,9 @@ any you are already signed in to) and prompts for the Context7 key (hidden input
 stored 0600). Answer `n` to any prompt to do that piece later. Re-enter the key
 by deleting `~/.config/opencode/context7-key` and re-running.
 
-Help Scout MCP for Codex uses
-`~/.config/opencode/helpscout-app-id` and
-`~/.config/opencode/helpscout-app-secret`, both mode `0600`. These files stay in
-persistent home and outside Git. Codex also gets OpenAI's official developer-docs
-MCP at `https://developers.openai.com/mcp`; it needs no secret. Restart Codex
-after creating or changing MCP config or credentials.
+Codex gets OpenAI's official developer-docs MCP at
+`https://developers.openai.com/mcp`; it needs no secret. Restart Codex after
+changing MCP config or credentials.
 
 **Everyday commands:**
 

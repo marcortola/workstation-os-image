@@ -58,12 +58,6 @@ grep -q '^approvals_reviewer = "auto_review"' "$home/.codex/config.toml" \
     || fail "codex auto-review approval reviewer not restored"
 grep -q '^sandbox_mode = "workspace-write"' "$home/.codex/config.toml" \
     || fail "codex workspace-write sandbox not restored"
-grep -Fq '[mcp_servers.helpscout]' "$home/.codex/config.toml" \
-    || fail "codex canonical Help Scout MCP table not restored"
-# Match literal $HOME in canonical TOML.
-# shellcheck disable=SC2016
-grep -Fq 'exec bash \"$HOME/.codex/bin/helpscout-mcp\"' "$home/.codex/config.toml" \
-    || fail "codex canonical Help Scout launcher not restored"
 grep -Fq '[mcp_servers.openaiDeveloperDocs]' "$home/.codex/config.toml" \
     || fail "codex canonical OpenAI developer-docs MCP table not restored"
 grep -Fq 'url = "https://developers.openai.com/mcp"' "$home/.codex/config.toml" \
