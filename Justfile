@@ -113,6 +113,10 @@ build:
         --tag "$IMAGE_NAME:review-$(git branch --show-current | tr / -)" \
         -f Containerfile .
 
+# Report whether the last automatic update succeeded, and which module failed.
+update-status:
+    ./tooling/audit/updates
+
 # Show the current repository state without changing it.
 status:
     git status --short --branch

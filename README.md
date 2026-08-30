@@ -450,6 +450,7 @@ all validation and shows the resulting diff. Review that diff before committing.
 | --- | --- |
 | `wjust audit` | Report deployment, unit state, image-owned `/etc` drift, packages, personal files, image-managed Niri scaffolding and DMS drift |
 | `wjust audit-diff` | Show the complete upstream Niri/DMS diff when diagnosing it |
+| `wjust update-status` | Report whether the last `uupd` run succeeded, and surface which module failed |
 | `wjust sync` | Refresh manifest-listed create-only seeds from the live account |
 | `wjust capture` | Sync, validate and display the complete pending change |
 | `wjust validate` | Check structure, syntax, linting, secret scan, manifests and the effective workstation |

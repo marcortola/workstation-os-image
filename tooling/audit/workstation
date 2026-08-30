@@ -12,6 +12,8 @@ printf '\n'
 printf '\n'
 "$repo_root/tooling/audit/etc-drift" || status=$?
 printf '\n'
+"$repo_root/tooling/audit/updates" || status=$?
+printf '\n'
 "$repo_root/tooling/audit/packages" || status=$?
 printf '\n'
 "$repo_root/tooling/audit/dotfiles" "$@" || {
