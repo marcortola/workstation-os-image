@@ -161,6 +161,9 @@ second inventory. `CLAUDE.md` imports this file for Claude Code.
   Audit, diff, validate and dry runs are always safe.
 - On finding a secret in a live file or a diff, stop. Do not echo the value and
   do not commit it; report the path only.
+- The build gates assert the IMAGE; `tooling/audit/units` and
+  `tooling/audit/etc-drift` assert the MACHINE. `/etc` is a three-way merge, so a
+  local mask or rewrite outlives every upgrade and no build-time check can see it.
 - Ground claims about live state, or about what a script does, in the file or a
   run of it rather than inference. Quote the line you relied on.
 - Keep scratch files out of the checkout; `just audit` and gitleaks scan the

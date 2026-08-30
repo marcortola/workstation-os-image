@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# Unit state on the LIVE machine, against what the image's presets asked for.
+#
+# 99-check-build.sh asserts the image: it proves a preset line produced its
+# /etc symlink at BUILD time. It cannot prove anything about the machine, where
+# /etc is a three-way ostree merge and a local `systemctl mask` outlives every
+# upgrade. That gap is not theoretical -- uupd.timer was found masked here via
+# /etc/systemd/system/uupd.timer -> /dev/null while the preset line and the
+# timers.target.wants symlink underneath it were both intact, which is exactly
+# why the build-time gate could not see it.
+set -uo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+system_preset="$repo_root/system_files/usr/lib/systemd/system-preset/10-workstation-os-image.preset"
+user_preset="$repo_root/system_files/usr/lib/systemd/user-preset/10-workstation-os-image.preset"
+status=0
+
+echo "Unit state drift:"
+
+if ! command -v systemctl >/dev/null; then
+    echo "  unavailable without systemd"
+    exit 0
+fi
+
+# `enable X` in a preset is a claim about the running machine, so check the
+# machine. masked is the interesting case: is-enabled reports it even though the
+# .wants symlink the build created is still there underneath.
+check_preset() {
+    local preset="$1" scope="$2" verb unit state
+    local -a sysctl=(systemctl)
+    [[ $scope == user ]] && sysctl=(systemctl --user)
+
+    while read -r verb unit; do
+        state="$("${sysctl[@]}" is-enabled "$unit" 2>&1)" || true
+        case "$verb:$state" in
+            enable:enabled | enable:enabled-runtime | enable:static | enable:indirect | enable:alias) ;;
+            disable:disabled | disable:masked) ;;
+            disable:enabled | disable:enabled-runtime)
+                echo "  $scope $unit is enabled; the preset disables it" >&2
+                status=1
+                ;;
+            *)
+                echo "  $scope $unit is '$state'; the preset says $verb" >&2
+                status=1
+                ;;
+        esac
+    done < <(sed -nE 's/^(enable|disable) ([^ #]+).*/\1 \2/p' "$preset")
+}
+
+check_preset "$system_preset" system
+check_preset "$user_preset" user
+
+# Failed units we OWN are a defect. Everything else is reported and not fatal:
+# a NAS mount that is offline or a third-party autostart is not this repo's
+# claim to make.
+report_failed() {
+    local scope="$1" unit
+    local -a sysctl=(systemctl)
+    [[ $scope == user ]] && sysctl=(systemctl --user)
+
+    while read -r unit; do
+        [[ -z $unit ]] && continue
+        if [[ $unit == workstation-* ]] || grep -qE "^(enable|disable) ${unit//./\\.}$" \
+            "$system_preset" "$user_preset" 2>/dev/null; then
+            echo "  $scope $unit has failed (image-owned)" >&2
+            status=1
+        else
+            echo "  $scope $unit has failed (not image-owned; informational)"
+        fi
+    done < <("${sysctl[@]}" --failed --no-legend --plain 2>/dev/null | awk '{print $1}')
+}
+
+report_failed system
+report_failed user
+
+(( status == 0 )) && echo "  every preset line holds; no image-owned unit has failed."
+exit "$status"

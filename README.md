@@ -428,7 +428,7 @@ all validation and shows the resulting diff. Review that diff before committing.
 
 | Command | Purpose |
 | --- | --- |
-| `wjust audit` | Report deployment, packages, personal files, image-managed Niri scaffolding and DMS drift |
+| `wjust audit` | Report deployment, unit state, image-owned `/etc` drift, packages, personal files, image-managed Niri scaffolding and DMS drift |
 | `wjust audit-diff` | Show the complete upstream Niri/DMS diff when diagnosing it |
 | `wjust sync` | Refresh manifest-listed create-only seeds from the live account |
 | `wjust capture` | Sync, validate and display the complete pending change |
