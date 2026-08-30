@@ -50,8 +50,13 @@ RUN --mount=type=bind,from=ctx,src=/,dst=/ctx \
 
 FROM ${BASE_IMAGE}
 
-LABEL org.opencontainers.image.source="https://github.com/marcortola/workstation-os-image"
-LABEL org.opencontainers.image.description="Personal Fedora bootc image with host-integrated tools"
+# Identity comes from image.env, the single place a fork edits. It is also
+# COPYd below so runtime consumers resolve the same values.
+ARG IMAGE_NAME=workstation-os-image
+ARG REPO_ORGANIZATION=marcortola
+ARG IMAGE_DESC="Personal Fedora bootc image with host-integrated tools"
+LABEL org.opencontainers.image.source="https://github.com/${REPO_ORGANIZATION}/${IMAGE_NAME}"
+LABEL org.opencontainers.image.description="${IMAGE_DESC}"
 
 # Repositories and packages in one cached unit -- the most expensive and most
 # stable part of the build.
@@ -71,6 +76,7 @@ COPY --from=brew /system_files/ /
 COPY --from=toolchain /staging/ /
 
 COPY system_files/ /
+COPY image.env /usr/share/workstation-os-image/image.env
 
 RUN --mount=type=bind,from=ctx,src=/,dst=/ctx \
     --mount=type=tmpfs,dst=/tmp \

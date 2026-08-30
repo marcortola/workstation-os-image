@@ -1,5 +1,6 @@
 **
 !Containerfile
+!image.env
 !system_files/
 !system_files/**
 !build_files/
