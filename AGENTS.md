@@ -12,6 +12,9 @@ validation are updated here.
 - `build_files/` — everything the build reads and nothing it ships: the numbered
   build scripts (the prefix is execution order), plus `packages/`, `repos/`,
   `keys/`, `src/`. Bind-mounted at `/ctx`, never reaching a layer.
+- `image.env` — the image's identity (name, owner, description). The only
+  place it is written; the Justfile, `tooling/audit/deployment` and the image
+  itself all read it. A fork edits this file.
 - `tooling/` — host-side management scripts, grouped by concern, plus
   `tooling/data/` (repo-owned declarative source the scripts read; never baked),
   `tooling/ai/` (the AI-CLI machinery) and `tooling/fixtures/` (test data).
