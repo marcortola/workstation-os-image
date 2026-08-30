@@ -7,8 +7,10 @@ set -ouex pipefail
 # enablement symlink, so a `disable` line in our preset is not enough on its
 # own: without these three explicit calls they keep running alongside uupd and
 # two system-update paths race every night at 04:00.
-systemctl disable rpm-ostreed-automatic.timer flatpak-system-update.timer
-systemctl --global disable flatpak-user-update.timer
+# rpm-ostreed-automatic.timer is rpm-ostree's own unit and still needs an
+# explicit disable. The two flatpak timers came from ublue-os-update-services,
+# which 20-packages.sh removes outright.
+systemctl disable rpm-ostreed-automatic.timer
 
 # The ublue brew layer's own preset enables brew-update.timer (every 6h) and
 # brew-upgrade.timer (every 8h). On the previous base these were inert because

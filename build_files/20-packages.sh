@@ -20,3 +20,11 @@ for list in /ctx/build_files/packages/*.list; do
     dnf5 -y install --setopt=install_weak_deps=False --setopt=keepcache=1 \
         "${exclude_args[@]}" "${pkgs[@]}"
 done
+
+# uupd is the single updater on this image. ublue-os-update-services exists to
+# schedule the paths uupd already covers, and it does it through preset files at
+# priority 10 -- so disabling its timers is not durable: a later layer re-running
+# presets turns them back on. Removing the package removes the presets.
+# Nothing requires it (`rpm -q --whatrequires` is empty), and its %preun calls
+# systemd-update-helper, so no dangling /etc symlinks are left behind.
+dnf5 -y remove ublue-os-update-services
