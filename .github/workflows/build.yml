@@ -306,6 +306,22 @@ jobs:
           # cannot start would still be published.
           podman run --rm "$IMAGE_REF:$GITHUB_SHA" true
 
+          # Group provisioning cannot be asserted from inside the build: it needs a
+          # real useradd, and 99-check-build.sh mutates nothing. It also fails
+          # SILENTLY -- usermod resolves a group through NSS to validate the name but
+          # only ever writes /etc/group, so a group living solely in /usr/lib/group
+          # makes usermod exit 0 having joined nobody. That is the normal state here,
+          # since 90-cleanup.sh relocates build-created accounts to /usr/lib.
+          podman run --rm "$IMAGE_REF:$GITHUB_SHA" bash -euo pipefail -c '
+            useradd -m -u 1000 ciuser
+            /usr/libexec/workstation-configure-user-groups
+            for g in docker input; do
+              id -nG ciuser | tr " " "\n" | grep -qx "$g" \
+                || { echo "ciuser did not join $g"; id ciuser; exit 1; }
+            done
+            echo "group provisioning ok: $(id -nG ciuser)"
+          '
+
       - name: Log out of GHCR
         if: always()
         run: buildah logout ghcr.io
