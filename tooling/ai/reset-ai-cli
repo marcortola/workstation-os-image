@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Reset live codex / claude / opencode configuration to the repository canonical
-# (the create_ seeds under image/rootfs/usr/share/workstation-os-image/dotfiles),
+# (the create_ seeds under system_files/usr/share/workstation-os-image/dotfiles),
 # walking the one manifest that
 # already inventories them. Modelled on apply-jetbrains-settings' guards
 # (dry-run default, --force gate, timestamped backup, running-process refusal)
@@ -18,7 +18,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "$repo_root/tooling/lib/dotfiles.sh"
 
 manifest="$repo_root/tooling/data/dotfiles.manifest"
-seed_root="$repo_root/image/rootfs/usr/share/workstation-os-image/dotfiles"
+seed_root="$repo_root/system_files/usr/share/workstation-os-image/dotfiles"
 
 force=false
 diff_only=false

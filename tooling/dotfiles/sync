@@ -6,7 +6,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "$repo_root/tooling/lib/dotfiles.sh"
 
 manifest="$repo_root/tooling/data/dotfiles.manifest"
-dest="$repo_root/image/rootfs/usr/share/workstation-os-image/dotfiles"
+dest="$repo_root/system_files/usr/share/workstation-os-image/dotfiles"
 backup_root="$repo_root/tooling/data/jetbrains-settings"
 
 copy_default() {

@@ -35,7 +35,7 @@ if grep -qE '^ARG BASE_TAG' Containerfile; then
     fail "BASE_IMAGE must be one full reference, not an image plus a separate tag"
 fi
 require_literal Containerfile 'FROM scratch AS ctx'
-require_literal Containerfile 'COPY image/rootfs/ /'
+require_literal Containerfile 'COPY system_files/ /'
 require_literal Containerfile '/ctx/build/scripts/check-build.sh'
 
 # Build inputs must be bind-mounted from the ctx stage, never COPYd into the
@@ -46,7 +46,7 @@ fi
 
 # --- layer ordering (the cache invariant) --------------------------------
 package_layer=$(line_of Containerfile '/ctx/build/scripts/repos.sh')
-config_layer=$(line_of Containerfile 'COPY image/rootfs/ /')
+config_layer=$(line_of Containerfile 'COPY system_files/ /')
 (( package_layer < config_layer )) || \
     fail "runtime packages must be installed before copying volatile configuration"
 
@@ -87,8 +87,9 @@ fi
 
 # --- build context -------------------------------------------------------
 require_literal .containerignore '!Containerfile'
+require_literal .containerignore '!system_files/**'
 require_literal .containerignore '!image/**'
 
-require_literal image/rootfs/usr/lib/sysusers.d/workstation-docker.conf 'g docker - -'
+require_literal system_files/usr/lib/sysusers.d/workstation-docker.conf 'g docker - -'
 
 echo "Image build cache and layering validation passed."

@@ -16,7 +16,7 @@ cd "$repo_root"
 # grep writes to stderr and the gate silently scans nothing and passes --
 # which is how the image/ move shipped four dangling references. Assert the
 # roots exist so a future move fails here instead of going quiet.
-for root in image/rootfs tooling justfile; do
+for root in system_files tooling justfile; do
     [[ -e $root ]] || {
         echo "Scan root '$root' is missing; the gates below would pass without reading anything." >&2
         exit 1
@@ -27,18 +27,18 @@ done
 # about Zirconium is history and attribution, and is meant to stay -- what must
 # not survive is a path into an image tree that no longer exists.
 #
-# image/rootfs/usr/libexec/workstation-chezmoi-apply deliberately names the legacy
+# system_files/usr/libexec/workstation-chezmoi-apply deliberately names the legacy
 # per-user config dir (~/.config/zirconium/chezmoi) as its migration source.
 # That is a different path and does not match.
-if grep -rnI '/usr/share/zirconium' image/rootfs justfile | grep . ; then
+if grep -rnI '/usr/share/zirconium' system_files justfile | grep . ; then
     echo "A path into the removed /usr/share/zirconium tree survived." >&2
     exit 1
 fi
-[[ ! -e image/rootfs/usr/share/zirconium ]]
-[[ ! -e image/rootfs/usr/share/workstation-os-image/dotfiles/system ]]
-[[ -f image/rootfs/usr/share/workstation-os-image/niri/workstation.kdl ]]
-[[ -f image/rootfs/usr/share/workstation-os-image/niri/NOTICE ]]
-(( $(find image/rootfs/usr/share/workstation-os-image/dotfiles -type f | wc -l) >= 87 ))
+[[ ! -e system_files/usr/share/zirconium ]]
+[[ ! -e system_files/usr/share/workstation-os-image/dotfiles/system ]]
+[[ -f system_files/usr/share/workstation-os-image/niri/workstation.kdl ]]
+[[ -f system_files/usr/share/workstation-os-image/niri/NOTICE ]]
+(( $(find system_files/usr/share/workstation-os-image/dotfiles -type f | wc -l) >= 87 ))
 
 # --- no dangling image paths --------------------------------------------
 # Catches a half-finished rename in a script nobody thought to grep: every
@@ -47,12 +47,12 @@ fi
 # contents are checked by validate-manifest and check-build respectively, and
 # package-manifest.txt, which image/build/scripts/cleanup.sh generates at build time.
 while read -r image_path; do
-    [[ -e "image/rootfs$image_path" ]] || {
+    [[ -e "system_files$image_path" ]] || {
         echo "Dangling image path referenced but not shipped: $image_path" >&2
         exit 1
     }
 done < <(grep -rhoE '/usr/share/workstation-os-image/[A-Za-z0-9._/-]+' \
-    tooling image justfile \
+    tooling system_files image justfile \
     | grep -vE '/(dotfiles|greeter)/' \
     | grep -vE '\.\.\.|[/.]$' \
     | grep -vx '/usr/share/workstation-os-image/package-manifest.txt' \
@@ -74,23 +74,23 @@ seed_home="$(mktemp -d)"
 seed_cfg="$(mktemp -d)"
 : > "$seed_cfg/chezmoi.toml"
 HOME="$seed_home" chezmoi apply --dry-run --no-tty \
-    -S image/rootfs/usr/share/workstation-os-image/dotfiles \
+    -S system_files/usr/share/workstation-os-image/dotfiles \
     --config "$seed_cfg/chezmoi.toml" >/dev/null
 rm -rf "$seed_home" "$seed_cfg"
 
 # --- the niri config chain parses ---------------------------------------
 niri_tmp="$(mktemp -d)"
-cp -a image/rootfs/usr/share/workstation-os-image/niri "$niri_tmp/sys"
+cp -a system_files/usr/share/workstation-os-image/niri "$niri_tmp/sys"
 mkdir -p "$niri_tmp/user"
 sed "s#/usr/share/workstation-os-image/niri/workstation.kdl#$niri_tmp/sys/workstation.kdl#" \
-    image/rootfs/usr/share/workstation-os-image/dotfiles/dot_config/niri/config.kdl \
+    system_files/usr/share/workstation-os-image/dotfiles/dot_config/niri/config.kdl \
     > "$niri_tmp/user/config.kdl"
-cp image/rootfs/usr/share/workstation-os-image/dotfiles/dot_config/niri/dms.kdl "$niri_tmp/user/"
+cp system_files/usr/share/workstation-os-image/dotfiles/dot_config/niri/dms.kdl "$niri_tmp/user/"
 niri validate -c "$niri_tmp/user/config.kdl" >/dev/null 2>&1
 niri validate -c "$niri_tmp/sys/workstation.kdl" >/dev/null 2>&1
 rm -rf "$niri_tmp"
 
 # --- the greeter config parses ------------------------------------------
-niri validate -c image/rootfs/etc/greetd/niri/config.kdl >/dev/null 2>&1
+niri validate -c system_files/etc/greetd/niri/config.kdl >/dev/null 2>&1
 
 echo "Repository gates passed."

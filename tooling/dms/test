@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-apply="$repo_root/image/rootfs/usr/bin/workstation-apply-dms-settings"
+apply="$repo_root/system_files/usr/bin/workstation-apply-dms-settings"
 export DMS_SETTINGS_CONFIG_VERSION=${DMS_SETTINGS_CONFIG_VERSION:-12}
 workdir="$(mktemp -d)"
 trap 'rm -rf -- "$workdir"' EXIT

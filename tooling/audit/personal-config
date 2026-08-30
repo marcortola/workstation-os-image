@@ -6,7 +6,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "$repo_root/tooling/lib/dotfiles.sh"
 
 manifest="$repo_root/tooling/data/dotfiles.manifest"
-source_root="$repo_root/image/rootfs/usr/share/workstation-os-image/dotfiles"
+source_root="$repo_root/system_files/usr/share/workstation-os-image/dotfiles"
 config_file="${XDG_CONFIG_HOME:-$HOME/.config}/workstation-os-image/chezmoi/chezmoi.toml"
 status=0
 tmp="$(mktemp -d)"
