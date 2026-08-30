@@ -8,6 +8,11 @@ set -ouex pipefail
 
 policy=/etc/containers/policy.json
 key=/etc/pki/containers/workstation-signing.pub
+# An optional second trust anchor, so a key can be rotated across two releases
+# instead of a flag day: ship both, cut over the signer, then drop the old one.
+# base-main's own ghcr.io/ublue-os entry in this same file carries exactly this
+# shape (ublue-os.pub plus ublue-os-backup.pub).
+backup_key=/etc/pki/containers/workstation-signing-backup.pub
 # shellcheck source=/dev/null
 source /usr/share/workstation-os-image/image.env
 scope="ghcr.io/${REPO_ORGANIZATION}"
@@ -27,11 +32,16 @@ docker:
     use-sigstore-attachments: true
 EOF
 
+key_paths=("$key")
+[ -f "$backup_key" ] && key_paths+=("$backup_key")
+
+# Newline-joined rather than jq --args: --args makes every remaining argument
+# positional, which swallows "$policy" itself and leaves jq reading stdin.
 tmp="$(mktemp)"
-jq --arg key "$key" --arg scope "$scope" '
+jq --arg scope "$scope" --arg keys "$(printf '%s\n' "${key_paths[@]}")" '
     .transports.docker[$scope] = [{
         type: "sigstoreSigned",
-        keyPath: $key,
+        keyPaths: ($keys | split("\n") | map(select(length > 0))),
         signedIdentity: { type: "matchRepository" }
     }]
 ' "$policy" > "$tmp"

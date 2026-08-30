@@ -6,6 +6,16 @@ source "$(dirname "${BASH_SOURCE[0]}")/../../image.env"
 expected_image="ghcr.io/${REPO_ORGANIZATION}/${IMAGE_NAME}:"
 
 echo "Atomic deployment drift:"
+if command -v mokutil >/dev/null; then
+    sb_state="$(mokutil --sb-state 2>&1 | head -1)"
+    case "$sb_state" in
+        *enabled*) echo "  Secure Boot: $sb_state" ;;
+        # Not a repository defect: the image uses the stock signed shim and
+        # ships no out-of-tree modules, so nothing here changes either way.
+        # It is a firmware toggle, and worth seeing before assuming it is on.
+        *) echo "  Secure Boot: $sb_state (firmware setting, not set by this image)" ;;
+    esac
+fi
 if ! command -v rpm-ostree >/dev/null || ! command -v jq >/dev/null; then
     echo "  unavailable outside an rpm-ostree host"
     exit 0

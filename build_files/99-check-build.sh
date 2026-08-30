@@ -205,10 +205,15 @@ signing_scope="ghcr.io/${REPO_ORGANIZATION}"
 test -f /etc/pki/containers/workstation-signing.pub || fail "signing pubkey missing"
 grep -q 'BEGIN PUBLIC KEY' /etc/pki/containers/workstation-signing.pub || fail "signing pubkey is not a public key"
 
+# The top-level default only. Every transport also carries a "" catch-all of
+# insecureAcceptAnything, inherited from base-main and deliberately left alone:
+# the docker one is what lets dev containers pull arbitrary images, and
+# containers-storage is what makes `just build` output usable locally.
 jq -e '.default[0].type == "reject"' /etc/containers/policy.json >/dev/null \
-    || fail "policy.json is not deny-by-default"
+    || fail "policy.json default is not reject"
 jq -e --arg scope "$signing_scope" '.transports.docker[$scope][0]
-       | .type == "sigstoreSigned" and .keyPath == "/etc/pki/containers/workstation-signing.pub"' \
+       | .type == "sigstoreSigned"
+         and (.keyPaths | index("/etc/pki/containers/workstation-signing.pub") != null)' \
     /etc/containers/policy.json >/dev/null \
     || fail "policy.json does not require a signature for $signing_scope"
 # Dropping ublue's entry would leave the machine unable to pull its own base.

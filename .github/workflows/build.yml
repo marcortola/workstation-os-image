@@ -88,6 +88,11 @@ jobs:
       - name: Image identity matches this repository
         run: |
           set -a; . ./image.env; set +a
+          if [[ "$IMAGE_REF" != "ghcr.io/${GITHUB_REPOSITORY_OWNER}/${IMAGE_NAME}" ]]; then
+            echo "IMAGE_REF is $IMAGE_REF but image.env names $IMAGE_NAME;" \
+                 "the workflow env and image.env have drifted." >&2
+            exit 1
+          fi
           if [[ "$REPO_ORGANIZATION" != "$GITHUB_REPOSITORY_OWNER" ]]; then
             echo "image.env REPO_ORGANIZATION=$REPO_ORGANIZATION but this repo is" \
                  "owned by $GITHUB_REPOSITORY_OWNER; the signing scope would not" \
