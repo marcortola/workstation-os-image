@@ -81,4 +81,8 @@ RUN --mount=type=bind,from=ctx,src=/,dst=/ctx \
     /ctx/build_files/90-cleanup.sh && \
     /ctx/build_files/99-check-build.sh
 
-RUN --network=none ["bootc", "container", "lint"]
+# The sweep cannot live in 90-cleanup.sh: 99-check-build.sh runs systemd-analyze
+# immediately after it and recreates /run/systemd, so the last write to /run has
+# to be here, in the layer the lint actually reads.
+RUN --network=none rm -rf /run/systemd && \
+    bootc container lint --fatal-warnings
