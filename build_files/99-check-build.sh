@@ -86,7 +86,7 @@ grep -Eq '^u!?[[:space:]]+greeter' /usr/lib/sysusers.d/dms-greeter.conf \
     || fail "greeter sysusers entry missing"
 
 # --- PAM keyring ---------------------------------------------------------
-# The sed in desktop.sh is unguarded, exactly as upstream had it. Upstream
+# The sed in 30-desktop.sh is unguarded, exactly as upstream had it. Upstream
 # would silently no-op if Fedora reformatted the file; this fails the build.
 grep -Eq '^auth[[:space:]]+optional[[:space:]]+pam_gnome_keyring\.so' /etc/pam.d/greetd \
     || fail "pam_gnome_keyring auth line not normalised"

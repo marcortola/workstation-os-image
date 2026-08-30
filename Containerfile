@@ -11,7 +11,7 @@
 # this image by bytes and the only pin available that actually holds: the
 # desktop stack comes from COPRs that prune superseded builds, so versionlock
 # to an older NEVRA is impossible there. Bisectability via the NEVRA manifest
-# in cleanup.sh is the substitute for pinning the parts that float.
+# in 90-cleanup.sh is the substitute for pinning the parts that float.
 # One knob, a full image reference -- the same shape the CI repository variable
 # and the justfile pass. Splitting it into image + tag invited
 # `${BASE_IMAGE}:${BASE_TAG}` to become `...:latest:latest` the moment CI passed
@@ -46,7 +46,7 @@ RUN --mount=type=bind,from=ctx,src=/,dst=/ctx \
     --mount=type=tmpfs,dst=/tmp \
     KEYD_VERSION="${KEYD_VERSION}" KEYD_SHA256="${KEYD_SHA256}" \
     FIRACODE_VERSION="${FIRACODE_VERSION}" FIRACODE_SHA256="${FIRACODE_SHA256}" \
-    /ctx/build_files/toolchain.sh
+    /ctx/build_files/00-toolchain.sh
 
 FROM ${BASE_IMAGE}
 
@@ -58,7 +58,7 @@ LABEL org.opencontainers.image.description="Personal Fedora bootc image with hos
 RUN --mount=type=bind,from=ctx,src=/,dst=/ctx \
     --mount=type=cache,target=/var/cache/libdnf5,sharing=locked \
     --mount=type=tmpfs,dst=/tmp \
-    /ctx/build_files/repos.sh && /ctx/build_files/packages.sh
+    /ctx/build_files/10-repos.sh && /ctx/build_files/20-packages.sh
 
 # Homebrew payload: the tarball, brew-setup/update/upgrade units and the preset.
 # Before the rootfs overlay so our own files win on any collision. brew is
@@ -74,10 +74,10 @@ COPY system_files/ /
 
 RUN --mount=type=bind,from=ctx,src=/,dst=/ctx \
     --mount=type=tmpfs,dst=/tmp \
-    /ctx/build_files/desktop.sh && \
-    /ctx/build_files/signing.sh && \
-    /ctx/build_files/services.sh && \
-    /ctx/build_files/cleanup.sh && \
-    /ctx/build_files/check-build.sh
+    /ctx/build_files/30-desktop.sh && \
+    /ctx/build_files/40-signing.sh && \
+    /ctx/build_files/50-services.sh && \
+    /ctx/build_files/90-cleanup.sh && \
+    /ctx/build_files/99-check-build.sh
 
 RUN ["bootc", "container", "lint"]
