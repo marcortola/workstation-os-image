@@ -262,7 +262,7 @@ manages a live machine:
 | Directory | Holds | In the image? |
 | --- | --- | --- |
 | `system_files/` | OS image payload copied into `/` (`COPY system_files/ /`): systemd units, helpers, factory defaults, the image-owned niri system config under `usr/share/workstation-os-image/niri/`, and the chezmoi seeds under `usr/share/workstation-os-image/dotfiles/`. | Yes — copied verbatim into `/` |
-| `image/build/` | Everything the build reads and nothing it ships: `scripts/` (`toolchain.sh` runs first in its own stage, then `repos.sh`, `packages.sh`, `desktop.sh`, `services.sh`, `cleanup.sh`, `check-build.sh`, plus the `workstation-ocr` payload), `packages/` (one `.list` per group plus `exclude.list`), `repos/` (vendored `.repo` files, deleted again by `cleanup.sh`), `src/` (`workstation-x11-clipsync.c`). | No — bind-mounted at `/ctx`, never `COPY`d into a layer |
+| `build_files/` | Everything the build reads and nothing it ships: the build scripts (`toolchain.sh` runs first in its own stage, then `repos.sh`, `packages.sh`, `desktop.sh`, `signing.sh`, `services.sh`, `cleanup.sh`, `check-build.sh`, plus the `workstation-ocr` payload), `packages/` (one `.list` per group plus `exclude.list`), `repos/` (vendored `.repo` files, deleted again by `cleanup.sh`), `keys/` (vendored RPM signing keys), `src/` (`workstation-x11-clipsync.c`). | No — bind-mounted at `/ctx`, never `COPY`d into a layer |
 | `tooling/` | Host-side management scripts grouped by concern (`audit/`, `dms/`, `dotfiles/`, `jetbrains/`, `validate/`, `worktree/`), plus `data/` (the declarative source they read: the `dotfiles.manifest` inventory, JetBrains canonical settings, the AI-CLI MCP fragment, policy deny-lists), `ai/` (the AI-CLI machinery), `lib/`, `scrub/` and `fixtures/`. | No |
 
 Root files (`Containerfile`, `justfile`, `README.md`, `AGENTS.md`) stay at the
@@ -301,7 +301,7 @@ reuses cache entries for ordinary pushes and pull requests. The daily scheduled
 build deliberately skips cache reads so DNF metadata and packages are refreshed;
 it then replaces the remote cache. Changes that do not affect `Containerfile`,
 `system_files/` or the build workflow still run their tests but skip the image
-job. The build context is `Containerfile`, `system_files/` and `build/`; `build/`
+job. The build context is `Containerfile`, `system_files/` and `build_files/`; it
 travels in a `scratch` stage that every `RUN` bind-mounts at `/ctx`, so build
 inputs never land in a layer of the shipped image.
 
@@ -343,8 +343,8 @@ Third-party `.repo` files are vendored so `baseurl` and `gpgkey` are reviewable
 in git. Vendoring the repo file alone only covers half of that: if `gpgkey=`
 points at a URL, the trust anchor that authenticates every package is still
 fetched on build day. So the keys are vendored too, under
-`image/build/keys/rpm/`, referenced by `file://`, with provenance and pinned
-fingerprints recorded in `image/build/keys/rpm-key-sources.json`.
+`build_files/keys/rpm/`, referenced by `file://`, with provenance and pinned
+fingerprints recorded in `build_files/keys/rpm-key-sources.json`.
 
 `tooling/validate/rpm-keys` re-fetches each upstream key and asserts the
 vendored copy is byte-identical and still carries the pinned fingerprint. A key
@@ -599,7 +599,7 @@ and bootc modules. It runs them as the uid that owns the brew prefix — 1000,
 because `brew-setup.service` chowns `/home/linuxbrew` to `1000:1000`. There is
 no `linuxbrew` user on this image; that user came from brew-proxy, which is no
 longer installed. The brew payload's own `brew-update.timer` and
-`brew-upgrade.timer` are disabled by `image/build/scripts/services.sh`: on the previous
+`brew-upgrade.timer` are disabled by `build_files/services.sh`: on the previous
 base they were inert because brew-proxy broke their
 `ConditionPathIsSymbolicLink`, and with brew-proxy gone they would fire every
 six and eight hours alongside uupd's brew module. `uupd` is the single updater.

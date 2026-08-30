@@ -19,7 +19,7 @@ install -d /staging/usr/libexec /staging/usr/bin \
 # hand over the selection on their own.
 gcc -O2 -Wall -Wextra \
     -o /staging/usr/libexec/workstation-x11-clipsync \
-    /ctx/build/src/workstation-x11-clipsync.c \
+    /ctx/build_files/src/workstation-x11-clipsync.c \
     -lX11 -lXfixes
 
 # --- keyd ---------------------------------------------------------------

@@ -10,8 +10,8 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$repo_root"
-manifest=image/build/keys/rpm-key-sources.json
-keydir=image/build/keys/rpm
+manifest=build_files/keys/rpm-key-sources.json
+keydir=build_files/keys/rpm
 
 command -v gpg >/dev/null || { echo "gpg is not installed" >&2; exit 2; }
 [[ -r $manifest ]] || { echo "missing $manifest" >&2; exit 2; }

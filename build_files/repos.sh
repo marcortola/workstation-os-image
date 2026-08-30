@@ -14,10 +14,10 @@ rpm -q dnf5-plugins >/dev/null || dnf5 -y install dnf5-plugins
 # the key must be on disk before dnf reads the repo. Fetching the trust anchor
 # on build day was the gap that made vendoring the .repo files only half a
 # policy -- baseurl was reviewable, the key that authenticates it was not.
-install -Dm644 -t /etc/pki/rpm-gpg/ /ctx/build/keys/rpm/*.asc
+install -Dm644 -t /etc/pki/rpm-gpg/ /ctx/build_files/keys/rpm/*.asc
 for k in /etc/pki/rpm-gpg/*.asc; do rpm --import "$k"; done
 
-install -Dm644 -t /etc/yum.repos.d/ /ctx/build/repos/*.repo
+install -Dm644 -t /etc/yum.repos.d/ /ctx/build_files/repos/*.repo
 
 # negativo17 ships in base-main with enabled=0 and NO priority= line (so the
 # default 99). base-main enables it during its own build, installs ffmpeg and
