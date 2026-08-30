@@ -213,8 +213,7 @@ The tools: **opencode-fusion** (a main agent that plans/reviews and delegates
 edits to a cheap sidekick), **caveman** (~65% shorter model output), **rtk**
 (compresses shell output before it reaches context), and **@playwright/cli**
 (token-lean browser automation that drives the Flatpak Chrome over CDP). Codex
-also gets the `help-scout-mcp-server` launcher; it reads the same local 0600
-credential files as OpenCode, never credentials from tracked config.
+also gets OpenAI's developer-docs MCP, which needs no credentials.
 
 **First-time setup** (once, after switching to a new image):
 
@@ -262,11 +261,11 @@ manages a live machine:
 | `build_files/` | Everything the build reads and nothing it ships: the build scripts (`00-toolchain.sh` runs first in its own stage, then `10-repos.sh`, `20-packages.sh`, `30-desktop.sh`, `40-signing.sh`, `50-services.sh`, `60-metadata.sh`, `90-cleanup.sh`, `99-check-build.sh`), `packages/` (one `.list` per group plus `exclude.list`), `repos/` (vendored `.repo` files, deleted again by `90-cleanup.sh`), `keys/` (vendored RPM signing keys), `src/` (`workstation-x11-clipsync.c`). | No — bind-mounted at `/ctx`, never `COPY`d into a layer |
 | `tooling/` | Host-side management scripts grouped by concern (`audit/`, `dms/`, `dotfiles/`, `jetbrains/`, `validate/`, `worktree/`), plus `data/` (the declarative source they read: the `dotfiles.manifest` inventory, JetBrains canonical settings, the AI-CLI MCP fragment, policy deny-lists), `ai/` (the AI-CLI machinery), `lib/`, `scrub/` and `fixtures/`. | No |
 
-Root files (`Containerfile`, `justfile`, `README.md`, `AGENTS.md`) stay at the
+Root files (`Containerfile`, `Justfile`, `image.env`, `README.md`, `AGENTS.md`) stay at the
 top level.
 
 ```text
-ublue base-main ──> Containerfile + rootfs ──> GHCR image ──> bootc A/B OS
+ublue base-main ──> Containerfile + system_files ──> GHCR image ──> bootc A/B OS
                               │
                               ├─> create-only chezmoi seeds ──> portable $HOME defaults
                               └─> partial DMS overlay ─────────> selected GUI preferences
@@ -316,9 +315,10 @@ absence looks like success:
   `ghcr.io/marcortola`, merged into what base-main ships. The
   `ghcr.io/ublue-os` entry must survive that merge or the machine cannot pull
   its own base.
-- `/etc/containers/registries.d/marcortola.yaml` sets
+- `/etc/containers/registries.d/workstation-signing.yaml` sets
   `use-sigstore-attachments: true`. Without it the signature is never fetched
-  and the policy has nothing to check.
+  and the policy has nothing to check. `build_files/40-signing.sh` generates it
+  from `image.env` rather than shipping it, so the scope follows a fork.
 
 Signing alone changes nothing on the host: a deployment whose origin is
 `ostree-unverified-registry:` ignores `policy.json` entirely. Enforcement is a
@@ -551,8 +551,8 @@ has to touch, and nothing else needs attention.
 
 | Path | Why |
 |---|---|
-| `image.env` | Image name, registry owner, description. The only place the identity is written; the Justfile, `tooling/audit/deployment`, the OCI labels, the signing policy scope and `wjust`'s clone URL all derive from it. |
-| `cosign.pub` and `system_files/etc/pki/containers/workstation-signing.pub` | Your own signing keys. Generate with `COSIGN_PASSWORD="" cosign generate-key-pair`, store the private half as the `SIGNING_SECRET` repository secret, and never commit `cosign.key`. |
+| `image.env` | Image name, registry owner, description. The only place the identity is written; the Justfile, `tooling/audit/deployment`, the OCI labels, the signing policy scope and `wjust`'s clone URL all derive from it. The `ARG` defaults at `Containerfile:52-54` mirror it so a bare `podman build` still labels correctly, and `tooling/validate/image-build` fails if the two drift. |
+| `cosign.pub` and `system_files/etc/pki/containers/workstation-signing.pub` | Your own signing keys. Generate with `COSIGN_PASSWORD="" cosign generate-key-pair`, store the private half as the `COSIGN_PRIVATE_KEY` repository secret (with `COSIGN_PASSWORD`), and never commit `cosign.key`. |
 | `system_files/usr/share/workstation-os-image/dotfiles/` | The chezmoi seed tree is one person's dotfiles. Replace wholesale. |
 | `Documentation=` URLs in `system_files/usr/lib/systemd/**` | Ten units point at this repo. Cosmetic, but wrong on a fork. |
 
