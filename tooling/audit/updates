@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Did the last automatic update actually succeed, and which module failed?
+#
+# uupd notifies with one generic title for every module, so a failure tells you
+# something broke without telling you what. Its logs carry the module, but they
+# are 1200-odd JSON lines per run in the journal, mixed DEBUG and INFO.
+#
+# This scopes to the LAST invocation via _SYSTEMD_INVOCATION_ID and prints the
+# systemd result plus any record above INFO. Deliberately not a parser for a
+# failure schema: no run on this machine has ever emitted a level above INFO, so
+# any field names for the failure case would be guessed. Records are shown
+# verbatim, which cannot be wrong.
+set -uo pipefail
+
+status=0
+echo "Automatic update status:"
+
+if ! command -v systemctl >/dev/null || ! command -v journalctl >/dev/null; then
+    echo "  unavailable without systemd"
+    exit 0
+fi
+
+enabled="$(systemctl is-enabled uupd.timer 2>&1)"
+active="$(systemctl is-active uupd.timer 2>&1)"
+printf '  %-18s %s / %s\n' "uupd.timer" "$enabled" "$active"
+if [[ $enabled != enabled || $active != active ]]; then
+    # The single-updater design depends on this timer. It was found masked here
+    # via /etc/systemd/system/uupd.timer -> /dev/null, which no image can undo.
+    echo "  uupd.timer is not enabled and running; nothing updates this machine" >&2
+    status=1
+fi
+
+next="$(systemctl show uupd.timer -p NextElapseUSecRealtime --value 2>/dev/null)"
+[[ -n ${next:-} ]] && printf '  %-18s %s\n' "next run" "$next"
+
+result="$(systemctl show uupd.service -p Result --value 2>/dev/null)"
+exec_status="$(systemctl show uupd.service -p ExecMainStatus --value 2>/dev/null)"
+printf '  %-18s %s (exit %s)\n' "last result" "${result:-unknown}" "${exec_status:-?}"
+if [[ ${result:-} != success && -n ${result:-} ]]; then
+    echo "  the last uupd run did not succeed" >&2
+    status=1
+fi
+
+invocation="$(systemctl show uupd.service -p InvocationID --value 2>/dev/null)"
+if [[ -n ${invocation:-} ]]; then
+    notable="$(journalctl "_SYSTEMD_INVOCATION_ID=$invocation" --no-pager -o cat 2>/dev/null \
+        | grep '^{' | grep -vE '"level":"(DEBUG|INFO)"' || true)"
+    if [[ -n $notable ]]; then
+        echo "  records above INFO in the last run:" >&2
+        printf '%s\n' "$notable" | sed 's/^/    /' >&2
+        status=1
+    fi
+fi
+
+(( status == 0 )) && echo "  the last run succeeded and the timer is armed."
+exit "$status"
