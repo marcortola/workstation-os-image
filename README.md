@@ -320,6 +320,26 @@ absence looks like success:
   and the policy has nothing to check. `build_files/40-signing.sh` generates it
   from `image.env` rather than shipping it, so the scope follows a fork.
 
+**Rotating the signing key.** The policy entry is a `keyPaths` array, the same
+shape base-main uses for its own `ghcr.io/ublue-os` entry, so a rotation takes
+two releases and never a flag day. A machine that trusts only the old key must
+already trust the new one before anything is signed with it, or it cannot pull
+the release that would have taught it.
+
+1. Generate the new pair. Commit the new public half into
+   `system_files/etc/pki/containers/` as `workstation-signing-backup.pub`,
+   leaving the old `workstation-signing.pub` in place and still the signer.
+   Ship it.
+   `40-signing.sh` picks the backup file up automatically and every machine now
+   trusts both keys.
+2. Once every machine has booted that image, swap the files so the new key is
+   `workstation-signing.pub` (and `cosign.pub`, which
+   `tooling/validate/image-build` requires to match), update the
+   `COSIGN_PRIVATE_KEY` and `COSIGN_PASSWORD` secrets, and delete the backup.
+
+Check which key a deployment trusts with
+`jq '.transports.docker' /etc/containers/policy.json` before step 2.
+
 Signing alone changes nothing on the host: a deployment whose origin is
 `ostree-unverified-registry:` ignores `policy.json` entirely. Enforcement is a
 one-time switch:
