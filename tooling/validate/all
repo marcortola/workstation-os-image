@@ -191,14 +191,22 @@ install -D -m 0644 \
     system_files/usr/share/workstation-os-image/dotfiles/dot_config/git/create_config \
     "$git_home/.config/git/config"
 git config --file "$git_home/.gitconfig" credential.helper store
+# Assert the seed is what git resolves, not who the author is: hardcoding an
+# identity here fails for anyone who forks the repo, and the property under
+# test is that the XDG seed is readable and that ~/.gitconfig still outranks it.
+seed_name=$(git config --file \
+    system_files/usr/share/workstation-os-image/dotfiles/dot_config/git/create_config user.name)
+seed_email=$(git config --file \
+    system_files/usr/share/workstation-os-image/dotfiles/dot_config/git/create_config user.email)
+[[ -n $seed_name && -n $seed_email ]]
 [[ $(
     HOME="$git_home" XDG_CONFIG_HOME="$git_home/.config" \
         GIT_CONFIG_NOSYSTEM=1 git -C "$git_home" config user.name
-) == marcortola ]]
+) == "$seed_name" ]]
 [[ $(
     HOME="$git_home" XDG_CONFIG_HOME="$git_home/.config" \
         GIT_CONFIG_NOSYSTEM=1 git -C "$git_home" config user.email
-) == 15958009+marcortola@users.noreply.github.com ]]
+) == "$seed_email" ]]
 [[ $(
     HOME="$git_home" XDG_CONFIG_HOME="$git_home/.config" \
         GIT_CONFIG_NOSYSTEM=1 git -C "$git_home" config credential.helper
