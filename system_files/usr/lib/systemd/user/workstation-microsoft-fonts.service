@@ -1,7 +1,6 @@
 [Unit]
 Description=Install workstation user fonts
 Documentation=https://github.com/marcortola/workstation-os-image
-ConditionPathExists=!%h/.local/state/workstation-os-image/fonts-installed
 # Every user manager reaches default.target, including the one pam_systemd
 # starts for greetd's `greeter` account, whose home is read-only. Without this
 # the unit fails on every login screen. `!@system` excludes accounts below
