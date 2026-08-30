@@ -74,10 +74,16 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Install just
+        uses: extractions/setup-just@e33e0265a09d6d736e2ee1e0eb685ef1de4669ff # v3.0.0
+        with:
+          just-version: "1.57.0"
+
       - name: Repository gates
         run: |
           tooling/validate/repo
           tooling/validate/image-build
+          tooling/validate/sources
 
       - name: Image identity matches this repository
         run: |
