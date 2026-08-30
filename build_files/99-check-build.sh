@@ -14,6 +14,13 @@ set -ouex pipefail
 
 fail() { echo "check-build: $*" >&2; exit 1; }
 
+# Every gate below that reads a file through process substitution needs this
+# first. `while read ... done < <(sed FILE)` on a missing FILE iterates zero
+# times and passes, so a rename silently disarms the check instead of
+# breaking it -- exactly how the image/ restructure disabled two gates in
+# tooling/validate without anything going red.
+require_file() { test -f "$1" || fail "gate input is missing: $1"; }
+
 # --- packages present ----------------------------------------------------
 for p in \
     niri xwayland-satellite greetd greetd-selinux foot fish chezmoi \
@@ -126,18 +133,22 @@ test -L /etc/systemd/user/graphical-session.target.wants/dms.service || fail "dm
 # effect rather than the arguments also catches a preset line naming a unit that
 # does not exist at all.
 #
-# Matched by link TARGET, not by a .wants path: greetd.service is enabled
-# through its Alias=display-manager.service, so it produces
-# /etc/systemd/system/display-manager.service and no .wants entry at all.
+# Matched by link target OR link name. Target, because greetd.service is
+# enabled through its Alias=display-manager.service and produces no .wants
+# entry at all. Name, because an instantiated template links to foo@.service,
+# so a target-only match would miss `enable foo@bar.service` and fail with a
+# message asserting the opposite of the truth.
+require_file /usr/lib/systemd/system-preset/10-workstation-os-image.preset
 while read -r unit; do
-    find /etc/systemd/system -type l -lname "*/$unit" \
+    find /etc/systemd/system -type l \( -lname "*/$unit" -o -name "$unit" \) \
         | grep . >/dev/null \
         || fail "system preset enables $unit but nothing links to it under /etc"
 done < <(sed -n 's/^enable //p' \
     /usr/lib/systemd/system-preset/10-workstation-os-image.preset)
 
+require_file /usr/lib/systemd/user-preset/10-workstation-os-image.preset
 while read -r unit; do
-    find /etc/systemd/user -type l -lname "*/$unit" \
+    find /etc/systemd/user -type l \( -lname "*/$unit" -o -name "$unit" \) \
         | grep . >/dev/null \
         || fail "user preset enables $unit but nothing links to it under /etc"
 done < <(sed -n 's/^enable //p' \
@@ -182,6 +193,7 @@ if ! fc-list | grep 'FiraCode Nerd Font Mono' >/dev/null; then
 fi
 
 # --- every niri spawn target resolves ------------------------------------
+require_file /usr/share/workstation-os-image/niri/includes/binds.kdl
 # `niri validate` parses the config but never checks that a spawned binary
 # exists, so a bind pointing at a removed program stays silent until the key is
 # pressed. This is how `spawn "zocr"` survived the base swap.

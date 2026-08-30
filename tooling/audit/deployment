@@ -37,6 +37,24 @@ image="$(jq -r '.["container-image-reference"] // "non-container deployment"' \
     <<< "$booted")"
 printf '  %-18s %s\n' "booted-image" "$image"
 
+# A staged deployment means the machine is not yet running what it has
+# already pulled and verified -- easy to lose track of between a merge and
+# the next reboot.
+if staged="$(jq -cer '.deployments[] | select(.staged == true)' \
+        <<< "$deployment_json" 2>/dev/null)"; then
+    staged_image="$(jq -r '."container-image-reference" // "unknown"' <<< "$staged")"
+    printf '  %-18s %s\n' "staged-image" "$staged_image"
+    echo "  reboot required to adopt the staged deployment"
+fi
+
+# Signature enforcement is only real if the BOOTED reference carries it.
+# ostree-unverified-registry: means this deployment was pulled without
+# checking the signature, whatever policy.json now says.
+case "$image" in
+    ostree-image-signed:*) ;;
+    *) echo "  booted deployment is not signature-verified ($image)" ;;
+esac
+
 if [[ $image != *"$expected_image"* ]]; then
     echo "  unexpected image origin; this workstation is not tracking this repository" >&2
     status=1

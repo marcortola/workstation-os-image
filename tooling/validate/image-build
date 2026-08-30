@@ -51,6 +51,7 @@ cmp -s cosign.pub system_files/etc/pki/containers/workstation-signing.pub \
 # defaults so `podman build` alone still produces correct labels. They must not
 # drift: a caller that forgets a --build-arg would otherwise ship
 # https://github.com// in the source label and a signing scope to match.
+test -f image.env || fail "gate input is missing: image.env"
 while IFS='=' read -r key value; do
     case "$key" in
         IMAGE_NAME | REPO_ORGANIZATION | IMAGE_DESC) ;;
