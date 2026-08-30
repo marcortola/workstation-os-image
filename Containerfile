@@ -50,8 +50,12 @@ FROM ${BASE_IMAGE}
 ARG IMAGE_NAME=workstation-os-image
 ARG REPO_ORGANIZATION=marcortola
 ARG IMAGE_DESC="Personal Fedora bootc image with host-integrated tools"
-LABEL org.opencontainers.image.source="https://github.com/${REPO_ORGANIZATION}/${IMAGE_NAME}"
+LABEL org.opencontainers.image.title="${IMAGE_NAME}"
 LABEL org.opencontainers.image.description="${IMAGE_DESC}"
+LABEL org.opencontainers.image.vendor="${REPO_ORGANIZATION}"
+LABEL org.opencontainers.image.source="https://github.com/${REPO_ORGANIZATION}/${IMAGE_NAME}"
+LABEL org.opencontainers.image.url="https://github.com/${REPO_ORGANIZATION}/${IMAGE_NAME}"
+LABEL org.opencontainers.image.licenses="MIT"
 
 # Repositories and packages in one cached unit -- the most expensive and most
 # stable part of the build.

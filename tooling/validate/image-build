@@ -39,6 +39,20 @@ require_literal Containerfile 'COPY system_files/ /'
 require_literal Containerfile 'COPY image.env /usr/share/workstation-os-image/image.env'
 # Nothing else asserts the image is linted, or that warnings are fatal.
 require_literal Containerfile 'bootc container lint --fatal-warnings'
+
+# image.env is the single identity source, but the Containerfile carries ARG
+# defaults so `podman build` alone still produces correct labels. They must not
+# drift: a caller that forgets a --build-arg would otherwise ship
+# https://github.com// in the source label and a signing scope to match.
+while IFS='=' read -r key value; do
+    case "$key" in
+        IMAGE_NAME | REPO_ORGANIZATION | IMAGE_DESC) ;;
+        *) continue ;;
+    esac
+    arg="$(sed -n "s/^ARG ${key}=//p" Containerfile)"
+    [ "$arg" = "$value" ] \
+        || fail "Containerfile ARG ${key}=${arg} does not match image.env ${key}=${value}"
+done < <(grep -E '^[A-Z_]+=' image.env)
 require_literal Containerfile '/ctx/build_files/99-check-build.sh'
 
 # Build inputs must be bind-mounted from the ctx stage, never COPYd into the

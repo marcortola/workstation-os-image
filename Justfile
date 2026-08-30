@@ -22,6 +22,7 @@ dms-remove:
     ./tooling/dms/capture --remove
 
 # Explicitly restore the tracked DMS preference overlay into this account.
+[confirm("Overwrite live DMS settings from the tracked overlay?")]
 dms-apply:
     WORKSTATION_DMS_SETTINGS_OVERLAY="$PWD/system_files/usr/share/workstation-os-image/dms-settings.json" \
         ./system_files/usr/bin/workstation-apply-dms-settings --force
@@ -105,7 +106,12 @@ ide-setup *args:
 
 # Build and lint the complete bootc image locally.
 build:
-    podman build --pull=always --build-arg "BASE_IMAGE=$(sed -n 's/^ARG BASE_IMAGE=//p' Containerfile)" --tag workstation-os-image:review -f Containerfile .
+    podman build --pull=always \
+        --build-arg "IMAGE_NAME=$IMAGE_NAME" \
+        --build-arg "REPO_ORGANIZATION=$REPO_ORGANIZATION" \
+        --build-arg "IMAGE_DESC=$IMAGE_DESC" \
+        --tag "$IMAGE_NAME:review-$(git branch --show-current | tr / -)" \
+        -f Containerfile .
 
 # Show the current repository state without changing it.
 status:
