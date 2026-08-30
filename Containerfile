@@ -70,7 +70,7 @@ COPY --from=brew /system_files/ /
 
 COPY --from=toolchain /staging/ /
 
-COPY image/rootfs/ /
+COPY system_files/ /
 
 RUN --mount=type=bind,from=ctx,src=/,dst=/ctx \
     --mount=type=tmpfs,dst=/tmp \

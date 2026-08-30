@@ -11,9 +11,9 @@ command -v cosign >/dev/null && tooling/validate/source-images
 tooling/validate/rpm-keys
 
 mapfile -t shell_files < <(
-    find tooling image/rootfs/usr/bin image/rootfs/usr/libexec -type f \
+    find tooling system_files/usr/bin system_files/usr/libexec -type f \
         \( -perm /111 -o -name '*.sh' \) -print | sort
-    find image/rootfs/usr/share/workstation-os-image/dotfiles -type f \
+    find system_files/usr/share/workstation-os-image/dotfiles -type f \
         -name 'create_executable_*' -print | sort
     # Bundle scripts only (maxdepth 1 skips the vendored Node installer).
     find tooling/ai/ai-cli-setup -maxdepth 1 -name '*.sh' -print | sort
@@ -23,7 +23,7 @@ shellcheck "${shell_files[@]}"
 
 # Dictation records a complete WAV before uploading it, so it uses the
 # completed-audio model and consumes that model's JSON response contract.
-dictate_seed=image/rootfs/usr/share/workstation-os-image/dotfiles/private_dot_local/bin/create_executable_workstation-dictate
+dictate_seed=system_files/usr/share/workstation-os-image/dotfiles/private_dot_local/bin/create_executable_workstation-dictate
 grep -Fq -- '--form model=gpt-transcribe' "$dictate_seed"
 grep -Fq -- '--form response_format=json' "$dictate_seed"
 grep -Fq -- '.text | select(type == "string")' "$dictate_seed"
@@ -39,7 +39,7 @@ fi
 # skipped where Neovim is unavailable (e.g. minimal CI), like other local gates.
 if command -v nvim >/dev/null 2>&1; then
     mapfile -t nvim_lua < <(
-        find image/rootfs/usr/share/workstation-os-image/dotfiles/dot_config/nvim -name '*.lua' -print | sort
+        find system_files/usr/share/workstation-os-image/dotfiles/dot_config/nvim -name '*.lua' -print | sort
     )
     (( ${#nvim_lua[@]} )) && nvim --clean -l tooling/validate/lint-nvim-seeds.lua "${nvim_lua[@]}"
 fi
@@ -82,7 +82,7 @@ done < <(grep -oE '`(image|tooling|config|rootfs)/[A-Za-z0-9._/-]*' AGENTS.md \
 # committed seeds (visible to CI even when live files are absent). gitleaks
 # above is the generic backstop; these catch the tool-specific shapes it misses
 # (e.g. the dash-broken context7 key gitleaks does not flag).
-ai_seeds=image/rootfs/usr/share/workstation-os-image/dotfiles
+ai_seeds=system_files/usr/share/workstation-os-image/dotfiles
 assert_absent() {
     # Fail if the extended-regexp $1 matches (case-insensitively) anywhere in
     # file $2. A plain `! grep` would be exempt from errexit and silently pass,
@@ -143,7 +143,7 @@ fi
 # domains. It regenerates constantly, this repository is public, and gitleaks
 # does not recognise any of it as a secret, so assert the scrub actually held.
 jq -e '.autoMode.environment == null' \
-    image/rootfs/usr/share/workstation-os-image/dotfiles/dot_claude/create_settings.json >/dev/null
+    system_files/usr/share/workstation-os-image/dotfiles/dot_claude/create_settings.json >/dev/null
 jq -e '.autoMode.environment == null' \
     tooling/ai/ai-cli-setup/config/claude/settings.json >/dev/null
 
@@ -152,10 +152,10 @@ jq -e '.autoMode.environment == null' \
 # committed .worktreeinclude through `git worktree add`, so assert the wiring
 # that keeps them in sync.
 grep -q 'workstation-worktree-sync' \
-    image/rootfs/usr/share/workstation-os-image/dotfiles/dot_config/git/template/hooks/create_executable_post-checkout
+    system_files/usr/share/workstation-os-image/dotfiles/dot_config/git/template/hooks/create_executable_post-checkout
 grep -q 'satococoa/tap/git-worktreeinclude' \
-    image/rootfs/usr/share/workstation-os-image/dotfiles/dot_config/homebrew/create_Brewfile
-grep -q 'templateDir' image/rootfs/usr/share/workstation-os-image/dotfiles/dot_config/git/create_config
+    system_files/usr/share/workstation-os-image/dotfiles/dot_config/homebrew/create_Brewfile
+grep -q 'templateDir' system_files/usr/share/workstation-os-image/dotfiles/dot_config/git/create_config
 [[ -x tooling/worktree/init ]]
 tooling/worktree/test-init
 
@@ -171,9 +171,9 @@ jq -n -e \
 tooling/dms/test
 
 fish --no-execute \
-    image/rootfs/usr/share/workstation-os-image/dotfiles/dot_config/fish/create_config.fish \
-    image/rootfs/usr/share/workstation-os-image/dotfiles/dot_config/fish/conf.d/*.fish \
-    image/rootfs/usr/share/workstation-os-image/dotfiles/dot_config/fish/functions/*.fish
+    system_files/usr/share/workstation-os-image/dotfiles/dot_config/fish/create_config.fish \
+    system_files/usr/share/workstation-os-image/dotfiles/dot_config/fish/conf.d/*.fish \
+    system_files/usr/share/workstation-os-image/dotfiles/dot_config/fish/functions/*.fish
 
 tooling/dotfiles/validate-manifest
 tooling/jetbrains/validate
@@ -188,7 +188,7 @@ trap 'rm -rf -- "$tmp"' EXIT
 # identity overrides in ~/.gitconfig continue to win.
 git_home="$tmp/git-home"
 install -D -m 0644 \
-    image/rootfs/usr/share/workstation-os-image/dotfiles/dot_config/git/create_config \
+    system_files/usr/share/workstation-os-image/dotfiles/dot_config/git/create_config \
     "$git_home/.config/git/config"
 git config --file "$git_home/.gitconfig" credential.helper store
 [[ $(
@@ -214,7 +214,7 @@ foot --check-config -c "$HOME/.config/foot/foot.ini"
 
 # The repo tree IS the chezmoi source now. Nothing is overlaid from the live
 # image, so these assertions test only what this repository ships.
-cp -a image/rootfs/usr/share/workstation-os-image/dotfiles/. "$tmp/"
+cp -a system_files/usr/share/workstation-os-image/dotfiles/. "$tmp/"
 chezmoi managed -S "$tmp" > "$tmp/managed"
 
 for target in \

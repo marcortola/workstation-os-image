@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 live=${DMS_SETTINGS_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/DankMaterialShell/settings.json}
-overlay=${DMS_SETTINGS_OVERLAY:-$repo_root/image/rootfs/usr/share/workstation-os-image/dms-settings.json}
+overlay=${DMS_SETTINGS_OVERLAY:-$repo_root/system_files/usr/share/workstation-os-image/dms-settings.json}
 status=0
 
 [[ -r $live && -r $overlay ]] || {
@@ -16,7 +16,7 @@ trap 'rm -rf -- "$workdir"' EXIT
 install -m 0600 "$live" "$workdir/settings.json"
 DMS_SETTINGS_FILE="$workdir/settings.json" \
 WORKSTATION_DMS_SETTINGS_OVERLAY="$overlay" \
-    "$repo_root/image/rootfs/usr/bin/workstation-apply-dms-settings" >/dev/null
+    "$repo_root/system_files/usr/bin/workstation-apply-dms-settings" >/dev/null
 /usr/bin/jq -S . "$live" > "$workdir/live.json"
 
 if ! cmp -s "$workdir/settings.json" "$workdir/live.json"; then

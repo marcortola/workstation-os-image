@@ -261,7 +261,7 @@ manages a live machine:
 
 | Directory | Holds | In the image? |
 | --- | --- | --- |
-| `image/rootfs/` | OS image payload copied into `/` (`COPY image/rootfs/ /`): systemd units, helpers, factory defaults, the image-owned niri system config under `usr/share/workstation-os-image/niri/`, and the chezmoi seeds under `usr/share/workstation-os-image/dotfiles/`. | Yes — copied verbatim into `/` |
+| `system_files/` | OS image payload copied into `/` (`COPY system_files/ /`): systemd units, helpers, factory defaults, the image-owned niri system config under `usr/share/workstation-os-image/niri/`, and the chezmoi seeds under `usr/share/workstation-os-image/dotfiles/`. | Yes — copied verbatim into `/` |
 | `image/build/` | Everything the build reads and nothing it ships: `scripts/` (`toolchain.sh` runs first in its own stage, then `repos.sh`, `packages.sh`, `desktop.sh`, `services.sh`, `cleanup.sh`, `check-build.sh`, plus the `workstation-ocr` payload), `packages/` (one `.list` per group plus `exclude.list`), `repos/` (vendored `.repo` files, deleted again by `cleanup.sh`), `src/` (`workstation-x11-clipsync.c`). | No — bind-mounted at `/ctx`, never `COPY`d into a layer |
 | `tooling/` | Host-side management scripts grouped by concern (`audit/`, `dms/`, `dotfiles/`, `jetbrains/`, `validate/`, `worktree/`), plus `data/` (the declarative source they read: the `dotfiles.manifest` inventory, JetBrains canonical settings, the AI-CLI MCP fragment, policy deny-lists), `ai/` (the AI-CLI machinery), `lib/`, `scrub/` and `fixtures/`. | No |
 
@@ -294,14 +294,14 @@ The image owns its chezmoi source outright at
 manager, hardcode a username, or use rpm-ostree package layers.
 
 Image builds keep the slow runtime-package transaction ahead of the volatile
-`image/rootfs/` copy, while compiled helpers (keyd, clipsync, the FiraCode release)
+`system_files/` copy, while compiled helpers (keyd, clipsync, the FiraCode release)
 are built once in a single isolated `toolchain` stage. CI
 stores Buildah intermediate layers in the companion GHCR cache repository and
 reuses cache entries for ordinary pushes and pull requests. The daily scheduled
 build deliberately skips cache reads so DNF metadata and packages are refreshed;
 it then replaces the remote cache. Changes that do not affect `Containerfile`,
-`image/rootfs/` or the build workflow still run their tests but skip the image
-job. The build context is `Containerfile`, `image/rootfs/` and `build/`; `build/`
+`system_files/` or the build workflow still run their tests but skip the image
+job. The build context is `Containerfile`, `system_files/` and `build/`; `build/`
 travels in a `scratch` stage that every `RUN` bind-mounts at `/ctx`, so build
 inputs never land in a layer of the shipped image.
 
@@ -363,13 +363,13 @@ transitively rather than unconditionally.
 This image used to derive from
 [Zirconium](https://github.com/zirconium-dev/zirconium). It no longer does, but
 the niri system configuration was carried over rather than rewritten. Six
-includes under `image/rootfs/usr/share/workstation-os-image/niri/includes/` —
+includes under `system_files/usr/share/workstation-os-image/niri/includes/` —
 `dms-base.kdl`, `input.kdl`, `layout.kdl`, `misc.kdl`, `shadow.kdl` and
 `window-rules.kdl` — were copied verbatim from
 [zirconium-dev/zdots](https://github.com/zirconium-dev/zdots), and `binds.kdl`
 was substantially rewritten from the same source. That work is licensed under
 the Apache License 2.0; this repository's own code is MIT. The attribution
-lives in `image/rootfs/usr/share/workstation-os-image/niri/NOTICE`, ships inside the
+lives in `system_files/usr/share/workstation-os-image/niri/NOTICE`, ships inside the
 image, and `workstation.kdl` points at it. Upstream no longer feeds these
 files: they are changed and reviewed here.
 
@@ -489,7 +489,7 @@ wjust audit
 ```
 
 The tracked overlay is
-`image/rootfs/usr/share/workstation-os-image/dms-settings.json`. Simple values
+`system_files/usr/share/workstation-os-image/dms-settings.json`. Simple values
 merge by top-level key; bar settings merge by bar ID and field so future DMS
 fields survive. Paths use portable tokens, and device pins, monitor layouts,
 histories and similar state are excluded from the interactive picker.
@@ -510,7 +510,7 @@ uncaptured.
 Use the smallest durable owner:
 
 - RPM, daemon, socket, privileged helper or system preset: `Containerfile` or
-  `image/rootfs/`.
+  `system_files/`.
 - Homebrew formula, cask or Flatpak: `~/.config/homebrew/Brewfile`, then
   `wjust sync`.
 - Portable user configuration: add it to `tooling/data/dotfiles.manifest`, then

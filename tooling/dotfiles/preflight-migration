@@ -26,7 +26,7 @@ old_src=${WORKSTATION_OLD_CHEZMOI_SOURCE:-/usr/share/zirconium/zdots}
 old_cfg_dir=${WORKSTATION_OLD_CHEZMOI_CONFIG:-$HOME/.config/zirconium/chezmoi}
 old_cfg="$old_cfg_dir/chezmoi.toml"
 old_state="$old_cfg_dir/chezmoistate.boltdb"
-new_src="$repo_root/image/rootfs/usr/share/workstation-os-image/dotfiles"
+new_src="$repo_root/system_files/usr/share/workstation-os-image/dotfiles"
 
 for required in "$old_src" "$old_cfg" "$old_state" "$new_src"; do
     [[ -e $required ]] || {

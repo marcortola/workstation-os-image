@@ -21,8 +21,8 @@ dms-remove:
 
 # Explicitly restore the tracked DMS preference overlay into this account.
 dms-apply:
-    WORKSTATION_DMS_SETTINGS_OVERLAY="$PWD/image/rootfs/usr/share/workstation-os-image/dms-settings.json" \
-        ./image/rootfs/usr/bin/workstation-apply-dms-settings --force
+    WORKSTATION_DMS_SETTINGS_OVERLAY="$PWD/system_files/usr/share/workstation-os-image/dms-settings.json" \
+        ./system_files/usr/bin/workstation-apply-dms-settings --force
 
 # Report where installed JetBrains IDEs diverge from the shared canonical.
 jetbrains-diff:

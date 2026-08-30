@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-overlay=${DMS_SETTINGS_OVERLAY:-$repo_root/image/rootfs/usr/share/workstation-os-image/dms-settings.json}
+overlay=${DMS_SETTINGS_OVERLAY:-$repo_root/system_files/usr/share/workstation-os-image/dms-settings.json}
 
 [[ -r $overlay ]] || {
     echo "DMS settings overlay is missing: $overlay" >&2
