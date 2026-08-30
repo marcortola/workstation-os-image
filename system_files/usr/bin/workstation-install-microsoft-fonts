@@ -11,6 +11,18 @@ fi
 font_root="${XDG_DATA_HOME:-$HOME/.local/share}/fonts"
 target="$font_root/Microsoft"
 marker="${XDG_STATE_HOME:-$HOME/.local/state}/workstation-os-image/fonts-installed"
+
+# The marker records the hash of THIS script, not merely that it ran once.
+# With a plain existence check every later edit here was dead code on any
+# account that had already run it -- a new font, a changed URL, a fixed
+# checksum, none of it would land, and the unit reported success by not
+# running. Same treatment as workstation-bootstrap-user.
+script_hash="$(tr -d "[:space:]" <"$0" | sha256sum | cut -d " " -f 1)"
+if [[ -f $marker && "$(cat "$marker")" == "$script_hash" ]]; then
+    echo "Microsoft fonts already current."
+    exit 0
+fi
+
 workdir="$(mktemp -d)"
 trap 'rm -rf -- "$workdir"' EXIT
 
@@ -71,4 +83,5 @@ cabextract -q --lowercase -F cambria.ttc -d "$target" \
 
 fc-cache -f "$font_root"
 install -D -m 0644 /dev/null "$marker"
+printf '%s\n' "$script_hash" > "$marker"
 echo "Workstation fonts installed in $font_root"
