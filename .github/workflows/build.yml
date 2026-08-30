@@ -47,7 +47,7 @@ jobs:
     steps:
       - name: Check out repository history
         if: github.event_name == 'push' || github.event_name == 'pull_request'
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -72,7 +72,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Repository gates
         run: |
@@ -113,10 +113,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
 
@@ -137,7 +137,7 @@ jobs:
       packages: write
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Log in to GHCR
         env:
@@ -223,8 +223,20 @@ jobs:
       - name: Push image
         if: github.event_name != 'pull_request'
         run: |
-          buildah push "$IMAGE_REF:latest" "docker://$IMAGE_REF:latest"
-          buildah push "$IMAGE_REF:$GITHUB_SHA" "docker://$IMAGE_REF:$GITHUB_SHA"
+          # :latest is deliberately NOT pushed here. policy.json on the machine
+          # requires a signature for this scope, so a failure between push and
+          # sign would leave a published :latest that uupd refuses to pull, and
+          # the machine stuck until the next green build. Sign first, then move
+          # the tag -- see the two steps below.
+          push_retry() {
+            for attempt in 1 2 3; do
+              buildah push "$1" "docker://$1" && return 0
+              echo "push of $1 failed (attempt $attempt/3); retrying" >&2
+              sleep $(( attempt * 5 ))
+            done
+            return 1
+          }
+          push_retry "$IMAGE_REF:$GITHUB_SHA"
 
       - name: Install cosign
         if: github.event_name != 'pull_request'
@@ -246,7 +258,7 @@ jobs:
           echo "$COSIGN_TOKEN" | cosign login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
 
           # Sign the digest, not the tag: a tag can move, a digest cannot.
-          digest="$(skopeo inspect --no-tags "docker://$IMAGE_REF:latest" --format '{{ .Digest }}')"
+          digest="$(skopeo inspect --no-tags "docker://$IMAGE_REF:$GITHUB_SHA" --format '{{ .Digest }}')"
           echo "signing $IMAGE_REF@$digest"
 
           # --new-bundle-format=false: bootc and rpm-ostree read the legacy
@@ -260,6 +272,19 @@ jobs:
           cosign verify --new-bundle-format=false \
             --key cosign.pub "$IMAGE_REF@$digest" >/dev/null
           echo "signature verified against cosign.pub"
+
+      - name: Publish :latest
+        if: github.event_name != 'pull_request'
+        run: |
+          # Same digest, already signed and verified above, so :latest is never
+          # published unsigned. buildah push is a no-op on the blobs here; it
+          # only moves the tag.
+          for attempt in 1 2 3; do
+            buildah push "$IMAGE_REF:latest" "docker://$IMAGE_REF:latest" && exit 0
+            echo "push of :latest failed (attempt $attempt/3); retrying" >&2
+            sleep $(( attempt * 5 ))
+          done
+          exit 1
 
       - name: Smoke test the built image
         run: |
