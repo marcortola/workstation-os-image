@@ -17,6 +17,22 @@ for group in "${groups[@]}"; do
 done
 
 (( ${#present[@]} == 0 )) && exit 0
+
+# usermod only rewrites /etc/group. It resolves a group through NSS to validate
+# the name -- so a group that lives only in /usr/lib/group makes usermod exit 0
+# having joined the user to nothing at all, silently.
+#
+# That is the normal state here: build_files/90-cleanup.sh relocates
+# build-created accounts to /usr/lib so they do not become machine-local /etc
+# merge state, and base-main ships `input` in /usr/lib/group already. So
+# materialise each group into /etc/group first, which is also where a real
+# membership has to live. bluefin does the same in bluefin-dx-groups.
+for group in "${present[@]}"; do
+    if ! grep -q "^${group}:" /etc/group; then
+        getent group "$group" >> /etc/group
+    fi
+done
+
 joined=$(IFS=,; printf '%s' "${present[*]}")
 
 getent passwd | while IFS=: read -r name _ uid _ _ home shell; do
