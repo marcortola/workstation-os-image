@@ -82,6 +82,7 @@ RUN --mount=type=bind,from=ctx,src=/,dst=/ctx \
     /ctx/build_files/30-desktop.sh && \
     /ctx/build_files/40-signing.sh && \
     /ctx/build_files/50-services.sh && \
+    /ctx/build_files/60-metadata.sh && \
     /ctx/build_files/90-cleanup.sh && \
     /ctx/build_files/99-check-build.sh
 

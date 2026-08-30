@@ -272,6 +272,12 @@ HOME="$(mktemp -d)" chezmoi apply --dry-run --no-tty \
     -S /usr/share/workstation-os-image/dotfiles >/dev/null \
     || fail "the shipped chezmoi source does not apply cleanly"
 
+# --- image identity reached os-release --------------------------------------
+grep -q "^VARIANT_ID=${IMAGE_NAME}$" /usr/lib/os-release \
+    || fail "VARIANT_ID in /usr/lib/os-release does not match image.env IMAGE_NAME"
+# ID stays fedora on purpose; the niri/grub reasoning below depends on it.
+grep -q '^ID=fedora$' /usr/lib/os-release || fail "os-release ID is no longer fedora"
+
 # --- config validators ---------------------------------------------------
 dockerd --validate --config-file=/usr/share/factory/etc/docker/daemon.json
 keyd check /usr/share/factory/etc/keyd/default.conf
@@ -279,7 +285,8 @@ keyd check /usr/share/factory/etc/keyd/default.conf
 # --- namespace -----------------------------------------------------------
 # Scoped to files this image owns. Third-party packages are not our problem:
 # DMS's own SystemLogo.qml hardcodes a Zirconium logo path, but it is guarded
-# on $LOGO from os-release, which is "fedora" here, so that branch is dead.
+# on $LOGO from os-release, which is "fedora-logo-icon" here, so that branch
+# is dead.
 #
 # Attribution prose is fine. So is the single deliberate reference to the
 # legacy per-user chezmoi dir in workstation-chezmoi-apply, which is the
