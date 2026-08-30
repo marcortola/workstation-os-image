@@ -45,7 +45,7 @@ fi
 # absolute image path named anywhere in the repo must correspond to a file the
 # image actually ships. Excluded: the dotfiles and greeter subtrees, whose
 # contents are checked by validate-manifest and check-build respectively, and
-# package-manifest.txt, which build_files/cleanup.sh generates at build time.
+# package-manifest.txt, which build_files/90-cleanup.sh generates at build time.
 while read -r image_path; do
     [[ -e "system_files$image_path" ]] || {
         echo "Dangling image path referenced but not shipped: $image_path" >&2

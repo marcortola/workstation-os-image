@@ -7,7 +7,7 @@ set -ouex pipefail
 # only suppresses a warning when the module is missing; it does not change the
 # 'optional' control. Zirconium sed'd the dashes off, so we do too for parity,
 # but unguarded -- as upstream had it -- a Fedora reformat silently turns this
-# into a no-op. check-build.sh asserts the result instead of trusting it.
+# into a no-op. 99-check-build.sh asserts the result instead of trusting it.
 #
 # /usr/lib/pam.d/ is NOT usable here: PAM searches /etc/pam.d first and the
 # greetd RPM owns /etc/pam.d/greetd, so a /usr drop-in would be inert.
@@ -21,7 +21,7 @@ sed -i -E '/pam_gnome_keyring\.so/ s/^-(auth|session)/\1/' /etc/pam.d/greetd
 ln -snf graphical.target /usr/lib/systemd/system/default.target
 
 # --- font cache ----------------------------------------------------------
-# toolchain.sh drops FiraCode Nerd Font into /usr/share/fonts, but fontconfig
+# 00-toolchain.sh drops FiraCode Nerd Font into /usr/share/fonts, but fontconfig
 # only sees a font once its cache has been rebuilt, so without this fc-list
 # finds nothing and every consumer silently falls back to a default monospace.
 fc-cache --force --really-force --system-only

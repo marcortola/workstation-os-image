@@ -262,7 +262,7 @@ manages a live machine:
 | Directory | Holds | In the image? |
 | --- | --- | --- |
 | `system_files/` | OS image payload copied into `/` (`COPY system_files/ /`): systemd units, helpers, factory defaults, the image-owned niri system config under `usr/share/workstation-os-image/niri/`, and the chezmoi seeds under `usr/share/workstation-os-image/dotfiles/`. | Yes — copied verbatim into `/` |
-| `build_files/` | Everything the build reads and nothing it ships: the build scripts (`toolchain.sh` runs first in its own stage, then `repos.sh`, `packages.sh`, `desktop.sh`, `signing.sh`, `services.sh`, `cleanup.sh`, `check-build.sh`, plus the `workstation-ocr` payload), `packages/` (one `.list` per group plus `exclude.list`), `repos/` (vendored `.repo` files, deleted again by `cleanup.sh`), `keys/` (vendored RPM signing keys), `src/` (`workstation-x11-clipsync.c`). | No — bind-mounted at `/ctx`, never `COPY`d into a layer |
+| `build_files/` | Everything the build reads and nothing it ships: the build scripts (`00-toolchain.sh` runs first in its own stage, then `10-repos.sh`, `20-packages.sh`, `30-desktop.sh`, `40-signing.sh`, `50-services.sh`, `90-cleanup.sh`, `99-check-build.sh`, plus the `workstation-ocr` payload), `packages/` (one `.list` per group plus `exclude.list`), `repos/` (vendored `.repo` files, deleted again by `90-cleanup.sh`), `keys/` (vendored RPM signing keys), `src/` (`workstation-x11-clipsync.c`). | No — bind-mounted at `/ctx`, never `COPY`d into a layer |
 | `tooling/` | Host-side management scripts grouped by concern (`audit/`, `dms/`, `dotfiles/`, `jetbrains/`, `validate/`, `worktree/`), plus `data/` (the declarative source they read: the `dotfiles.manifest` inventory, JetBrains canonical settings, the AI-CLI MCP fragment, policy deny-lists), `ai/` (the AI-CLI machinery), `lib/`, `scrub/` and `fixtures/`. | No |
 
 Root files (`Containerfile`, `justfile`, `README.md`, `AGENTS.md`) stay at the
@@ -279,7 +279,7 @@ local terminal/GUI edits ──> audit + interactive capture ──> Git branch/
 
 | Source | Owns | Update behavior |
 | --- | --- | --- |
-| COPR desktop stack | niri, DankMaterialShell, quickshell, dgop, matugen, danksearch | Floats on COPR HEAD; the NEVRA manifest baked by `cleanup.sh` is the bisection record |
+| COPR desktop stack | niri, DankMaterialShell, quickshell, dgop, matugen, danksearch | Floats on COPR HEAD; the NEVRA manifest baked by `90-cleanup.sh` is the bisection record |
 | Image-owned scaffolding | The niri system config, the niri/foot entrypoints, greetd and the greeter theme | Replaced on every image update; personal overrides live in `local.kdl` / `workstation.ini` |
 | This image | RPMs, daemons, sockets, privileged helpers and factory defaults | Replaced transactionally by bootc |
 | Chezmoi seeds | Portable Fish, Foot, herdr, Niri and application defaults | Create missing files; preserve later edits |
@@ -599,7 +599,7 @@ and bootc modules. It runs them as the uid that owns the brew prefix — 1000,
 because `brew-setup.service` chowns `/home/linuxbrew` to `1000:1000`. There is
 no `linuxbrew` user on this image; that user came from brew-proxy, which is no
 longer installed. The brew payload's own `brew-update.timer` and
-`brew-upgrade.timer` are disabled by `build_files/services.sh`: on the previous
+`brew-upgrade.timer` are disabled by `build_files/50-services.sh`: on the previous
 base they were inert because brew-proxy broke their
 `ConditionPathIsSymbolicLink`, and with brew-proxy gone they would fire every
 six and eight hours alongside uupd's brew module. `uupd` is the single updater.

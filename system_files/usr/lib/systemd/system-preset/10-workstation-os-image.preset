@@ -10,7 +10,7 @@ enable workstation-user-groups.service
 
 # uupd covers bootc, flatpak, brew and distrobox in one transaction. base-main
 # enables its own three update timers with `systemctl enable`, which writes
-# real /etc symlinks that a preset cannot undo -- build_files/services.sh
+# real /etc symlinks that a preset cannot undo -- build_files/50-services.sh
 # disables them explicitly. These lines are defence in depth.
 disable rpm-ostreed-automatic.timer
 disable flatpak-system-update.timer

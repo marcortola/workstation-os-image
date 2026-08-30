@@ -9,9 +9,9 @@ validation are updated here.
 ## Repository layout
 
 - `system_files/` — the OS image payload; copied verbatim into `/`.
-- `build_files/` — everything the build reads and nothing it ships: the build
-  scripts, plus `packages/`, `repos/`, `keys/`, `src/`. Bind-mounted at `/ctx`,
-  never reaching a layer.
+- `build_files/` — everything the build reads and nothing it ships: the numbered
+  build scripts (the prefix is execution order), plus `packages/`, `repos/`,
+  `keys/`, `src/`. Bind-mounted at `/ctx`, never reaching a layer.
 - `tooling/` — host-side management scripts, grouped by concern, plus
   `tooling/data/` (repo-owned declarative source the scripts read; never baked),
   `tooling/ai/` (the AI-CLI machinery) and `tooling/fixtures/` (test data).

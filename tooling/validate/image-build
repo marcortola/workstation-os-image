@@ -36,7 +36,7 @@ if grep -qE '^ARG BASE_TAG' Containerfile; then
 fi
 require_literal Containerfile 'FROM scratch AS ctx'
 require_literal Containerfile 'COPY system_files/ /'
-require_literal Containerfile '/ctx/build_files/check-build.sh'
+require_literal Containerfile '/ctx/build_files/99-check-build.sh'
 
 # Build inputs must be bind-mounted from the ctx stage, never COPYd into the
 # final image, or they ship inside it.
@@ -45,7 +45,7 @@ if grep -Eq '^COPY build_files/' Containerfile; then
 fi
 
 # --- layer ordering (the cache invariant) --------------------------------
-package_layer=$(line_of Containerfile '/ctx/build_files/repos.sh')
+package_layer=$(line_of Containerfile '/ctx/build_files/10-repos.sh')
 config_layer=$(line_of Containerfile 'COPY system_files/ /')
 (( package_layer < config_layer )) || \
     fail "runtime packages must be installed before copying volatile configuration"
@@ -55,7 +55,7 @@ config_layer=$(line_of Containerfile 'COPY system_files/ /')
 # proof only transfers to the machine if the image ships that tree byte for
 # byte, so nothing may patch it in place the way the old workstation-patch-zdots
 # helper (removed with the Zirconium base) did.
-if grep -n 'workstation-os-image/dotfiles' build_files/*.sh 2>/dev/null | grep -v '^build_files/check-build.sh:'; then
+if grep -n 'workstation-os-image/dotfiles' build_files/*.sh 2>/dev/null | grep -v '^build_files/99-check-build.sh:'; then
     fail "no build step may mutate the chezmoi source tree"
 fi
 
