@@ -21,7 +21,7 @@
 set -uo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-repo_root="$(cd "$script_dir/.." && pwd)"
+repo_root="$(cd "$script_dir/../.." && pwd)"
 hook_seed="$repo_root/image/rootfs/usr/share/workstation-os-image/dotfiles/dot_config/git/template/hooks/create_executable_post-checkout"
 hook_live="${XDG_CONFIG_HOME:-$HOME/.config}/git/template/hooks/post-checkout"
 projects_root="${WORKSTATION_PROJECTS_ROOT:-$HOME/projects}"

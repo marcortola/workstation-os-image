@@ -8,9 +8,9 @@ validation are updated here.
 
 ## Repository layout
 
-- `image/` — everything that defines the OS image. `rootfs/` is baked into `/`;
-  `build/` (`scripts/`, `packages/`, `repos/`, `src/`) is bind-mounted at `/ctx`
-  and never reaches a layer. Sibling directories, so which half ships is visible.
+- `image/` — everything that defines the OS image. `image/rootfs/` is baked into
+  `/`; `image/build/` (`scripts/`, `packages/`, `repos/`, `src/`) is bind-mounted
+  at `/ctx` and never reaches a layer. Siblings, so which half ships is visible.
 - `tooling/` — host-side management scripts, grouped by concern, plus
   `tooling/data/` (repo-owned declarative source the scripts read; never baked),
   `tooling/ai/` (the AI-CLI machinery) and `tooling/fixtures/` (test data).
