@@ -23,6 +23,12 @@ line_of() {
 
 # --- base ---------------------------------------------------------------
 require_literal Containerfile 'ARG BASE_IMAGE=ghcr.io/ublue-os/base-main'
+# Both ublue inputs must be digest-pinned. A floating tag is the one pin that
+# would actually hold, and leaving it floating makes no build reproducible.
+for ref in 'ARG BASE_IMAGE=' 'FROM ghcr.io/ublue-os/brew'; do
+    grep -F -- "$ref" Containerfile | grep -qE '@sha256:[0-9a-f]{64}' \
+        || fail "not digest-pinned: $ref"
+done
 # A single full reference. A split image/tag pair silently produces
 # `repo:tag:tag` as soon as anything passes a tagged --build-arg.
 if grep -qE '^ARG BASE_TAG' Containerfile; then

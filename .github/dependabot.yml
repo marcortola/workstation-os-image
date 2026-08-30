@@ -4,3 +4,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+  # Bumps the digest-pinned ublue inputs in the Containerfile. Without this the
+  # pin is just a freeze: base-main updates -- kernel, systemd, mesa, codecs --
+  # would only ever arrive by hand.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
