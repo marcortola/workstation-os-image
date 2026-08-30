@@ -29,7 +29,7 @@ gcc -O2 -Wall -Wextra \
 # man pages and stock layouts that `make install` would add are omitted.
 KEYD_VERSION="${KEYD_VERSION:?}"
 KEYD_SHA256="${KEYD_SHA256:?}"
-curl -fsSL -o /tmp/keyd.tar.gz \
+curl -fsSL --retry 3 --retry-delay 2 --retry-max-time 60 -o /tmp/keyd.tar.gz \
     "https://github.com/rvaiya/keyd/archive/refs/tags/v${KEYD_VERSION}.tar.gz"
 echo "${KEYD_SHA256}  /tmp/keyd.tar.gz" > /tmp/keyd.sha256
 sha256sum -c /tmp/keyd.sha256
@@ -49,7 +49,7 @@ install -Dm644 "/tmp/keyd-${KEYD_VERSION}/data/sysusers.d" \
 # Pinned by checksum so it adds no repo and stays reproducible.
 FIRACODE_VERSION="${FIRACODE_VERSION:?}"
 FIRACODE_SHA256="${FIRACODE_SHA256:?}"
-curl -fsSL -o /tmp/firacode.tar.xz \
+curl -fsSL --retry 3 --retry-delay 2 --retry-max-time 60 -o /tmp/firacode.tar.xz \
     "https://github.com/ryanoasis/nerd-fonts/releases/download/v${FIRACODE_VERSION}/FiraCode.tar.xz"
 echo "${FIRACODE_SHA256}  /tmp/firacode.tar.xz" > /tmp/firacode.sha256
 sha256sum -c /tmp/firacode.sha256
