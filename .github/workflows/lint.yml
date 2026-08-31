@@ -15,16 +15,31 @@ concurrency:
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Lint the Containerfile
         run: |
           docker run --rm -v "$PWD":/repo:ro -w /repo \
             ghcr.io/hadolint/hadolint:v2.14.0 \
             hadolint --config .hadolint.yaml Containerfile
+
+      - name: Validate the Renovate config
+        run: |
+          # A malformed renovate.json5 fails nothing on its own: Renovate simply
+          # stops opening PRs, which is how the base digest pin stayed frozen.
+          #
+          # Pinned deliberately. An unpinned `--package renovate` resolved to
+          # 37.440.7 here and rejected managerFilePatterns, a key current
+          # Renovate requires -- a floating validator reports failures that are
+          # its own age rather than the config's. Bump by hand when Renovate's
+          # schema changes; nothing else consumes this version.
+          npx --yes --package renovate@44.52.0 -- \
+            renovate-config-validator --strict
 
       - name: Lint GitHub Actions workflows
         run: |

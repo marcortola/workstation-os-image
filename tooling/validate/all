@@ -11,7 +11,7 @@ command -v cosign >/dev/null && tooling/validate/source-images
 tooling/validate/rpm-keys
 
 mapfile -t shell_files < <(
-    find tooling system_files/usr/bin system_files/usr/libexec -type f \
+    find tooling build_files system_files/usr/bin system_files/usr/libexec -type f \
         \( -perm /111 -o -name '*.sh' \) -print | sort
     find system_files/usr/share/workstation-os-image/dotfiles -type f \
         -name 'create_executable_*' -print | sort
