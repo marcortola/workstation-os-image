@@ -117,6 +117,17 @@ build:
 update-status:
     ./tooling/audit/updates
 
+# Remove Flatpak runtimes nothing installed still needs.
+[confirm("Remove every unused Flatpak runtime from this account?")]
+flatpak-prune:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # uupd updates Flatpaks but never prunes -- it has no such option -- so
+    # orphaned runtimes accumulate as apps change or are removed. Interactive
+    # and confirmed rather than wired into the update path: this deletes data,
+    # and a nightly job that silently removes things is the wrong default.
+    flatpak uninstall --unused
+
 # Remove local review images and untracked tool byproducts.
 clean:
     #!/usr/bin/env bash
