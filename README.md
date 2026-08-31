@@ -297,9 +297,12 @@ reuses cache entries for ordinary pushes and pull requests. The daily scheduled
 build deliberately skips cache reads so DNF metadata and packages are refreshed;
 it then replaces the remote cache. Changes that do not affect `Containerfile`,
 `system_files/` or the build workflow still run their tests but skip the image
-job. The build context is `Containerfile`, `system_files/` and `build_files/`; it
-travels in a `scratch` stage that every `RUN` bind-mounts at `/ctx`, so build
-inputs never land in a layer of the shipped image.
+job. The build context is `Containerfile`, `image.env`, `system_files/` and
+`build_files/`. Only `build_files/` travels in the `scratch` stage that every
+`RUN` bind-mounts at `/ctx`, so the scripts and their data never land in a
+layer; `system_files/` is `COPY`d straight to `/` instead, because it has a
+single source and needs no merge. Keeping it out of `ctx` also stops an overlay
+edit re-keying the package layer, which is the most expensive one.
 
 ### Image signing
 
@@ -375,6 +378,14 @@ rotating upstream becomes a failure to review rather than a silent change in
 what the build trusts. An unreachable upstream is a skip, not a failure, so an
 offline build still works.
 
+Terra signs per Fedora release, and that is the one thing the fingerprint
+check cannot catch. `build_files/repos/terra.repo` follows the release through
+its metalink, but the key does not: `build_files/keys/rpm/terra.asc` is the
+Terra 44 key, pinned by both its URL and its own uid. Moving the base to
+Fedora N means re-vendoring from `https://repos.fyralabs.com/terra<N>/key.asc`
+in the same change. Renovate bumps the base and cannot see this, so
+`99-check-build.sh` asserts the key's release equals the image's `VERSION_ID`.
+
 One gap stated plainly: negativo17's repo file comes from base-main and still
 fetches its key over the network. That file is not ours to rewrite, and the
 chain has a defined root anyway — base-main is digest-pinned and
@@ -433,9 +444,9 @@ lookup table.
 | Declarative source | `tooling/data/`, never baked | no analogue. `main`'s `packages.json` and secureblue's `recipes/` are the nearest; bazzite's `post_install_files/` is installer payload, not this |
 | Image identity | `image.env`, read by CI, the Justfile and the image | `image-template.env`; bazzite uses `image-info.json` |
 | systemd units | `workstation-<function>` under `usr/lib/systemd/` | same shape (`bazzite-`, `bluefin-dx-`) |
-| Unit drop-ins | `NN-<concern>.conf` | bazzite uses `override.conf`; ours is deliberate |
+| Unit drop-ins | `NN-<concern>.conf` under `/usr/lib` | family is 21 numbered to 6 `override.conf`, and five of those six sit in `/etc` where nothing can shadow them. `override.conf` is what `systemctl edit` writes, and same-named drop-ins replace rather than merge |
 | tmpfiles | one file per feature, `NN-workstation-<feature>.conf` | same |
-| Presets | `10-workstation-os-image.preset`, sorting before Fedora's | bazzite enables units inline instead |
+| Presets | `10-workstation-os-image.preset`, sorting before Fedora's; the single list of enablement intent, which `50-services.sh` derives its `systemctl preset` arguments from | none of the four ship preset files; bazzite has 30 inline `systemctl enable`, bluefin 13 |
 | polkit rules | `NN-workstation-<thing>.rules` under `usr/share/polkit-1/rules.d/` | same |
 | Shipped scripts | `#!/usr/bin/env bash` or `#!/bin/sh` | bazzite mixes five forms |
 | Build scripts | `#!/usr/bin/bash` (bash is at a known path inside the image) | same |
@@ -454,6 +465,14 @@ asserts the finished image.
 - **`/var` content needs a tmpfiles entry**, or it is applied at first
   provisioning and frozen after. `bootc container lint --fatal-warnings`
   catches the omission at build time.
+- **The base's top-level compat symlinks are dangling.** `/opt -> var/opt`
+  with no `/var/opt`, and the same for `/home`, `/root` and `/media`. Anything
+  copied into one of those paths replaces the symlink with a real directory,
+  and `bootc container lint --fatal-warnings` passes on the result. `rsync -K`
+  is no help either -- `--keep-dirlinks` needs an existing directory to keep --
+  which is why this is asserted in `99-check-build.sh` rather than prevented by
+  the overlay mechanism. Image-owned `/opt` payload goes to `/usr/lib/opt` plus
+  a tmpfiles link.
 - **User units need `ConditionUser=!@system`.** Every user manager reaches
   `default.target`, including the one started for greetd's `greeter`, whose home
   is read-only.

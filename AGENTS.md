@@ -81,8 +81,12 @@ Where a new file goes, so it lands beside the ones already there:
   scripts are `NN-name.sh` where the prefix IS the execution order, and the
   gaps exist so a step can be inserted without renumbering.
 - systemd: units prefixed `workstation-`; drop-ins named `NN-<concern>.conf`,
-  never `override.conf`, which a future RPM can silently replace; one tmpfiles
-  file per feature; presets numbered to sort before Fedora's.
+  never `override.conf`, which is the name `systemctl edit` writes and which
+  replaces rather than merges; one tmpfiles file per feature; presets numbered
+  to sort before Fedora's and treated as the single list of enablement intent --
+  `50-services.sh` derives its `systemctl preset` arguments from them and writes
+  only the disables by hand, because a preset cannot undo an enablement symlink
+  another layer already wrote.
 - Shipped scripts use `#!/usr/bin/env bash` or `#!/bin/sh`; `build_files/` uses
   `#!/usr/bin/bash`. Gated in `tooling/validate/sources`.
 - Identity is written once, in `image.env`. Nothing else spells out the image
@@ -96,6 +100,10 @@ prefer them over reinventing the shape:
   forever. Ship image-owned config as `/usr/share/factory` plus a tmpfiles `L+`,
   and put build-created accounts in `/usr/lib`. Content in `/var` needs a
   tmpfiles entry or it is applied at first provisioning and never again.
+- The base's top-level compat symlinks (`/opt`, `/home`, `/root`, `/media`) are
+  dangling. An overlay path under one of them replaces the symlink with a real
+  directory and `bootc container lint` still passes, so `99-check-build.sh`
+  asserts they survive. Image-owned `/opt` payload goes to `/usr/lib/opt`.
 - A user unit needs `ConditionUser=!@system`, or it also runs in the greeter's
   user manager against a read-only home. "Not ready yet" is an `ExecCondition`,
   not a non-zero `ExecStart`: the second reports a failed unit forever.

@@ -24,9 +24,14 @@
 # lines, so it maintains the brew stage below and never sees this ARG.
 ARG BASE_IMAGE=ghcr.io/ublue-os/base-main:latest@sha256:9b43dba0dea1987005cbf8cbc64727564b40ec5a162f7c51e3c6f7f36b6d3863
 
-# Build inputs travel in a scratch stage and are bind-mounted, never COPYd, so
-# they cannot end up in a layer of the shipped image. This is base-main's own
-# pattern.
+# build_files travels in a scratch stage and is bind-mounted, never COPYd, so
+# the scripts and their data cannot end up in a layer of the shipped image.
+# This is base-main's own pattern.
+#
+# system_files is deliberately NOT in here: it has a single source and needs
+# no merge, so it is COPYd straight to / below. Putting it in ctx would also
+# re-key the package layer on every overlay edit, because a bind mount from a
+# stage keys on the stage result rather than on the files actually read.
 FROM ghcr.io/ublue-os/brew:latest@sha256:bed056871da6edd8c6ee455a274283ae83bf269461dcad758a7729aaad018401 AS brew
 
 FROM scratch AS ctx
