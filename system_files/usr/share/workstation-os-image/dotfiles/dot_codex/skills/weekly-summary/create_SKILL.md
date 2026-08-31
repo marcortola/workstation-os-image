@@ -12,7 +12,7 @@ it discovers repositories at runtime and never assumes a fixed set of clients.
 ## Scope
 
 Projects live under `$HOME/projects/`, organized as `<group>/<repo>` (for example
-`acme/acme`, `globex/globex-app-backend`), where `<group>` is a product,
+`acme/acme-web`, `globex/globex-app-backend`), where `<group>` is a product,
 client, or area. Some repositories sit directly under `$HOME/projects/`.
 
 - Default: analyze every git repository under `$HOME/projects/` that has commits in
