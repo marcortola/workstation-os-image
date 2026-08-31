@@ -172,6 +172,7 @@ jobs:
           persist-credentials: false
 
       - name: Log in to GHCR
+        id: ghcr_login
         # Not on pull_request: this job carries packages: write, and a PR never
         # pushes. The cache package pulls anonymously.
         if: github.event_name != 'pull_request'
@@ -379,5 +380,14 @@ jobs:
           echo ":latest resolves to the signed digest $SIGNED_DIGEST"
 
       - name: Log out of GHCR
-        if: always()
+        # Tear down exactly when the login ran, keyed off the login step rather
+        # than a second copy of its event predicate. `buildah logout` exits 125
+        # with "not logged into ghcr.io" when no credential is stored, so an
+        # unpaired teardown reddens a job whose real work all succeeded.
+        # Re-deriving `github.event_name != 'pull_request'` here would restate
+        # the policy in two places, and 4921e7e already demonstrated the failure
+        # mode: it guarded the login and left this step behind. outcome is
+        # 'skipped' when the login did not run and 'failure' if it did not take,
+        # so this covers both.
+        if: always() && steps.ghcr_login.outcome == 'success'
         run: buildah logout ghcr.io
