@@ -36,6 +36,11 @@ second inventory. `CLAUDE.md` imports this file for Claude Code.
 - `tooling/data/jetbrains-settings/_shared/` is the canonical "feel the same" JetBrains
   config; each `tooling/data/jetbrains-settings/<Product>/` holds only that IDE's
   product-specific remainder.
+- `tooling/data/zirconium-watermark` is the last upstream Zirconium commit
+  reviewed against this image. `just upstream-diff` reports what changed since;
+  `/port-zirconium` is the review, and `just upstream-accept` advances the
+  watermark. Advance it only in the change that did the review: a bump with
+  nothing ported claims every commit in the range was examined.
 
 ## Classify every change
 
