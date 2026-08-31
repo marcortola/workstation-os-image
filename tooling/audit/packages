@@ -15,6 +15,27 @@ status=0
 # and there is no polkit prompt to bypass; NO_BREW_PROXY was dropped with it.
 export HOMEBREW_NO_AUTO_UPDATE=1
 
+# --- the brew prefix still has the shape the image ships ---------------------
+# /home/linuxbrew lives in /var/home, so it is not part of any layer and no
+# other audit looks at it: tooling/audit/units and etc-drift assert unit state
+# and /etc, and the build gates assert the image. Anything that rewrites the
+# prefix therefore survives every upgrade unreported.
+#
+# That is not hypothetical. brew-proxy replaced bin/brew with a 721-byte
+# dispatch wrapper, and when the base swap dropped brew-proxy the wrapper stayed
+# behind -- inert, because its `[ -x /usr/bin/brew-proxy ]` guard was now false,
+# but still a regular file where the image's own homebrew.tar.zst ships a
+# symlink. ublue's brew-update.timer and brew-upgrade.timer gate on
+# ConditionPathIsSymbolicLink against this exact path, so the difference is not
+# cosmetic; it silently changes whether a unit runs.
+brew_bin="${HOMEBREW_PREFIX:-/home/linuxbrew/.linuxbrew}/bin/brew"
+if [[ ! -L $brew_bin ]]; then
+    echo "Homebrew prefix drift:" >&2
+    echo "  $brew_bin is not a symlink; the image ships it as bin/brew -> ../Homebrew/bin/brew" >&2
+    echo "  restore with: ln -sfn ../Homebrew/bin/brew $brew_bin" >&2
+    status=1
+fi
+
 brew bundle dump --file "$tmp/installed.Brewfile" --force >/dev/null
 
 for kind in formula cask flatpak; do
