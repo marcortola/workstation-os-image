@@ -42,10 +42,12 @@ entering the checkout.
    `just build` for anything touching the image. Read the resulting diff yourself
    for credentials, machine-specific paths and generated noise.
 4. **Branch, open a PR, wait for the image build, merge — then upgrade the
-   workstation.** Agent-authored work goes on an `agent/*` branch, so who wrote a
-   commit is visible before anyone opens it. Nothing is published from a pull
-   request, so no image carries the change until the merge builds on `main`. A
-   change left only on the live machine is one the next reprovision deletes.
+   workstation.** Name the branch for the change, using the same type prefix as
+   its commits (`feat/`, `fix/`, `docs/`, `chore/`); Claude Code generates its
+   own `claude/*` names and those are left alone. Nothing is published from a
+   pull request, so no image carries the change until the merge builds on
+   `main`. A change left only on the live machine is one the next reprovision
+   deletes.
 
 A prompt that covers all four:
 
