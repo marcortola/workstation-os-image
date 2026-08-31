@@ -225,7 +225,6 @@ jobs:
             --build-arg "IMAGE_DESC=$IMAGE_DESC" \
             --label "org.opencontainers.image.revision=$GITHUB_SHA" \
             --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            --tag "$IMAGE_REF:latest" \
             --tag "$IMAGE_REF:$GITHUB_SHA" \
             --tag "$IMAGE_REF:$BUILD_TAG" \
             "${cache_args[@]}" \
@@ -242,14 +241,59 @@ jobs:
           m=/usr/share/workstation-os-image/package-manifest.txt
           podman run --rm "$IMAGE_REF:$GITHUB_SHA" cat "$m" > /tmp/new.txt
 
-          if podman run --rm "$IMAGE_REF:latest" cat "$m" > /tmp/old.txt 2>/dev/null; then
-            :
-          elif skopeo inspect --no-tags "docker://$IMAGE_REF:latest" >/dev/null 2>&1 \
-               && podman pull -q "$IMAGE_REF:latest" >/dev/null 2>&1 \
-               && podman run --rm "$IMAGE_REF:latest" cat "$m" > /tmp/old.txt 2>/dev/null; then
-            :
+          # Read the PUBLISHED image by digest, never by tag.
+          #
+          # `buildah bud` also tagged the fresh build "$IMAGE_REF:latest"
+          # locally, and podman's default pull policy is `missing`, so
+          # `podman run "$IMAGE_REF:latest"` resolved to the image just built
+          # without touching the registry. /tmp/old.txt and /tmp/new.txt were
+          # therefore the same manifest and this step printed "No package
+          # changes." on every run since it was written -- the one signal that
+          # substitutes for pinning was asserting the thing it exists to
+          # disprove. The local tag is gone (nothing else consumed it; the push
+          # publishes :$GITHUB_SHA and :$BUILD_TAG, and :latest is a
+          # registry-to-registry copy of the signed digest) and the lookup is by
+          # digest, which local storage cannot shadow with different content.
+          #
+          # Three outcomes, not two: a first build legitimately has no :latest
+          # to diff against, while an unreadable :latest is a broken diff. Both
+          # used to print the same line, and continue-on-error means nothing
+          # else would notice. On a pull_request the GHCR login is deliberately
+          # skipped, so these reads are anonymous and an auth error is the
+          # realistic way it happens.
+          have_old=false
+          if old_digest="$(skopeo inspect --no-tags --format '{{ .Digest }}' \
+                "docker://$IMAGE_REF:latest" 2>/tmp/inspect.err)"; then
+            latest_exists=yes
+            if podman pull -q "$IMAGE_REF@$old_digest" >/dev/null 2>&1 \
+               && podman run --rm "$IMAGE_REF@$old_digest" cat "$m" > /tmp/old.txt 2>/dev/null; then
+              have_old=true
+            fi
           else
-            echo "No previously published manifest to compare against." >> "$GITHUB_STEP_SUMMARY"
+            latest_exists=no
+          fi
+
+          if [[ $have_old == false ]]; then
+            inspect_err="$(cat /tmp/inspect.err 2>/dev/null)"
+            if [[ $latest_exists == yes ]]; then
+              reason=":latest is $old_digest but its manifest could not be read"
+            else
+              case $inspect_err in
+                *"manifest unknown"* | *"name unknown"* | *"not found"*)
+                  reason="" ;;
+                *)
+                  reason=":latest was unreadable ($inspect_err)" ;;
+              esac
+            fi
+
+            if [[ -z $reason ]]; then
+              echo "No previously published manifest to compare against." \
+                >> "$GITHUB_STEP_SUMMARY"
+            else
+              # Loud, because a skipped diff must not read like a clean one.
+              echo "::warning::package diff skipped -- $reason"
+              echo "**Package diff skipped:** $reason" >> "$GITHUB_STEP_SUMMARY"
+            fi
             exit 0
           fi
 
@@ -390,4 +434,12 @@ jobs:
         # 'skipped' when the login did not run and 'failure' if it did not take,
         # so this covers both.
         if: always() && steps.ghcr_login.outcome == 'success'
-        run: buildah logout ghcr.io
+        run: |
+          buildah logout ghcr.io
+          # The signing step opens a SECOND store: `cosign login` writes the
+          # token into ~/.docker/config.json, which buildah logout does not
+          # touch. Ephemeral runner, so this is hygiene rather than exposure,
+          # but a step called "Log out of GHCR" should mean it. `docker logout`
+          # exits 0 when there is no entry, unlike buildah, so it needs no
+          # guard even on the runs where signing never happened.
+          docker logout ghcr.io
