@@ -320,6 +320,41 @@ jq -e '.updaterCustomCommand == "systemctl start uupd.service"' \
     /usr/share/workstation-os-image/dms-settings.json >/dev/null \
     || fail "the DMS updater command does not match the unit the polkit rule grants"
 
+# --- the base's compat symlinks survived every overlay ----------------------
+# COPY lands each top-level path literally, and several of these are symlinks
+# whose targets live outside /usr: /opt -> var/opt, /root -> var/roothome,
+# /home -> var/home, /media -> run/media. A file shipped under any of them
+# replaces the symlink with a real directory, and the content then lands in /var
+# (written once at install, never on upgrade) or on a tmpfs. bootc container
+# lint does not flag it, because the resulting path is legitimate.
+#
+# Asserted rather than prevented by construction, because no overlay mechanism
+# prevents it: rsync --keep-dirlinks, which is what bluefin, aurora and main use
+# instead of COPY, only preserves a symlink that resolves to an EXISTING
+# directory -- and /var/opt does not exist on base-main, so their form clobbers
+# it too. This also covers the two stage copies (COPY --from=brew,
+# COPY --from=toolchain), which our own overlay allowlist would not.
+for d in /opt /bin /sbin /lib /lib64 /media /root /home; do
+    test -L "$d" \
+        || fail "$d is a real directory; an overlay path under it replaced the base's compat symlink"
+done
+
+# --- the Terra key tracks the Fedora release the repo resolves to ------------
+# terra.repo follows the release: `metalink=...repo=terra$releasever`. The key
+# does not -- it is pinned to one release both in the URL
+# (repos.fyralabs.com/terra44/key.asc) and in its own uid ("Terra 44"). The base
+# is tagged :latest, so the day base-main moves to F45 the repo follows and the
+# key does not, and nothing else in the repo would notice: renovate only manages
+# the Containerfile, and the fingerprint check in tooling/validate/rpm-keys
+# compares the key against the manifest, which would still agree with itself.
+. /usr/lib/os-release
+terra_release="$(GNUPGHOME="$(mktemp -d)" gpg --show-keys --with-colons \
+    /etc/pki/rpm-gpg/terra.asc 2>/dev/null \
+    | awk -F: '/^uid:/{print $10; exit}' | grep -oE '[0-9]+' | head -1)"
+[ -n "$terra_release" ] || fail "could not read the Terra key uid"
+[ "$terra_release" = "$VERSION_ID" ] \
+    || fail "the Terra key is for Fedora $terra_release but this image is $VERSION_ID; re-vendor it from repos.fyralabs.com/terra${VERSION_ID}/key.asc and update build_files/keys/rpm-key-sources.json"
+
 # --- config validators ---------------------------------------------------
 dockerd --validate --config-file=/usr/share/factory/etc/docker/daemon.json
 keyd check /usr/share/factory/etc/keyd/default.conf

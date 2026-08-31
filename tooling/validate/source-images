@@ -21,7 +21,7 @@ command -v cosign >/dev/null || { echo "cosign is not installed" >&2; exit 2; }
 # exited 0 -- asserting success rather than coverage. Default-deny instead:
 # anything without a configured trust anchor fails the build.
 mapfile -t refs < <(
-    grep -oE '[a-z0-9.-]+\.[a-z]{2,}/[a-z0-9._/-]+:[A-Za-z0-9._-]+@sha256:[0-9a-f]{64}' Containerfile \
+    grep -oE '[a-z0-9.-]+\.[a-z]{2,}/[a-z0-9._/-]+(:[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}' Containerfile \
         | sort -u
 )
 (( ${#refs[@]} )) || { echo "no digest-pinned images found in Containerfile" >&2; exit 1; }
@@ -55,7 +55,10 @@ for ref in "${refs[@]}"; do
     #
     # skopeo rejects the combined repo:tag@digest form that cosign accepts, so
     # strip the tag for this lookup.
-    canonical="${ref%%:*}@${ref#*@}"
+    # Split on @ first: the tag is optional, so stripping at the first colon of
+    # the whole reference would eat "sha256" out of a tagless pin.
+    repo_and_tag="${ref%@*}"
+    canonical="${repo_and_tag%:*}@${ref#*@}"
     if skopeo inspect --no-tags "docker://$canonical" >/dev/null 2>&1; then
         echo "  digest still present in the registry"
     else
