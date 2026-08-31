@@ -14,6 +14,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 system_preset="$repo_root/system_files/usr/lib/systemd/system-preset/10-workstation-os-image.preset"
 user_preset="$repo_root/system_files/usr/lib/systemd/user-preset/10-workstation-os-image.preset"
 status=0
+declare -A reported=()
 
 # Same idiom as build_files/99-check-build.sh and tooling/validate/sources: a
 # loop fed by process substitution cannot fail, so a renamed preset would make
@@ -70,6 +71,7 @@ report_failed() {
         if [[ $unit == workstation-* ]] || grep -qE "^(enable|disable) ${unit//./\\.}$" \
             "$system_preset" "$user_preset" 2>/dev/null; then
             echo "  $scope $unit has failed (image-owned)" >&2
+            reported["$scope/$unit"]=1
             status=1
         else
             echo "  $scope $unit has failed (not image-owned; informational)"
@@ -79,6 +81,48 @@ report_failed() {
 
 report_failed system
 report_failed user
+
+# `systemctl --failed` only sees units whose failed state is still SET, and
+# `systemctl reset-failed` clears that while leaving the unit no closer to
+# having worked. Found here: workstation-microsoft-fonts.service reported clean
+# with Result=success, ExecMainStatus=1 and no invocation since the failure, so
+# the audit called the machine healthy on the strength of an erased flag.
+#
+# ExecMainStatus survives the reset, so read it for the units this image claims.
+image_owned_units() {
+    local scope="$1" preset="$2"
+    local -a sysctl=(systemctl)
+    [[ $scope == user ]] && sysctl=(systemctl --user)
+    {
+        "${sysctl[@]}" list-unit-files --no-legend --plain 'workstation-*' 2>/dev/null \
+            | awk '{print $1}'
+        sed -nE 's/^enable ([^ #]+).*/\1/p' "$preset"
+    } | sort -u
+}
+
+report_last_exit() {
+    local scope="$1" preset="$2" unit code exit_status
+    local -a sysctl=(systemctl)
+    [[ $scope == user ]] && sysctl=(systemctl --user)
+
+    while read -r unit; do
+        if [[ -z $unit || -n ${reported["$scope/$unit"]:-} ]]; then
+            continue
+        fi
+        code="$("${sysctl[@]}" show "$unit" -p ExecMainCode --value 2>/dev/null)"
+        exit_status="$("${sysctl[@]}" show "$unit" -p ExecMainStatus --value 2>/dev/null)"
+        # ExecMainCode 1 is CLD_EXITED. 2 and 3 are killed and dumped, which an
+        # ordinary `systemctl stop` produces and which say nothing about a run.
+        if [[ $code == 1 && -n $exit_status && $exit_status != 0 ]]; then
+            echo "  $scope $unit last exited $exit_status with no successful run since;" >&2
+            echo "    its failed state was cleared, so --failed no longer shows it" >&2
+            status=1
+        fi
+    done < <(image_owned_units "$scope" "$preset")
+}
+
+report_last_exit system "$system_preset"
+report_last_exit user "$user_preset"
 
 (( status == 0 )) && echo "  every preset line holds; no image-owned unit has failed."
 exit "$status"
