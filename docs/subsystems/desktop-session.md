@@ -80,9 +80,25 @@ user = "greeter"
 The greeter runs its own minimal niri config at `/etc/greetd/niri/config.kdl` —
 `DMS_RUN_GREETER "1"`, a black background, hot corners off — not the user's.
 Its theme comes from image-owned defaults symlinked into `/var/cache/dms-greeter`
-by `system_files/usr/lib/tmpfiles.d/99-workstation-dms-greeter.conf`, using plain
-`L` (create only if absent) rather than `L+`, because `dms greeter sync` repoints
-those links at the logged-in user's real files at runtime and must be allowed to.
+by `system_files/usr/lib/tmpfiles.d/99-workstation-dms-greeter.conf`, using `L+`
+(replace whatever is at the path) so every boot resets them. `dms greeter sync`
+repoints those links at the logged-in user's real files, and plain `L` used to
+let that stand. It must not: DMS rewrites
+`~/.config/DankMaterialShell/settings.json` atomically and the new inode lands as
+mode `0600`, at which point uid `greeter` cannot read it. `/usr/bin/dms-greeter`
+runs `set -e` and reads the cursor theme with `theme=$(jq ... 2>/dev/null)`, so
+jq exits 2, the greeter dies before starting niri, greetd hits its restart limit,
+and the machine boots to a text console — with nothing logged, because the
+greeter's stderr goes to its own VT. That is a 2026-08-29 file edit surfacing as
+a failed login on 2026-08-31. `tooling/audit/greeter` now asserts the invariant
+the links exist to hold: the login path resolves only to image-owned,
+world-readable files.
+
+Refresh the greeter's appearance by editing the three files under
+`system_files/usr/share/workstation-os-image/greeter/`. Nothing captures them —
+they are deliberately outside both the chezmoi seed tree and `just dms-capture`,
+because DMS regenerates its own copies at runtime and a captured target would be
+overwritten by the UI.
 
 `build_files/30-desktop.sh` pins `default.target` at `graphical.target`
 explicitly. It is a no-op on today's base, kept because greetd's only `[Install]`

@@ -100,7 +100,7 @@ actually enabled a unit, whether a sed matched anything.
 | Preset coverage | every `enable` line in both preset files produced a link under `/etc`, matched by link target or link name; `default.target` is `graphical.target` |
 | Unit syntax | `systemd-analyze verify` over the `workstation-*` units plus fcitx5, iio-niri, udiskie and dsearch; `systemd-tmpfiles --dry-run --create`; `systemd-sysusers --dry-run` |
 | `ConditionUser` coverage | every non-`workstation-*` unit the user preset enables has a drop-in setting `ConditionUser=!@system`, or it also runs in the greeter's user manager against a read-only home |
-| Greeter defaults | `settings.json`, `session.json` and `dms-colors.json` exist under `/usr/share/workstation-os-image/greeter/` |
+| Greeter theme links | every `/var/cache/dms-greeter` line in `99-workstation-dms-greeter.conf` is `L+`, not plain `L`, and its target exists. Derived from the tmpfiles file, so the gate and the mechanism cannot disagree; plain `L` would leave a runtime repoint in place, and a repoint at an account's own file is what once made a graphical login depend on that file's mode |
 | Homebrew | `/usr/share/homebrew.tar.zst` is non-empty and `brew-setup.service` shipped |
 | Fonts | `fc-list` resolves FiraCode Nerd Font Mono, which both `fonts.conf` and the DMS mono setting name |
 | niri spawn targets | every `spawn "..."` in the shipped includes resolves to an executable — `niri validate` never checks this, which is how `spawn "zocr"` survived a base swap |
@@ -166,16 +166,17 @@ trap 'echo "FAILED ${BASH_SOURCE[0]}:${LINENO}" >&2' ERR
 
 ## The machine audits: `tooling/audit/`
 
-`tooling/audit/workstation` is the driver. It runs six audits, keeps going after
-a failure, and aggregates their exit statuses; `dotfiles` fans out into three
-more plus a live `niri validate`.
+`tooling/audit/workstation` is the driver. It runs seven audits, keeps going
+after a failure, and aggregates their exit statuses; `dotfiles` fans out into
+three more plus a live `niri validate`.
 
 | Audit | Asserts | Absent |
 |---|---|---|
-| `workstation` | driver for the six below | nothing collects the machine-side signals |
+| `workstation` | driver for the seven below | nothing collects the machine-side signals |
 | `deployment` | the booted image origin matches `image.env`; the deployment is not `unlocked`; there are no rpm-ostree package layers, removals or replacements. Reports Secure Boot state, any staged deployment, and a booted reference that is not `ostree-image-signed:` | local package layers and an unverified booted reference accumulate invisibly, and the repository stops describing the machine |
 | `units` | every `enable`/`disable` line in both preset files against live `systemctl is-enabled`, and any failed unit that is image-owned | a local `systemctl mask` survives every upgrade with the build-time gate still green |
 | `etc-drift` | every file under `system_files/etc`, plus the `registries.d` fragment `40-signing.sh` generates, compared byte for byte against `/usr/etc` | a locally rewritten `/etc` file freezes forever and every later image version of it is ignored |
+| `greeter` | every `/var/cache/dms-greeter` link the tmpfiles file declares is a symlink to the image-owned default, and that default is world-readable through a world-traversable path — readability as uid `greeter` experiences it, checked without needing root | a link repointed at account state survives, and the first sign of it is a text console at the next boot |
 | `updates` | `uupd.timer` is enabled and active, `uupd.service`'s last `Result` is success, and no record above INFO appears in the last invocation | nothing updates the machine, or a module fails behind uupd's single generic notification title |
 | `packages` | the brew prefix still ships `bin/brew` as a symlink; installed formulae and casks against the Brewfile, formulae minus the image-provided shadows; `brew bundle check`. An undeclared Flatpak is reported as a warning, not a failure, because a workstation may keep host-only Flatpaks | undeclared tools accumulate, and a rewritten brew prefix flips `ConditionPathIsSymbolicLink` on ublue's brew timers |
 | `dotfiles` | driver: `personal-config`, a chezmoi diff of the managed niri scaffolding (critical) and of the DMS clipboard preferences (informational), `dms-settings`, the hashes of any `local.kdl`, `niri-binds`, and `niri validate` on the effective config | captured personal config silently diverges from the live machine |

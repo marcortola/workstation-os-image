@@ -334,9 +334,12 @@ Worked end to end, using the file this image actually ships:
    nothing, because `/etc/xdg` is owned by the `filesystem` package.
 4. Choose the suffix deliberately. `L+` removes and replaces whatever already
    exists at the path, so `/etc` is not where a local override of that file can
-   live. Plain `L` creates only if absent — which is what
-   `99-workstation-dms-greeter.conf` uses, because `dms greeter sync` must be
-   allowed to repoint those paths at runtime.
+   live. Plain `L` creates only if absent — which means anything that repoints
+   the path at runtime outlives every image after it. That is why
+   `99-workstation-dms-greeter.conf` uses `L+`: it had plain `L` so `dms greeter
+   sync` could repoint the greeter's theme files at the user's own, and one of
+   those files later became unreadable to the greeter and cost a graphical
+   login.
 5. If the file has a validator, run it in `99-check-build.sh` against the
    factory copy, not the `/etc` path — tmpfiles runs at boot, so the symlink
    does not exist during the build:

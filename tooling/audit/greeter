@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+# The greeter's theme links, and whether the login path still reads only
+# image-owned files.
+#
+# /var/cache/dms-greeter lives in /var, so tmpfiles is the only thing that keeps
+# it correct and nothing in the build can see what a running machine has there.
+#
+# Found this way: `dms greeter sync` had repointed
+# /var/cache/dms-greeter/settings.json at the account's own
+# ~/.config/DankMaterialShell/settings.json, which the tmpfiles file used plain
+# `L` to allow. DMS later rewrote that file atomically, the new inode landed as
+# mode 0600, and uid greeter could no longer read it. /usr/bin/dms-greeter runs
+# `set -e` and reads the cursor theme with `theme=$(jq ... 2>/dev/null)`, so jq
+# exited 2, the greeter died before starting niri, greetd hit its restart limit,
+# and the machine booted to a text console -- two days after the change, with
+# nothing logged anywhere.
+#
+# So the invariant is not "the link exists" but "the link resolves to an
+# image-owned, world-readable file". Anything else puts one account's
+# permissions on the path whose failure costs a graphical login.
+set -uo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+conf="${WORKSTATION_GREETER_TMPFILES:-$repo_root/system_files/usr/lib/tmpfiles.d/99-workstation-dms-greeter.conf}"
+# Overridable so the comparison itself is testable without the live cache.
+cache_root="${WORKSTATION_GREETER_CACHE:-/var/cache/dms-greeter}"
+image_root="${WORKSTATION_GREETER_DEFAULTS:-/usr/share/workstation-os-image/greeter}"
+status=0
+
+echo "Greeter theme links:"
+
+# A loop fed by process substitution passes when its input is missing.
+if [[ ! -f $conf ]]; then
+    echo "  gate input is missing: $conf" >&2
+    exit 2
+fi
+if [[ ! -d $cache_root ]]; then
+    echo "  unavailable: $cache_root does not exist on this host"
+    exit 0
+fi
+if [[ ! -r $cache_root || ! -x $cache_root ]]; then
+    echo "  cannot read $cache_root; run as a member of the greeter group" >&2
+    exit 2
+fi
+
+# Readability as the greeter would experience it, without needing to be root:
+# the file world-readable, and every directory above it world-traversable.
+# Every image default sits under /usr, so this is the whole question there.
+why_unreadable() {
+    local path=$1 mode dir
+    mode=$(stat -Lc '%a' "$path" 2>/dev/null) || { echo "cannot stat it"; return 1; }
+    (( 8#$mode & 0004 )) || { echo "mode $mode is not world-readable"; return 1; }
+    dir=$(dirname "$path")
+    while :; do
+        mode=$(stat -Lc '%a' "$dir" 2>/dev/null) || { echo "cannot stat $dir"; return 1; }
+        (( 8#$mode & 0001 )) || { echo "$dir mode $mode is not world-traversable"; return 1; }
+        [[ $dir == / ]] && break
+        dir=$(dirname "$dir")
+    done
+    return 0
+}
+
+declared=0
+while read -r ltype lpath _ _ _ _ ltarget; do
+    case "$lpath" in "$cache_root"/*) ;; *) continue ;; esac
+    declared=$(( declared + 1 ))
+
+    # L+ replaces whatever is at the path on every boot; plain L only creates it
+    # when absent, so a runtime repoint outlives every image after it.
+    if [[ $ltype != "L+" ]]; then
+        echo "  $lpath is declared '$ltype' in the tmpfiles file; only L+ resets a runtime repoint" >&2
+        status=1
+    fi
+
+    if [[ ! -L $lpath ]]; then
+        if [[ -e $lpath ]]; then
+            echo "  $lpath is not a symlink; the image default is being ignored" >&2
+        else
+            echo "  $lpath is missing; the greeter has no theme file" >&2
+        fi
+        status=1
+        continue
+    fi
+
+    live_target=$(readlink "$lpath")
+    if [[ $live_target != "$ltarget" ]]; then
+        echo "  $lpath -> $live_target" >&2
+        echo "    the image declares $ltarget" >&2
+        status=1
+    fi
+
+    case "$live_target" in
+        "$image_root"/*) ;;
+        *)
+            echo "    which is outside the image: a login now depends on state the image does not own" >&2
+            status=1
+            continue
+            ;;
+    esac
+
+    if ! reason=$(why_unreadable "$live_target"); then
+        echo "  $lpath resolves to $live_target, which the greeter cannot read: $reason" >&2
+        status=1
+    fi
+done < <(grep -E '^L' "$conf")
+
+if (( declared == 0 )); then
+    echo "  no $cache_root links are declared in $conf" >&2
+    exit 2
+fi
+
+(( status == 0 )) && \
+    echo "  all $declared links resolve to image-owned files the greeter can read."
+exit "$status"

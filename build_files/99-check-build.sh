@@ -175,10 +175,24 @@ systemd-analyze verify \
 systemd-tmpfiles --dry-run --create >/dev/null
 systemd-sysusers --dry-run >/dev/null
 
-# --- greeter symlink targets exist ---------------------------------------
-for f in settings.json session.json dms-colors.json; do
-    test -f "/usr/share/workstation-os-image/greeter/$f" || fail "greeter default $f missing"
-done
+# --- greeter theme links are image-owned and replaceable ------------------
+# Derived from the tmpfiles file rather than a second hardcoded list, so the two
+# cannot disagree. The type matters as much as the target: plain L creates only
+# if absent, which leaves whatever `dms greeter sync` last pointed at in place --
+# and that was a user-owned file DMS later rewrote as 0600, which killed the
+# greeter under `set -e` with no log at all.
+greeter_tmpfiles=/usr/lib/tmpfiles.d/99-workstation-dms-greeter.conf
+require_file "$greeter_tmpfiles"
+greeter_links=0
+while read -r ltype lpath _ _ _ _ ltarget; do
+    case "$lpath" in /var/cache/dms-greeter/*) ;; *) continue ;; esac
+    greeter_links=$(( greeter_links + 1 ))
+    [[ $ltype == "L+" ]] \
+        || fail "greeter link $lpath is '$ltype', not L+; a runtime repoint would outlive the image"
+    test -f "$ltarget" || fail "greeter link $lpath points at a missing $ltarget"
+done < <(grep -E '^L' "$greeter_tmpfiles")
+(( greeter_links == 4 )) \
+    || fail "expected 4 greeter theme links in $greeter_tmpfiles, matched $greeter_links"
 
 # --- Homebrew ------------------------------------------------------------
 test -s /usr/share/homebrew.tar.zst || fail "homebrew payload missing"

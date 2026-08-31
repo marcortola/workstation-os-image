@@ -12,6 +12,10 @@ printf '\n'
 printf '\n'
 "$repo_root/tooling/audit/etc-drift" || status=$?
 printf '\n'
+# Also machine-state: the greeter's links live in /var, which no build gate can
+# reach, and a repoint there is only discovered at the next boot.
+"$repo_root/tooling/audit/greeter" || status=$?
+printf '\n'
 "$repo_root/tooling/audit/updates" || status=$?
 printf '\n'
 "$repo_root/tooling/audit/packages" || status=$?

@@ -100,7 +100,7 @@ stops there rather than restating that page.
 
 | Term | Definition |
 |---|---|
-| **tmpfiles `L+`** | A `systemd-tmpfiles` line that creates a symlink, replacing whatever is already at the path. Plain `L` creates only if the path is absent — the difference matters for the greeter's theme files, which `dms greeter sync` is allowed to repoint at runtime. |
+| **tmpfiles `L+`** | A `systemd-tmpfiles` line that creates a symlink, replacing whatever is already at the path. Plain `L` creates only if the path is absent, so anything that repoints the path at runtime outlives every image after it — which is why the greeter's theme files use `L+` and are reset to the image defaults on every boot. |
 | **tuned-ppd** | The provider of the `net.hadess.PowerProfiles` D-Bus name that DMS's battery widget and power-profile modal talk to. It needs `tuned` running underneath, and conflicts with `power-profiles-daemon`, the other provider. |
 | **Universal Blue** | The `ublue-os` project. Three of its artefacts reach this image: the `base-main` base, the `brew` layer that carries the Homebrew payload as a build stage, and `uupd`, which is packaged in Terra rather than shipped by a ublue image. |
 | **user manager** | The per-account `systemd --user` instance. Every login starts one — including one for greetd's `greeter` — which is why user units need `ConditionUser` and why session environment goes in `environment.d`. |
