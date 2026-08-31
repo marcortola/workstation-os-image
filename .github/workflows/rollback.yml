@@ -48,17 +48,25 @@ jobs:
         id: ghcr_login
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "$GHCR_TOKEN" | skopeo login --username "$GITHUB_ACTOR" --password-stdin ghcr.io
+        run: echo "$GHCR_TOKEN" | skopeo login --username "$GITHUB_ACTOR" --password-stdin ghcr.io
 
-          # Two logins because there are two credential stores, and the `cosign
-          # verify` below reads the one skopeo does not write. cosign uses
-          # go-containerregistry, which reads ~/.docker/config.json; skopeo
-          # writes $XDG_RUNTIME_DIR/containers/auth.json. build.yml carries the
-          # same pair for the same reason. This is latent while the package is
-          # public -- and it would surface as the signature gate failing
-          # UNAUTHORIZED at the exact moment someone is trying to roll back.
-          echo "$GHCR_TOKEN" | cosign login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Authenticate cosign
+        # A second step rather than a second line in the one above, because the
+        # teardown is keyed off `ghcr_login` and has to mean "skopeo's store was
+        # filled". Folded together, a cosign failure would mark that step failed
+        # and skip the teardown, leaving the skopeo credential it is there to
+        # clear. Separate steps let each gate track the store it names.
+        #
+        # Two logins because there are two credential stores, and the `cosign
+        # verify` below reads the one skopeo does not write: cosign uses
+        # go-containerregistry, which reads ~/.docker/config.json, while skopeo
+        # writes $XDG_RUNTIME_DIR/containers/auth.json. build.yml carries the
+        # same pair for the same reason. Latent while the package is public --
+        # it would surface as the signature gate failing UNAUTHORIZED at the
+        # exact moment someone is trying to roll back.
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GHCR_TOKEN" | cosign login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
 
       - name: Roll back
         env:
@@ -92,6 +100,8 @@ jobs:
         if: always() && steps.ghcr_login.outcome == 'success'
         run: |
           skopeo logout ghcr.io
-          # The other store the login step filled. `docker logout` exits 0 when
-          # there is no entry, unlike skopeo, so it needs no guard of its own.
+          # The store the Authenticate cosign step filled, which skopeo logout
+          # does not touch. Deliberately ungated: `docker logout` exits 0 when
+          # there is no entry, unlike skopeo, so this stays correct on the runs
+          # where cosign authentication was skipped or failed.
           docker logout ghcr.io
