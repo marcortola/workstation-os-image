@@ -87,7 +87,7 @@ fi
 
 dnf5 clean all
 rm -rf /var/cache/libdnf5 /var/lib/dnf /var/log/dnf5.log* \
-       /run/dnf /run/selinux-policy
+       /run/dnf /run/selinux-policy /run/tuned
 
 # A regular file in /var cannot be expressed as a tmpfiles entry, so bootc
 # container lint rejects it outright. ldconfig regenerates this on demand.
