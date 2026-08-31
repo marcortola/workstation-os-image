@@ -27,16 +27,14 @@ workdir="$(mktemp -d)"
 trap 'rm -rf -- "$workdir"' EXIT
 
 # Pinned upstream references so a compromised or changed HEAD/latest cannot
-# alter what this installer fetches. PowerPointViewer.exe is a frozen 2010
-# artifact whose checksum winetricks also pins.
+# alter what this installer fetches.
 nerd_fonts_version=v3.4.0
 ia_fonts_commit=f32c04c3058a75d7ce28919ce70fe8800817491b
 font_awesome_version=6.7.2
-ppviewer_sha256=249473568eba7a1e4f95498acba594e0f42e6581add4dead70c1dfb908a09423
 
 mkdir -p "$target" "$font_root/CaskaydiaMono" \
     "$font_root/iAWriterMono" "$font_root/FontAwesome" \
-    "$workdir/rpm" "$workdir/ppviewer"
+    "$workdir/rpm"
 
 # Redistributable user fonts used by terminal and desktop applications.
 curl -fL --retry 3 -o "$workdir/CascadiaMono.tar.xz" \
@@ -70,16 +68,20 @@ curl -fL --retry 3 \
     -I "$target/installed-list.txt" \
     -L "$target"
 
-# Regular Cambria is stored as a TTC collection and is skipped by the helper's
-# TTF-only filter, so extract it from Microsoft's PowerPoint Viewer package.
-curl -fL --retry 3 \
-    -o "$workdir/PowerPointViewer.exe" \
-    https://downloads.sourceforge.net/project/mscorefonts2/cabs/PowerPointViewer.exe
-sha256sum -c --quiet <<< "$ppviewer_sha256  $workdir/PowerPointViewer.exe"
-cabextract -q -d "$workdir/ppviewer" -F ppviewer.cab \
-    "$workdir/PowerPointViewer.exe"
-cabextract -q --lowercase -F cambria.ttc -d "$target" \
-    "$workdir/ppviewer/ppviewer.cab"
+# Regular Cambria is not installed here. It ships only as a TTC collection that
+# the msttcore helper's TTF-only filter skips, so this script used to fetch it
+# separately from a sha256-pinned PowerPointViewer.exe. That download broke:
+# the SourceForge mirror now serves a different artifact (27,024,112 bytes,
+# inner cambria.ttc 44b855cf...) than the pinned one (63,210,976 bytes, inner
+# cambria.ttc d675f6ef...), Microsoft's own URL is 404, and the whole run failed
+# at the checksum on every login. Bumping the pin to match the mirror would have
+# turned the check into a rubber stamp for exactly the case it exists to catch.
+#
+# google-crosextra-caladea-fonts (build_files/packages/fonts.list) covers it
+# instead: Caladea is metric-compatible with Cambria and its shipped
+# 30-0-google-crosextra-caladea-fonts.conf aliases the name, so a request for
+# Cambria resolves to Caladea. Verified that its 62- rule does NOT steal the
+# generic serif, which stays Noto Serif.
 
 fc-cache -f "$font_root"
 install -D -m 0644 /dev/null "$marker"

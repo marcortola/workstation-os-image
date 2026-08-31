@@ -210,6 +210,17 @@ if ! fc-list | grep 'FiraCode Nerd Font Mono' >/dev/null; then
     fail "FiraCode Nerd Font Mono not installed"
 fi
 
+# Cambria is deliberately not installed -- see workstation-install-microsoft-fonts.
+# Caladea stands in for it, so gate the whole substitution and not just the
+# package: the font files, the alias rule that maps the Cambria family name, and
+# the resolution that rule is there to produce.
+rpm -q google-crosextra-caladea-fonts >/dev/null \
+    || fail "Caladea is missing; Cambria has no metric-compatible substitute"
+require_file /etc/fonts/conf.d/30-0-google-crosextra-caladea-fonts.conf
+fc-list | grep 'Caladea' >/dev/null || fail "Caladea is installed but fc-list does not see it"
+fc-match Cambria | grep 'Caladea' >/dev/null \
+    || fail "Cambria does not resolve to Caladea: $(fc-match Cambria)"
+
 # --- every niri spawn target resolves ------------------------------------
 require_file /usr/share/workstation-os-image/niri/includes/binds.kdl
 # `niri validate` parses the config but never checks that a spawned binary

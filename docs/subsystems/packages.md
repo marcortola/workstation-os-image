@@ -50,7 +50,7 @@ is installed with
 |---|---|
 | `copr.list` | The DankMaterialShell stack: `dms`, `dms-cli`, `dms-greeter`, `quickshell`, `dgop`, `danksearch`, `matugen` |
 | `desktop.list` | Compositor, session and shell: niri, XWayland, greetd, foot, the keyring stack, Nautilus and gvfs, DMS's undeclared runtime dependencies, power profiles, and the CLI tools the binds and our own scripts call |
-| `dev.list` | Toolchain and CLI: `binutils` and `gcc` (Homebrew needs a linker and a compiler for source builds), `mariadb`, `postgresql`, `mkcert`, the screen-recording pair `slurp` and `wf-recorder`, and four that look like base duplicates but have named consumers here — `cabextract`, `cpio` and `unzip` for `workstation-install-microsoft-fonts`, `shadow-utils` for `workstation-configure-user-groups` |
+| `dev.list` | Toolchain and CLI: `binutils` and `gcc` (Homebrew needs a linker and a compiler for source builds), `mariadb`, `postgresql`, `mkcert`, the screen-recording pair `slurp` and `wf-recorder`, and four that look like base duplicates but have named consumers here — `cpio` and `unzip` for `workstation-install-microsoft-fonts`, `cabextract` for the `refresh-msttcore-fonts.sh` helper it runs, `shadow-utils` for `workstation-configure-user-groups` |
 | `docker.list` | Rootful Docker: `docker-ce`, `docker-ce-cli`, the buildx and compose plugins, `containerd.io` |
 | `fonts.list` | Default and emoji fonts plus `glibc-all-langpacks` |
 | `input-method.list` | The fcitx5 stack, which base-main installs only for its kinoite variant |

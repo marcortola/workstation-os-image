@@ -3,6 +3,13 @@ default-fonts-core-emoji
 google-noto-color-emoji-fonts
 google-noto-emoji-fonts
 glibc-all-langpacks
+# Metric-compatible stand-in for Cambria, which ships only as a TTC collection
+# the msttcore helper skips. workstation-install-microsoft-fonts used to fetch
+# it from a pinned PowerPointViewer.exe until the mirror started serving a
+# different artifact; this package needs no download and no pin. Its own
+# 30-0-google-crosextra-caladea-fonts.conf aliases the Cambria family name, and
+# its 62- rule does not take the generic serif away from Noto Serif.
+google-crosextra-caladea-fonts
 # GAP: FiraCode Nerd Font Mono is referenced by fontconfig/fonts.conf and by
 # dms-settings.json monoFontFamily, but is not in any image -- on this machine
 # fc-list resolves it from ~/.local/share/fonts/FiraCode, owned by no package.

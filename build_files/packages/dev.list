@@ -1,7 +1,7 @@
 # Toolchain and CLI. Homebrew needs a linker and a compiler for source builds.
 binutils
 gcc
-cabextract                  # workstation-install-microsoft-fonts
+cabextract                  # refresh-msttcore-fonts.sh, which the fonts installer runs
 cpio
 unzip
 shadow-utils                # usermod, used by workstation-configure-user-groups
