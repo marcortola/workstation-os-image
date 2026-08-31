@@ -1,0 +1,195 @@
+#!/usr/bin/env bash
+# What changed in Zirconium since we last looked, and where each change would
+# land here.
+#
+# This image stopped deriving from Zirconium on 2026-08-29. It still runs the
+# same compositor, shell, greeter and update daemon, so upstream keeps solving
+# problems we have -- but nothing arrives automatically any more, and the base
+# swap alone left nine of its decisions unported. This is the mechanical half of
+# noticing: it fetches upstream, filters to the profiles this image is
+# comparable to, and says which of our files each change maps onto. The
+# judgement half is .claude/commands/port-zirconium.md.
+#
+# Exit codes are meant to be read by a caller:
+#   0  nothing new since the watermark
+#   2  usage or environment error
+#   3  changes are waiting for review
+set -euo pipefail
+trap 'echo "FAILED ${BASH_SOURCE[0]}:${LINENO}" >&2' ERR
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+watermark="$repo_root/tooling/data/zirconium-watermark"
+cache="${XDG_CACHE_HOME:-$HOME/.cache}/workstation-os-image/zirconium"
+
+show_patch=false
+accept=""
+while (( $# )); do
+    case $1 in
+        --patch) show_patch=true ;;
+        # Bare --accept means upstream HEAD. A specific commit uses the
+        # --accept=REF form, so the parser never has to guess whether the next
+        # word is a ref or the next option.
+        --accept) accept=HEAD ;;
+        --accept=*)
+            accept=${1#--accept=}
+            [[ -n $accept ]] || { echo "--accept= needs a ref" >&2; exit 2; }
+            ;;
+        -h | --help)
+            sed -n '2,/^set -euo/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//;$d'
+            exit 0
+            ;;
+        *)
+            echo "Usage: tooling/upstream/zirconium-diff [--patch] [--accept[=REF]]" >&2
+            exit 2
+            ;;
+    esac
+    shift
+done
+
+for command in git jq; do
+    command -v "$command" >/dev/null || { echo "Missing required command: $command" >&2; exit 2; }
+done
+# A gate fed by a missing file passes silently; this one would report "no
+# upstream changes" forever if the watermark were ever renamed.
+test -f "$watermark" || { echo "watermark is missing: $watermark" >&2; exit 2; }
+
+url=$(jq -r '.repository' "$watermark")
+from=$(jq -r '.reviewed_commit' "$watermark")
+[[ $from =~ ^[0-9a-f]{40}$ ]] || { echo "watermark reviewed_commit is not a full SHA: $from" >&2; exit 2; }
+
+# Cached outside the checkout on purpose: `just audit` and gitleaks scan the
+# tree, and a second repository inside it would be scanned as if it were ours.
+if [[ -d $cache/.git ]]; then
+    git -C "$cache" remote set-url origin "$url"
+    git -C "$cache" fetch --quiet --tags origin
+else
+    mkdir -p "$(dirname "$cache")"
+    git clone --quiet "$url" "$cache"
+fi
+head_sha=$(git -C "$cache" rev-parse origin/HEAD)
+
+if [[ -n $accept ]]; then
+    accept_sha=$(git -C "$cache" rev-parse "$accept^{commit}")
+    accept_date=$(git -C "$cache" log -1 --format=%cs "$accept_sha")
+    tmp=$(mktemp)
+    jq --arg sha "$accept_sha" --arg date "$accept_date" \
+        '.reviewed_commit = $sha | .reviewed_date = $date' \
+        "$watermark" > "$tmp"
+    mv "$tmp" "$watermark"
+    echo "Watermark advanced to $(git -C "$cache" rev-parse --short "$accept_sha") ($accept_date)."
+    echo "Commit it with the review that justified it."
+    exit 0
+fi
+
+git -C "$cache" cat-file -e "$from^{commit}" 2>/dev/null \
+    || { echo "watermark commit $from is not in $url; upstream may have rewritten history" >&2; exit 2; }
+
+# Default-allow with a named exclude list, not an allowlist. An allowlist skips
+# anything upstream invents after it was written, and does so silently -- which
+# is precisely the failure this script exists to prevent. Excluded paths are
+# counted below so the omission is visible rather than assumed.
+#
+# jackrabbit (handhelds), nvidia, liveiso, sysupdate and hawaii are profiles the
+# standard bootc image does not build; .github/workflows/reusable-build-bootc
+# and build-standard-bootc are kept, because the profile list they pass to mkosi
+# is what makes the rest of this comparison valid.
+is_excluded() {
+    case $1 in
+        mkosi.profiles/jackrabbit/* | mkosi.profiles/*nvidia*/* \
+            | mkosi.profiles/liveiso-bootc-ostree/* | mkosi.profiles/sysupdate/* \
+            | assets/* | docs/* | *.md | .editorconfig | .gitignore | .gitmodules) return 0 ;;
+        .github/workflows/reusable-build-bootc.yaml | .github/workflows/build-standard-bootc.yaml) return 1 ;;
+        .github/*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# Where an upstream path lands here. The classes are what the review actually
+# turns on: a preset line is a one-line decision, an overlay file is a diff, a
+# package list needs a build, and a chroot script is a build step.
+classify() {
+    case $1 in
+        *mkosi.extra/usr/lib/systemd/system-preset/*)
+            echo "preset-system|system_files/usr/lib/systemd/system-preset/10-workstation-os-image.preset" ;;
+        *mkosi.extra/usr/lib/systemd/user-preset/*)
+            echo "preset-user|system_files/usr/lib/systemd/user-preset/10-workstation-os-image.preset" ;;
+        mkosi.sandbox/usr/share/dnf5/repos.d/* | */mkosi.sandbox/usr/share/dnf5/repos.d/*)
+            echo "repo|build_files/repos/" ;;
+        *mkosi.conf | *mkosi.conf.d/*.conf)
+            echo "packages|build_files/packages/" ;;
+        # zdots is a submodule pointer. Six niri includes were vendored from it
+        # byte-exact and binds.kdl was rewritten from it; the NOTICE records
+        # that. Upstream no longer feeds those files, so a bump here is
+        # informational -- read it for fixes, never merge it.
+        *mkosi.extra/usr/share/zirconium/zdots)
+            echo "zdots-fork|system_files/usr/share/workstation-os-image/niri/ (forked; read, do not merge)" ;;
+        *mkosi.extra/*)
+            echo "overlay|system_files${1#*mkosi.extra}" ;;
+        *mkosi.postinst* | *mkosi.prepare* | *mkosi.finalize* | *mkosi.clean | Justfile)
+            echo "build-step|build_files/" ;;
+        .github/workflows/*)
+            echo "build-inputs|the mkosi profile list this comparison assumes" ;;
+        *)
+            echo "other|(classify by hand)" ;;
+    esac
+}
+
+from_short=$(git -C "$cache" rev-parse --short "$from")
+head_short=$(git -C "$cache" rev-parse --short "$head_sha")
+from_date=$(git -C "$cache" log -1 --format=%cs "$from")
+head_date=$(git -C "$cache" log -1 --format=%cs "$head_sha")
+
+echo "Zirconium upstream review"
+echo "  reviewed  $from_short ($from_date)"
+echo "  upstream  $head_short ($head_date)"
+
+if [[ $from == "$head_sha" ]]; then
+    echo
+    echo "Up to date; nothing to review."
+    exit 0
+fi
+
+mapfile -t changed < <(git -C "$cache" diff --name-only "$from" "$head_sha")
+relevant=()
+excluded=0
+for path in "${changed[@]}"; do
+    if is_excluded "$path"; then
+        excluded=$((excluded + 1))
+    else
+        relevant+=("$path")
+    fi
+done
+
+echo "  commits   $(git -C "$cache" rev-list --count "$from..$head_sha")"
+echo "  files     ${#relevant[@]} to review, $excluded excluded as out of scope"
+echo
+echo "== Commits =="
+git -C "$cache" log --no-merges --format='  %h %cs %s' "$from..$head_sha"
+
+if (( ${#relevant[@]} == 0 )); then
+    echo
+    echo "No in-scope file changed; advance the watermark with --accept."
+    exit 3
+fi
+
+echo
+echo "== Where each change would land =="
+for path in "${relevant[@]}"; do
+    IFS='|' read -r class target <<< "$(classify "$path")"
+    status=""
+    if [[ $class == overlay ]]; then
+        if [[ -e $repo_root/$target ]]; then status=" [we ship this path]"
+        else status=" [no counterpart here]"; fi
+    fi
+    printf '  %-13s %s\n                -> %s%s\n' "$class" "$path" "$target" "$status"
+done
+
+if [[ $show_patch == true ]]; then
+    echo
+    echo "== Patch =="
+    git -C "$cache" diff "$from" "$head_sha" -- "${relevant[@]}"
+fi
+
+echo
+echo "Review each change, then run: just upstream-accept"
+exit 3
