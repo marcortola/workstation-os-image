@@ -15,6 +15,13 @@ system_preset="$repo_root/system_files/usr/lib/systemd/system-preset/10-workstat
 user_preset="$repo_root/system_files/usr/lib/systemd/user-preset/10-workstation-os-image.preset"
 status=0
 
+# Same idiom as build_files/99-check-build.sh and tooling/validate/sources: a
+# loop fed by process substitution cannot fail, so a renamed preset would make
+# this audit iterate zero times and then report that every preset line holds.
+for f in "$system_preset" "$user_preset"; do
+    test -f "$f" || { echo "audit input is missing: $f" >&2; exit 1; }
+done
+
 echo "Unit state drift:"
 
 if ! command -v systemctl >/dev/null; then

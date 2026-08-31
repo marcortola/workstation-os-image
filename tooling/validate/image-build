@@ -110,6 +110,9 @@ for r in build_files/repos/*.repo; do
         && fail "$r fetches over cleartext http"
     grep -qE '^(baseurl|metalink)=https://' "$r" \
         || fail "$r declares no https baseurl or metalink"
+    # A vendored repo without a content allowlist can substitute any package
+    # name into every transaction. Terra's sdbus-cpp did exactly that.
+    grep -q '^includepkgs=' "$r" || fail "$r has no includepkgs allowlist"
 done
 
 # --- workflow ------------------------------------------------------------

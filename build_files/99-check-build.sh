@@ -231,6 +231,15 @@ jq -e --arg scope "$signing_scope" '.transports.docker[$scope][0]
 # Dropping ublue's entry would leave the machine unable to pull its own base.
 jq -e '.transports.docker | has("ghcr.io/ublue-os")' /etc/containers/policy.json >/dev/null \
     || fail "policy.json lost the ublue-os entry"
+# Resolve the key it names rather than assuming it. A base that moved or
+# renamed this file breaks pulling any ublue image, including a rebase back to
+# the base. Deliberately not pinning its hash: we do not control that key, so a
+# legitimate rotation must not turn the build red.
+while read -r p; do
+    test -f "$p" || fail "policy.json points at a missing ublue key: $p"
+done < <(jq -r '.transports.docker["ghcr.io/ublue-os"][0].keyPaths[]?,
+                .transports.docker["ghcr.io/ublue-os"][0].keyPath? // empty' \
+    /etc/containers/policy.json)
 grep -q "^  ${signing_scope}:" /etc/containers/registries.d/workstation-signing.yaml \
     || fail "registries.d is not scoped to $signing_scope"
 grep -q 'use-sigstore-attachments: true' /etc/containers/registries.d/workstation-signing.yaml \

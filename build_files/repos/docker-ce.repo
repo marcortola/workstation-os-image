@@ -5,3 +5,8 @@ enabled=1
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/docker-ce.asc
 
+# Content allowlist. Without it this repo can substitute any package name it likes
+# into all eleven transactions in 20-packages.sh -- which is exactly how Terra's
+# sdbus-cpp replaced a library dnf5 itself links against. Every other vendored
+# repo is fenced the same way. rootless-extras is listed because docker-ce pulls it.
+includepkgs=docker-ce,docker-ce-cli,docker-ce-rootless-extras,docker-buildx-plugin,docker-compose-plugin,containerd.io

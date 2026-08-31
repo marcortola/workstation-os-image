@@ -122,4 +122,26 @@ grep -q 'templateDir' system_files/usr/share/workstation-os-image/dotfiles/dot_c
 [[ -x tooling/worktree/init ]]
 tooling/worktree/test-init
 
+# --- every tracked structured config file parses -----------------------------
+# A malformed greeter/settings.json fails at the login screen, which is the one
+# place on this machine where a bad file is genuinely expensive to discover.
+# Most of these 31 files were never parsed by anything. Deliberately not a
+# pre-commit framework: that would be a second enforcement surface, and this
+# already runs in CI.
+parse_failures=0
+while IFS= read -r f; do
+    case "$f" in
+        *.json)
+            # .json5 is excluded below: comments and trailing commas are valid
+            # there and jq rejects both.
+            jq -e . "$f" >/dev/null 2>&1 || { echo "invalid JSON: $f" >&2; parse_failures=1; } ;;
+        *.toml)
+            python3 -c 'import sys,tomllib;tomllib.load(open(sys.argv[1],"rb"))' "$f" \
+                || { echo "invalid TOML: $f" >&2; parse_failures=1; } ;;
+        *.yml | *.yaml)
+            yq -e . "$f" >/dev/null 2>&1 || { echo "invalid YAML: $f" >&2; parse_failures=1; } ;;
+    esac
+done < <(git ls-files '*.json' '*.toml' '*.yml' '*.yaml')
+(( parse_failures == 0 )) || exit 1
+
 echo "Repo-only source gates passed."
