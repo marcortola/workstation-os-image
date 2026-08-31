@@ -27,6 +27,11 @@ ghcr.io/marcortola/workstation-os-image:latest
   Flatpak override grants read-only access to the DMS colour cache so it follows
   the session palette, and a captured XDG autostart entry starts its daemon and
   tray icon at login.
+- `footclient` against a socket-activated `foot` server as the system default
+  terminal, declared once in `/etc/xdg/xdg-terminals.list` so the niri binds and
+  anything else asking for "a terminal" agree on one.
+- Power profiles via `tuned-ppd`, which provides the `net.hadess.PowerProfiles`
+  name that DMS's battery widget and power-profile modal talk to.
 - Rootful Docker with its socket enabled and local users added dynamically to
   the `docker` group, so Docker does not require `sudo` after login.
 - Fish, Foot, herdr, Starship, Neovim and Tokyo Night defaults.
@@ -489,6 +494,16 @@ asserts the finished image.
 - **Vendored repos are fenced four ways**: `gpgcheck=1`, `gpgkey=file://`, an
   `https` source and an `includepkgs` allowlist, all gated in
   `tooling/validate/image-build`.
+- **Session environment goes in `/usr/lib/environment.d`.** `/etc/profile.d`
+  reaches login shells only, and the session is `niri.service` under the systemd
+  user manager, which never sources one. The input-method and font-rendering
+  variables the previous base kept in `profile.d` therefore reached no GUI app
+  at all.
+- **A terminal entry has to declare the `X-TerminalArg*` keys** before
+  `xdg-terminal-exec` can be pointed at it. Fedora's `foot.desktop` declares
+  none, so `--app-id` and `--title` were accepted and silently discarded and
+  every bind landed as app-id `foot`. Asserting which entry resolves does not
+  catch that; `99-check-build.sh` asserts the resulting command line instead.
 - **A mechanism spanning two files gets a gate that they agree** -- the polkit
   grant and the command it authorises, the Containerfile ARGs and `image.env`,
   the two copies of the signing key.
