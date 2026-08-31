@@ -7,6 +7,11 @@ enable dsearch.service
 # in 50-services.sh sees each one.
 enable gcr-ssh-agent.service
 enable gcr-ssh-agent.socket
+# Socket-activated foot server behind footclient, which is the terminal
+# /etc/xdg/xdg-terminals.list declares. Without the socket the first footclient
+# has nothing to connect to.
+enable foot-server.service
+enable foot-server.socket
 # Creates ~/Downloads, ~/Pictures, ~/Documents and writes ~/.config/user-dirs.dirs.
 enable xdg-user-dirs.service
 enable fcitx5.service

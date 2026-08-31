@@ -20,6 +20,22 @@ sed -i -E '/pam_gnome_keyring\.so/ s/^-(auth|session)/\1/' /etc/pam.d/greetd
 # future base ships a headless default, the greeter would simply never start.
 ln -snf graphical.target /usr/lib/systemd/system/default.target
 
+# --- launcher hygiene ----------------------------------------------------
+# Three RPM-owned entries reach the DMS launcher without being applications a
+# person can usefully start: btop is a TUI with no terminal of its own,
+# foot-server is a daemon, and fcitx5 runs as a user unit. Every other fcitx5
+# entry already ships NoDisplay=true; these three do not.
+#
+# Removal rather than `desktop-file-edit --set-key=NoDisplay`: none of the three
+# carries metadata worth keeping -- btop's window belongs to whichever terminal
+# spawned it, and the other two never map a window at all. Asserting each one
+# was there first keeps a Fedora rename from turning this into silent dead code.
+for entry in btop.desktop foot-server.desktop org.fcitx.Fcitx5.desktop; do
+    test -f "/usr/share/applications/$entry" \
+        || { echo "expected desktop entry is gone: $entry" >&2; exit 1; }
+    rm -f "/usr/share/applications/$entry"
+done
+
 # --- font cache ----------------------------------------------------------
 # 00-toolchain.sh drops FiraCode Nerd Font into /usr/share/fonts, but fontconfig
 # only sees a font once its cache has been rebuilt, so without this fc-list
