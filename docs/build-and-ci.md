@@ -170,7 +170,7 @@ than becoming an unpinned input nobody notices.
 
 ---
 
-## The nine build scripts
+## The ten build scripts
 
 The `NN-` prefix *is* the execution order, and the gaps are intentional: a step
 can be inserted without renumbering the ones after it.
@@ -180,11 +180,12 @@ can be inserted without renumbering the ones after it.
 | `00-toolchain.sh` | `toolchain` | Installs gcc, make, curl, tar and the libX11/libXfixes headers, then fills `/staging`: compiles `workstation-x11-clipsync` from `build_files/src/`, builds keyd from a checksummed release tarball (daemon, unit and sysusers file only), and unpacks the checksummed FiraCode Nerd Font release under `/staging/usr/share/fonts`. |
 | `10-repos.sh` | final | Installs the vendored RPM signing keys into `/etc/pki/rpm-gpg` and `rpm --import`s them *before* dropping the vendored `.repo` files into `/etc/yum.repos.d`, then enables `fedora-multimedia`. Keys first, because every repo file references its key by `file://`. |
 | `20-packages.sh` | final | One dnf5 transaction per `packages/*.list`, so a failure names the group it came from instead of dumping one 200-package error; `exclude.list` is applied to every transaction. Also removes `ublue-os-update-services`, whose presets would otherwise re-schedule paths uupd already covers. |
+| `25-rpmdb.sh` | final | Hard links the rpm-ostree base rpmdb onto the real one, which `rpm-ostree db list`/`db diff` need to report this image rather than the base. Runs in the packages layer on purpose: `ln -f` against a lower layer makes overlayfs copy the whole 90 MB `rpmdb.sqlite` up, which is what used to put a second copy of it in the cleanup layer. |
 | `30-desktop.sh` | final | Session wiring: strips the leading `-` off the `pam_gnome_keyring` lines in `/etc/pam.d/greetd`, points `default.target` at `graphical.target`, deletes three RPM-owned desktop entries that are not startable applications (`btop`, `foot-server`, `fcitx5`), and rebuilds the font cache so the FiraCode drop is visible to fontconfig. |
 | `40-signing.sh` | final | Merges an owner-scoped `sigstoreSigned` entry into the base's `/etc/containers/policy.json` (merge, not replace — dropping ublue's entry would leave the machine unable to pull its own base) and generates `registries.d/workstation-signing.yaml`. |
 | `50-services.sh` | final | Explicitly disables `rpm-ostreed-automatic.timer`, `brew-update.timer`, `brew-upgrade.timer` and `dnf-makecache.timer`, then runs `systemctl preset` and `systemctl --global preset` on the unit names read out of the two preset files. |
-| `60-metadata.sh` | final | Rewrites `VARIANT_ID` in `/usr/lib/os-release` and nothing else — `ID=fedora` is load-bearing and `PRETTY_NAME` already carries the per-deployment version. |
-| `90-cleanup.sh` | final | Deletes every repo the build added, bakes the sorted NEVRA `package-manifest.txt`, relocates build-created accounts out of `/etc/passwd` and `/etc/group` into `/usr/lib`, relinks the rpm-ostree base rpmdb, and clears the dnf caches. |
+| `60-metadata.sh` | final | Writes `VARIANT_ID`, `NAME` and `PRETTY_NAME` into `/usr/lib/os-release` from `image.env`. `PRETTY_NAME` is rebuilt as `"$OS_NAME $VERSION"` so the brand is added without discarding the base's per-deployment version. `ID` stays `fedora` (load-bearing) and `LOGO` stays `fedora-logo-icon` (it keeps a Zirconium branch in DMS dead). |
+| `90-cleanup.sh` | final | Deletes every repo the build added, bakes the sorted NEVRA `package-manifest.txt`, relocates build-created accounts out of `/etc/passwd` and `/etc/group` into `/usr/lib`, reconciles the rpmdb journals with the base-db copy, and clears the dnf caches. |
 | `99-check-build.sh` | final | 29 gate sections that assert the build's *decisions* took effect — which repo a package came from, whether a preset actually enabled a unit, whether a `sed` matched anything. Mutates nothing. |
 
 `50-services.sh` derives its preset arguments rather than repeating them,
@@ -377,6 +378,56 @@ already shipped.
 > and nothing narrower. A `workflow_dispatch` run therefore pushes, signs and
 > **moves `:latest`** — including one dispatched from a branch. Pull requests
 > build and smoke-test but never push.
+
+Both pushes assert afterwards that the two tags resolved to the same digest.
+Only `:$GITHUB_SHA` is signed — the sign step resolves its digest and cosign
+signs that — so a divergence would leave `:$BUILD_TAG`, the rollback target,
+unsigned and unpullable under the machine's `policy.json`, and nothing would say
+so until a rollback was actually needed.
+
+### What an upgrade downloads
+
+Layers are pushed as **zstd**, not buildah's default gzip:
+
+```bash
+buildah push \
+  --compression-format zstd \
+  --compression-level 10 \
+  --force-compression=false \
+  "$1" "docker://$1"
+```
+
+The base is already rechunked into 259 layers and pinned by digest, so it is
+fetched once and never again. This image adds seven layers, of which exactly one
+— `COPY --from=brew` — is byte-stable; the other six are republished with new
+digests on every build, and the packages layer alone is 1.26 GiB of them. That
+makes the compressor the largest single lever on what every machine downloads:
+1,415,392,837 B of gzip becomes 1,084,910,658 B of zstd, **-23.4%**.
+
+Three details are load-bearing:
+
+- **`--force-compression=false`.** buildah sets force-compression to `true` on
+  its own whenever `--compression-format` is given without it, which recompresses
+  and re-uploads all 266 layers — the base's 259 included — and hands every
+  client a full 4.67 GB re-download of an image it already has.
+  `tooling/validate/image-build` pins both flags for exactly this reason.
+- **Level 10, not 19.** containers/image maps the level through
+  `zstd.EncoderLevelFromZstd`, where anything `>= 10` is `SpeedBestCompression`,
+  so 10, 15 and 19 emit identical bytes and only the higher numbers pretend
+  otherwise.
+- **Not `zstd:chunked`.** bootc fetches whole blobs and discards the chunk table,
+  so the headline feature is unreachable — and the TOC made the same layer 11%
+  *larger*.
+
+`skopeo copy` moves `:latest` registry-to-registry without touching blobs, so it
+inherits the encoding rather than re-doing it.
+
+The other half of the same problem is layer *placement*, not compression:
+`build_files/25-rpmdb.sh` and the `/staging` mtime sweep at the end of
+`build_files/00-toolchain.sh` each exist to keep a layer out of the fetch. Both
+are covered in [design-records/upgrade-download-size.md](design-records/upgrade-download-size.md),
+along with the routes that lost — rechunking, splitting the packages `RUN` by
+churn rate, and prefetching.
 
 ---
 

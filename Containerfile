@@ -66,10 +66,16 @@ LABEL org.opencontainers.image.licenses="MIT"
 
 # Repositories and packages in one cached unit -- the most expensive and most
 # stable part of the build.
+#
+# 25-rpmdb.sh belongs to this RUN and not to the cleanup chain below: it hard
+# links the rpm-ostree base rpmdb onto the real one, and `ln -f` across a layer
+# boundary makes overlayfs copy the whole 90 MB database up into whichever layer
+# runs it.
 RUN --mount=type=bind,from=ctx,src=/,dst=/ctx \
     --mount=type=cache,target=/var/cache/libdnf5,sharing=locked \
     --mount=type=tmpfs,dst=/tmp \
-    /ctx/build_files/10-repos.sh && /ctx/build_files/20-packages.sh
+    /ctx/build_files/10-repos.sh && /ctx/build_files/20-packages.sh && \
+    /ctx/build_files/25-rpmdb.sh
 
 # Homebrew payload: the tarball, brew-setup/update/upgrade units and the preset.
 # Before the system_files overlay so our own files win on any collision. brew is

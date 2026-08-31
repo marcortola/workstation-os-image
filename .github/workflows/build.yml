@@ -357,9 +357,34 @@ jobs:
           # sign would leave a published :latest that uupd refuses to pull, and
           # the machine stuck until the next green build. Sign first, then move
           # the tag -- see the two steps below.
+          #
+          # zstd, not the default gzip. Every published build replaces all six
+          # of this image's own layers, of which the packages layer alone is
+          # 1.26 GiB, so the compressor is the single biggest lever on what
+          # every machine downloads: measured through this same encoder, the six
+          # go from 1,415,392,837 B to 1,084,910,658 B, -23.4%. bootc decodes it
+          # natively (ostree-ext generic_decompress maps ImageLayerZstd), and
+          # zstd:chunked is deliberately NOT used -- bootc fetches whole blobs
+          # and discards the chunk table, and the TOC made the same layer 11%
+          # LARGER.
+          #
+          # --force-compression=false is load-bearing, not decoration. buildah
+          # flips force to TRUE whenever --compression-format is given and force
+          # is not (cmd/buildah/push.go), which would recompress and re-upload
+          # all 266 layers -- including the base's 259, which every machine
+          # already has -- and hand every client a full 4.67 GB re-download.
+          # tooling/validate/image-build pins the flag for that reason.
+          #
+          # --compression-level 10 rather than 19: containers/image maps the
+          # level through zstd.EncoderLevelFromZstd, where anything >= 10 is
+          # SpeedBestCompression, so 10, 15 and 19 emit identical bytes.
           push_retry() {
             for attempt in 1 2 3; do
-              buildah push "$1" "docker://$1" && return 0
+              buildah push \
+                --compression-format zstd \
+                --compression-level 10 \
+                --force-compression=false \
+                "$1" "docker://$1" && return 0
               echo "push of $1 failed (attempt $attempt/3); retrying" >&2
               sleep $(( attempt * 5 ))
             done
@@ -367,6 +392,20 @@ jobs:
           }
           push_retry "$IMAGE_REF:$GITHUB_SHA"
           push_retry "$IMAGE_REF:$BUILD_TAG"
+
+          # The two tags are one image, and only the first is signed: the sign
+          # step resolves the digest of :$GITHUB_SHA and cosign signs that. If a
+          # re-encode ever made the second manifest differ, :$BUILD_TAG -- the
+          # rollback target, the whole reason it exists -- would be unsigned and
+          # so unpullable under the machine's policy.json, and nothing would say
+          # so until a rollback was actually needed.
+          sha_digest="$(skopeo inspect --no-tags "docker://$IMAGE_REF:$GITHUB_SHA" --format '{{ .Digest }}')"
+          tag_digest="$(skopeo inspect --no-tags "docker://$IMAGE_REF:$BUILD_TAG" --format '{{ .Digest }}')"
+          [[ -n $sha_digest && $sha_digest == "$tag_digest" ]] || {
+            echo "the two pushed tags resolved to different digests: $sha_digest vs $tag_digest" >&2
+            exit 1
+          }
+          echo "both tags resolve to $sha_digest"
 
       - name: Install cosign
         if: github.event_name != 'pull_request'

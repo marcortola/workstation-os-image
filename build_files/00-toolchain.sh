@@ -59,3 +59,17 @@ tar -xJf /tmp/firacode.tar.xz -C /staging/usr/share/fonts/firacode-nerd-fonts \
 # The shipped mode is a decision here, not whatever the nerd-fonts release
 # happened to carry. fc-list is equally happy with an over-permissive font.
 chmod 0644 /staging/usr/share/fonts/firacode-nerd-fonts/*.ttf
+
+# --- /staging is a layer, so its timestamps are payload -------------------
+# COPY --from=toolchain lands this tree as its own layer in the final image,
+# and a layer's blob digest covers tar mtimes. 49.7 MiB of the 49.75 MiB here
+# is bit-identical build to build (the two binaries are reproducible; keyd's
+# COMMIT is passed on the make command line and neither source uses __DATE__),
+# but the nerd-fonts release carries its own mtimes and `install -d` stamps the
+# rest with the build date -- so the layer got a new digest every build and
+# every machine re-downloaded 29.9 MB of unchanged bytes.
+#
+# Zeroing them makes the layer byte-stable, and matches what the host sees
+# anyway: ostree drops mtimes at checkout, so /usr/share/fonts already reads
+# `Jan 1 1970` on a running machine.
+find /staging -exec touch -h -d @0 {} +

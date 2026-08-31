@@ -105,11 +105,13 @@ Containerfile's `ARG` defaults, so identity stays written in exactly one place:
 ## Numbering
 
 Build-script prefixes are the execution order, and the gaps between them are
-deliberate: `00-toolchain.sh`, `10-repos.sh`, `20-packages.sh`, `30-desktop.sh`,
-`40-signing.sh`, `50-services.sh`, `60-metadata.sh`, `90-cleanup.sh`,
-`99-check-build.sh`. A new step slots into a gap without renumbering the ones
-after it, which would otherwise turn a one-line addition into a diff across the
-whole directory. `99-check-build.sh` stays last because it asserts the finished
+deliberate: `00-toolchain.sh`, `10-repos.sh`, `20-packages.sh`, `25-rpmdb.sh`,
+`30-desktop.sh`, `40-signing.sh`, `50-services.sh`, `60-metadata.sh`,
+`90-cleanup.sh`, `99-check-build.sh`. A new step slots into a gap without
+renumbering the ones after it, which would otherwise turn a one-line addition
+into a diff across the whole directory. `25-rpmdb.sh` is what a gap is for: it
+had to land between packages and desktop, and it did so without touching a
+single other prefix. `99-check-build.sh` stays last because it asserts the finished
 image.
 
 Presets are numbered `10-` so they sort before Fedora's `85-display-manager.preset`
