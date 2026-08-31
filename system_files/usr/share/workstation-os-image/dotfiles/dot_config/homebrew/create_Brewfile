@@ -18,6 +18,8 @@ brew "fd"
 brew "gh"
 # Syntax-highlighting pager for git and diff output
 brew "git-delta"
+# Quickly rewrite git repository history
+brew "git-filter-repo"
 # Audit git repos for secrets
 brew "gitleaks"
 # Copy .worktreeinclude-listed gitignored files into new git worktrees
