@@ -200,6 +200,59 @@ carries a daytime push publish, and 2026-08-31 carried five.
 
 ---
 
+## What happened next (2026-08-31, same day)
+
+The body above is left as written, per the standing rule. This section records
+the outcome, which contradicted one of its four decisions within the hour.
+
+**Three of the four landed. zstd delivered nothing and was reverted.**
+
+Measured on the published `:latest` after the merge build:
+
+| layer | before | after | delta |
+|---|---|---|---|
+| packages | 1,353,786,927 | 1,157,280,879 | -196,506,048 |
+| cleanup `RUN` | 31,610,223 | 140,798 | -31,469,425 |
+| toolchain | 29,882,060 | 29,881,822 | digest changed once; stable from the next build |
+| `COPY --from=brew` | 152,132,477 | 152,132,477 | unchanged, as predicted |
+
+The six churning layers went 1,415,392,340 → 1,187,416,923 B, **-16.1%**, rising
+to **-18.2%** from the next build once the toolchain layer stops churning. The
+rpmdb move hit its prediction to within 20 kB. The `fcitx5-chinese-addons`
+removal over-delivered against the predicted 141-144 MB, part of which is
+ordinary package drift between the two builds.
+
+**Every published layer was still `application/vnd.oci.image.layer.v1.tar+gzip`.**
+The push logged no `Copying blob` line and finished in 23 seconds — it
+recompressed nothing.
+
+The reasoning above got `--force-compression=false` wrong. It does not mean
+"leave the base's blobs alone". It means *reuse any blob the destination already
+has, in whatever format it already has it*. The build step immediately before
+pushes these same layers to `$CACHE_IMAGE`, a sibling GHCR package under the
+same owner, and GHCR mounts blobs across repositories — so `TryReusingBlob`
+found all 266 already present as gzip and took them verbatim. The registry cache
+and the compression flag interact, and nothing in the investigation connected
+them.
+
+`--force-compression=true` is the only way to pin the encoding. It was not
+taken, and the reason is not the one-time cost: containers/image takes zstd
+encoder concurrency from the CPU count on some paths, so if that varies between
+runners the *base's* 259 blobs churn on every build and the nightly fetch rises
+from ~0.9 GB to ~3.2 GB — the opposite of the goal, arriving silently. Two
+consecutive builds diffing the base blob digests would settle it. Until someone
+runs that, gzip.
+
+The general lesson, which is why this section exists at all: the investigation
+verified the flag's semantics against buildah's source and against a `dir:` →
+`dir:` skopeo copy, and explicitly recorded "whether `--force-compression=false`
+preserves base-layer reuse on the containers-storage → registry path" as
+unestablished. It shipped anyway, on the grounds that the failure mode was a
+one-time re-download. The failure mode was instead a silent no-op, which is
+worse: it looks like success.
+
+---
+
 ## Where to go next
 
 [../build-and-ci.md](../build-and-ci.md) owns the current publishing shape and

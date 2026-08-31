@@ -387,40 +387,32 @@ so until a rollback was actually needed.
 
 ### What an upgrade downloads
 
-Layers are pushed as **zstd**, not buildah's default gzip:
-
-```bash
-buildah push \
-  --compression-format zstd \
-  --compression-level 10 \
-  --force-compression=false \
-  "$1" "docker://$1"
-```
-
 The base is already rechunked into 259 layers and pinned by digest, so it is
 fetched once and never again. This image adds seven layers, of which exactly one
 — `COPY --from=brew` — is byte-stable; the other six are republished with new
-digests on every build, and the packages layer alone is 1.26 GiB of them. That
-makes the compressor the largest single lever on what every machine downloads:
-1,415,392,837 B of gzip becomes 1,084,910,658 B of zstd, **-23.4%**.
+digests on every build, and the packages layer alone is ~1.10 GiB of them. Those
+six *are* the recurring download.
 
-Three details are load-bearing:
+Layers go out **gzip**, buildah's default. zstd was tried and reverted, and the
+reason is worth knowing before trying it again: `--force-compression=false` does
+not mean "leave the base's blobs alone", it means *reuse any blob the
+destination already has, in whatever format it already has it*. The build step
+pushes these same layers to `$CACHE_IMAGE`, a sibling GHCR package under the
+same owner, and GHCR mounts blobs across repositories — so `TryReusingBlob`
+found all 266 already present as gzip and took them verbatim. The push published
+zero zstd layers, logged no `Copying blob` line, and finished in 23 seconds.
 
-- **`--force-compression=false`.** buildah sets force-compression to `true` on
-  its own whenever `--compression-format` is given without it, which recompresses
-  and re-uploads all 266 layers — the base's 259 included — and hands every
-  client a full 4.67 GB re-download of an image it already has.
-  `tooling/validate/image-build` pins both flags for exactly this reason.
-- **Level 10, not 19.** containers/image maps the level through
-  `zstd.EncoderLevelFromZstd`, where anything `>= 10` is `SpeedBestCompression`,
-  so 10, 15 and 19 emit identical bytes and only the higher numbers pretend
-  otherwise.
-- **Not `zstd:chunked`.** bootc fetches whole blobs and discards the chunk table,
-  so the headline feature is unreachable — and the TOC made the same layer 11%
-  *larger*.
+`--force-compression=true` is the only way to pin the encoding, and it
+recompresses all 266 layers rather than this image's six: one full re-download
+for every machine, ~4 GB of upload per build, and an unresolved determinism
+question — containers/image takes zstd encoder concurrency from the CPU count on
+some paths, so if that varies between runners the *base's* 259 blobs churn every
+build and the nightly fetch rises from ~0.9 GB to ~3.2 GB. Two consecutive
+builds settle it; until then, gzip.
 
-`skopeo copy` moves `:latest` registry-to-registry without touching blobs, so it
-inherits the encoding rather than re-doing it.
+`zstd:chunked` is a dead end regardless: bootc fetches whole blobs and discards
+the chunk table, so the partial-fetch feature is unreachable, and the TOC
+measured 11% *larger* on the same layer.
 
 The other half of the same problem is layer *placement*, not compression:
 `build_files/25-rpmdb.sh` and the `/staging` mtime sweep at the end of

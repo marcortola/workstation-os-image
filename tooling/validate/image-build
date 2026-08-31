@@ -122,14 +122,6 @@ require_literal .github/workflows/build.yml "--cache-to \"\$CACHE_IMAGE\""
 require_literal .github/workflows/build.yml "if [[ \"\$EVENT_NAME\" != schedule ]]"
 require_literal .github/workflows/build.yml "if: needs.image-inputs.outputs.changed == 'true'"
 
-# The push compression is a two-flag mechanism and dropping the second one
-# inverts it. buildah sets force-compression to true on its own whenever
-# --compression-format is given without it, which recompresses all 266 layers
-# -- the base's 259 included -- and costs every machine a full re-download of
-# an image it already has. The pair only ever appears together.
-require_literal .github/workflows/build.yml '--compression-format zstd'
-require_literal .github/workflows/build.yml '--force-compression=false'
-
 if grep -Eq 'redhat-actions/(buildah-build|podman-login|push-to-registry)' \
     .github/workflows/build.yml; then
     fail "deprecated Node-based Red Hat image actions must not be reintroduced"
