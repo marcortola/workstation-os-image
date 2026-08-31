@@ -5,7 +5,9 @@
 activeDisplayProfile
 barConfigs
 browserUsageHistory
+builtInPluginSettings
 connectedFrameBarStyleBackups
+customThemeFile
 desktopClockDisplayPreferences
 desktopClockCustomColor
 desktopWidgetGroups
@@ -31,9 +33,3 @@ showOnLastDisplay
 systemMonitorDisplayPreferences
 systemMonitorGpuPciId
 systemMonitorCustomColor
-
-# Deliberately NOT denylisted, though they look machine-bound:
-#   builtInPluginSettings  -- two keyboard triggers; tooling/dms/validate-overlay
-#                             has a dedicated validator for its shape.
-#   customThemeFile        -- templated with ${HOME} and the theme itself ships
-#                             as a create_ seed, so it is portable by construction.
