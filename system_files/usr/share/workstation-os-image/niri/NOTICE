@@ -7,7 +7,7 @@ This directory contains work derived from Zirconium.
 
 The following files are vendored from that project. They were copied
 verbatim at the point this image stopped deriving from the Zirconium base
-image (commit db750df here), and are modified only where noted in the files
+image (commit d3e0a15 here), and are modified only where noted in the files
 themselves.
 
 Last compared against upstream zdots ba17a3aea5ab620471394779d1857788e9f3de33
