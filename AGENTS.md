@@ -72,6 +72,44 @@ second inventory. `CLAUDE.md` imports this file for Claude Code.
 - Never capture `fish_variables`, mutable DMS JSON, Neovim state/cache, or
   configuration backup files.
 
+### Conventions
+
+Where a new file goes, so it lands beside the ones already there:
+
+- `system_files/` mirrors absolute paths and is copied verbatim into `/`.
+  `build_files/` is bind-mounted at `/ctx` and never reaches a layer; its
+  scripts are `NN-name.sh` where the prefix IS the execution order, and the
+  gaps exist so a step can be inserted without renumbering.
+- systemd: units prefixed `workstation-`; drop-ins named `NN-<concern>.conf`,
+  never `override.conf`, which a future RPM can silently replace; one tmpfiles
+  file per feature; presets numbered to sort before Fedora's.
+- Shipped scripts use `#!/usr/bin/env bash` or `#!/bin/sh`; `build_files/` uses
+  `#!/usr/bin/bash`. Gated in `tooling/validate/sources`.
+- Identity is written once, in `image.env`. Nothing else spells out the image
+  name or owner; `tooling/validate/image-build` fails if the Containerfile ARG
+  defaults drift from it.
+
+Mechanisms. Each exists because its absence produced a real failure here, so
+prefer them over reinventing the shape:
+
+- `/etc` is a three-way ostree merge: whatever lands there becomes machine-local
+  forever. Ship image-owned config as `/usr/share/factory` plus a tmpfiles `L+`,
+  and put build-created accounts in `/usr/lib`. Content in `/var` needs a
+  tmpfiles entry or it is applied at first provisioning and never again.
+- A user unit needs `ConditionUser=!@system`, or it also runs in the greeter's
+  user manager against a read-only home. "Not ready yet" is an `ExecCondition`,
+  not a non-zero `ExecStart`: the second reports a failed unit forever.
+- A re-runnable seed keys on a hash of its own script, never a bare marker file.
+  A bare marker makes every later edit to that script dead code, silently. The
+  DMS settings seed is the deliberate exception; it is UI-owned after first run.
+- A loop fed by process substitution passes when its input is missing, so assert
+  the input exists. Assert coverage, not success.
+- A vendored repo needs `gpgcheck=1`, `gpgkey=file://`, an `https` source and an
+  `includepkgs` allowlist. All four are gated.
+- When one mechanism spans two files, gate that they agree.
+- An interactive recipe takes a non-interactive selector; a destructive one
+  takes `[confirm]` or defaults to a dry run.
+
 ### DMS
 
 - DMS settings are UI-owned after their one-time preference seed. Promote
