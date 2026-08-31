@@ -1,0 +1,18 @@
+# Linguist detection. Without this the repository advertises itself as XML/PHP:
+# 36 .md, 24 .xml, 17 .lua and 6 PhpStorm .php templates against 5 .yml, because
+# vendored IDE settings and the generated AI bundle outweigh the image itself.
+#
+# Marking the cause rather than forcing a language: these directories are
+# genuinely vendored or generated, which is true independent of the language bar.
+tooling/data/jetbrains-settings/** linguist-vendored
+tooling/ai/ai-cli-setup/**        linguist-generated
+system_files/usr/share/workstation-os-image/dotfiles/** linguist-vendored
+
+# Shipped scripts are shell regardless of extension; most have none.
+system_files/usr/bin/*      linguist-language=Shell
+system_files/usr/libexec/*  linguist-language=Shell
+build_files/*.sh            linguist-language=Shell
+
+# Normalise line endings so a checkout on another platform cannot introduce CRLF
+# into a file that ends up inside the image.
+* text=auto eol=lf

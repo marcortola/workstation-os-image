@@ -7,7 +7,14 @@ This directory contains work derived from Zirconium.
 
 The following files are vendored from that project. They were copied
 verbatim at the point this image stopped deriving from the Zirconium base
-image, and are modified here only where noted in the files themselves:
+image (commit db750df here), and are modified only where noted in the files
+themselves.
+
+Last compared against upstream zdots ba17a3aea5ab620471394779d1857788e9f3de33
+on 2026-08-31: six of the seven files below are byte-identical to that commit,
+and binds.kdl differs by 336 lines, which is the deliberate fork its own header
+documents. Recording the SHA means `git diff ba17a3ae..HEAD -- system/niri` in
+that repository still answers what changed upstream; prose alone does not.
 
     includes/dms-base.kdl
     includes/input.kdl

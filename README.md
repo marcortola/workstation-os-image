@@ -580,6 +580,7 @@ has to touch, and nothing else needs attention.
 | `cosign.pub` and `system_files/etc/pki/containers/workstation-signing.pub` | Your own signing keys. Generate with `COSIGN_PASSWORD="" cosign generate-key-pair`, store the private half as the `COSIGN_PRIVATE_KEY` repository secret (with `COSIGN_PASSWORD`), and never commit `cosign.key`. |
 | `system_files/usr/share/workstation-os-image/dotfiles/` | The chezmoi seed tree is one person's dotfiles. Replace wholesale. |
 | `Documentation=` URLs in `system_files/usr/lib/systemd/**` | Ten units point at this repo. Cosmetic, but wrong on a fork. |
+| `.github/workflows/build.yml` `IMAGE_REF` and `CACHE_IMAGE` | The owner comes from `github.repository_owner`, but the image NAME is spelled out. Renaming the image in `image.env` without these fails the identity gate in `repo-gates` — loudly, but only after you push. |
 
 **Delete if you do not want it**
 
@@ -645,6 +646,15 @@ skopeo inspect docker://ghcr.io/marcortola/workstation-os-image:latest
 sudo bootc upgrade
 sudo bootc status --verbose
 systemctl reboot
+```
+
+Verify a published image against the committed key before trusting it:
+
+```bash
+digest=$(skopeo inspect --no-tags \
+  docker://ghcr.io/marcortola/workstation-os-image:latest --format '{{ .Digest }}')
+cosign verify --new-bundle-format=false --key cosign.pub \
+  "ghcr.io/marcortola/workstation-os-image@$digest"
 ```
 
 `bootc rollback` reaches exactly one deployment back. Past that, run the
