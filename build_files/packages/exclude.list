@@ -5,3 +5,12 @@
 # (`rpm -q --whatrequires` is empty) and no workstation workflow plays MIDI.
 fluid-soundfont-lite-patches
 fluid-soundfont-common
+
+# fcitx5-chinese-addons was the only thing pulling qt6-qtwebengine, a full
+# Chromium (127 MiB, plus qt6-qtpdf and five more) into the packages layer for
+# an input method this workstation does not use -- ~/.config/fcitx5/profile and
+# the shipped seed both enroll keyboard-us-altgr-intl and keyboard-es only.
+# Excluding the engine rather than only dropping the addon means a future
+# package that drags it back fails the build instead of silently re-adding
+# 141 MiB to every upgrade.
+qt6-qtwebengine

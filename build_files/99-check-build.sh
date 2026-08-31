@@ -489,6 +489,22 @@ done
 dockerd --validate --config-file=/usr/share/factory/etc/docker/daemon.json
 keyd check /usr/share/factory/etc/keyd/default.conf
 
+# --- the rpmdb relink survived into the finished image ----------------------
+# 25-rpmdb.sh hard links the rpm-ostree base rpmdb onto the real one inside the
+# packages layer, which is what keeps the 90 MB database out of every later
+# layer. Nothing enforces that a step added afterwards does not write the rpmdb
+# again -- and if one does, overlayfs copies the file up, breaks the link, and
+# silently puts 30 MB back into every upgrade with no other symptom.
+#
+# Same inode is the whole assertion: a copy-up cannot preserve it.
+base_db=/usr/lib/sysimage/rpm-ostree-base-db/rpmdb.sqlite
+real_db=/usr/share/rpm/rpmdb.sqlite
+require_file "$real_db"
+if [ -e "$base_db" ]; then
+    [ "$(stat -c %i "$base_db")" = "$(stat -c %i "$real_db")" ] \
+        || fail "$base_db is no longer a hard link to $real_db; a build step after 25-rpmdb.sh wrote the rpmdb and copied it into its own layer"
+fi
+
 # --- namespace -----------------------------------------------------------
 # Scoped to files this image owns. Third-party packages are not our problem:
 # DMS's own SystemLogo.qml hardcodes a Zirconium logo path, but it is guarded

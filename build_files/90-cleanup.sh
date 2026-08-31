@@ -66,20 +66,23 @@ wheel:x:10:'
 # shadow-utils leaves these behind whenever a scriptlet adds an account.
 rm -f /etc/.pwd.lock /etc/passwd- /etc/group- /etc/shadow- /etc/gshadow-
 
-# rpm-ostree keeps a separate "base" rpmdb and it still holds the BASE image's
-# package set: 1244 entries against 1705 in the real rpmdb, with niri absent
-# entirely, so `rpm-ostree db list` and `db diff` misreport what this image
-# contains. Relink it. Must be a hard link, not a symlink.
-# See https://github.com/coreos/rpm-ostree/issues/4554
+# The rpm-ostree base-rpmdb relink itself moved to 25-rpmdb.sh, into the layer
+# dnf5 writes: `ln -f` against a lower-layer file makes overlayfs copy the whole
+# 90 MB rpmdb.sqlite up, and doing that here put a second copy of it in this
+# layer, which is why this layer used to be 31.6 MB.
+#
+# The journals stay, because they are the only rpmdb files a step after
+# 25-rpmdb.sh still creates: an `rpm -q` read opens the database and leaves
+# -shm/-wal beside it. They are kilobytes, so copying them up costs nothing,
+# and leaving base-db paired with a stale journal -- or with one the newer
+# database never wrote -- is the inconsistency the original loop existed to
+# avoid.
 base_db=/usr/lib/sysimage/rpm-ostree-base-db
 if [ -d "$base_db" ]; then
-    for f in rpmdb.sqlite rpmdb.sqlite-shm rpmdb.sqlite-wal; do
+    for f in rpmdb.sqlite-shm rpmdb.sqlite-wal; do
         if [ -f "/usr/share/rpm/$f" ]; then
             ln -f "/usr/share/rpm/$f" "$base_db/$f"
         else
-            # Stale journal files left over from the base would otherwise sit
-            # beside a newer database. aurora leaves these; removing them keeps
-            # the pair consistent.
             rm -f "$base_db/$f"
         fi
     done
