@@ -171,6 +171,9 @@ second inventory. `CLAUDE.md` imports this file for Claude Code.
 
 ## Change workflow
 
+Commits follow Conventional Commits with a scope (`fix(build):`, `feat(audit):`).
+The log is already uniform; this states it so an agent does not have to infer it.
+
 1. Inspect `git status` and preserve unrelated work.
 2. Make the live terminal or GUI change and classify its ownership.
 3. For a new personal file, add one entry to `tooling/data/dotfiles.manifest`.

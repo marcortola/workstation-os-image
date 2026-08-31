@@ -117,6 +117,20 @@ build:
 update-status:
     ./tooling/audit/updates
 
+# Remove local review images and untracked tool byproducts.
+clean:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Mirrors .gitignore and deliberately goes no further: `gitleaks dir .` does
+    # not respect .gitignore, so anything left in the checkout is inside the
+    # secret-scan surface.
+    podman image ls --format '{{{{ .Repository }}}}:{{{{ .Tag }}}}' \
+        | grep -E '^localhost/'"$IMAGE_NAME"':review-' \
+        | xargs -r podman rmi -f
+    rm -rf .playwright-cli .agents .claude/skills .codex/skills .playwright
+    rm -f nvim.log skills-lock.json
+    echo "Removed local review images and untracked tool byproducts."
+
 # Show the current repository state without changing it.
 status:
     git status --short --branch
