@@ -41,18 +41,24 @@ require_file README.md
 # new tree.
 agents_stale=0
 recipes=" $(just --summary) "
+# The prose files plus the checked-in agent commands. A slash command is prose
+# that an agent executes, so a stale recipe or path in one is worse than in
+# AGENTS.md: nothing reads it until the moment it is being relied on.
+docs=(AGENTS.md README.md)
+while IFS= read -r f; do docs+=("$f"); done < <(find .claude/commands -name '*.md' 2>/dev/null | sort)
+(( ${#docs[@]} > 2 )) || { echo "no agent commands found under .claude/commands" >&2; exit 1; }
 while read -r target; do
     [[ $recipes == *" $target "* ]] && continue
-    echo "AGENTS.md references unknown recipe: just $target" >&2
+    echo "docs reference unknown recipe: just $target" >&2
     agents_stale=1
-done < <(grep -ohE '`w?just [a-z][a-z0-9-]*' AGENTS.md README.md \
+done < <(grep -ohE '`w?just [a-z][a-z0-9-]*' "${docs[@]}" \
     | sed -E 's/`w?just //' | sort -u)
 while read -r path; do
     [[ -e $path ]] && continue
-    echo "AGENTS.md or README.md references missing path: $path" >&2
+    echo "docs reference missing path: $path" >&2
     agents_stale=1
-done < <(grep -ohE '`(system_files|build_files|tooling)/[A-Za-z0-9._/-]*' AGENTS.md README.md \
-    | tr -d '`' | sort -u)
+done < <(grep -ohE '`?(system_files|build_files|tooling)/[A-Za-z0-9._/-]*' "${docs[@]}" \
+    | tr -d '`' | sed 's/[.,]$//' | sort -u)
 (( agents_stale == 0 ))
 
 # AI CLI config seeds must be secret-free by construction: the scrub filters

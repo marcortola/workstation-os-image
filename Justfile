@@ -142,6 +142,14 @@ clean:
     rm -f nvim.log skills-lock.json
     echo "Removed local review images and untracked tool byproducts."
 
+# Review what changed in Zirconium, the base this image was forked from.
+upstream-diff *args:
+    ./tooling/upstream/zirconium-diff {{ args }}
+
+# Record that the current Zirconium HEAD has been reviewed. Commit the result.
+upstream-accept *args:
+    ./tooling/upstream/zirconium-diff --accept {{ args }}
+
 # Show the current repository state without changing it.
 status:
     git status --short --branch

@@ -412,6 +412,34 @@ lives in `system_files/usr/share/workstation-os-image/niri/NOTICE`, ships inside
 image, and `workstation.kdl` points at it. Upstream no longer feeds these
 files: they are changed and reviewed here.
 
+### Track upstream Zirconium
+
+Nothing arrives from Zirconium automatically any more, but it still runs the
+same compositor, shell, greeter and update daemon, so its changes are worth
+reading. The base swap alone left nine of its decisions unported, including
+having no SSH agent at all, so the drift is real and it accumulates quietly.
+
+`tooling/data/zirconium-watermark` records the last upstream commit that was
+reviewed here. `just upstream-diff` fetches Zirconium into a cache outside the
+checkout, lists what changed since that commit, and maps each changed path onto
+the file here it would land in — a preset line, an overlay file, a package list
+or a build step. It excludes the profiles this image does not build (jackrabbit,
+nvidia, liveiso, sysupdate) and counts what it excluded, so a skipped path is
+visible rather than assumed. It exits 0 when there is nothing new and 3 when
+there is.
+
+The review itself is `/port-zirconium`, a Claude Code command in
+`.claude/commands/`. It carries the judgement rather than the mechanics: which
+changes are already covered by `base-main`, which we hold under our own names,
+which are standing declines, and the three places upstream's own shape was
+wrong when audited. It also fixes the verification standard — check the built
+image, never the source tree, and add a gate to `99-check-build.sh` for anything
+ported.
+
+`just upstream-accept` advances the watermark. Advance it only in the same
+change as the review that justified it: a bumped watermark with nothing ported
+is a claim that every commit in the range was examined and declined.
+
 ### XWayland interop
 
 niri has no built-in XWayland; it routes X11 clients through `xwayland-satellite`,
@@ -524,6 +552,9 @@ An agent making a durable workstation change should:
 4. Run `wjust audit`, capture the intended state, and run `wjust validate`.
 5. Commit on an `agent/*` branch, open a PR, wait for the image build, and merge
    before upgrading the workstation.
+
+`/port-zirconium` reviews upstream drift from the image this one was forked
+from; see [Track upstream Zirconium](#track-upstream-zirconium).
 
 A useful prompt is:
 

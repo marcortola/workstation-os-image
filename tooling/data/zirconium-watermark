@@ -1,0 +1,14 @@
+{
+  "_comment": [
+    "The last Zirconium commit whose changes were reviewed against this image.",
+    "This repository no longer derives from Zirconium, but it was the base until",
+    "2026-08-29 and upstream still solves the same problems on the same desktop",
+    "stack, so its changes are worth reading rather than inheriting.",
+    "Advanced only by `just upstream-accept`, after a review that either ported a",
+    "change or recorded why it was declined. Never bump it to silence the diff."
+  ],
+  "repository": "https://github.com/zirconium-dev/zirconium",
+  "reviewed_commit": "c04dc6c48b98381cb522b5f366c778e27dfaedfe",
+  "reviewed_date": "2026-08-28",
+  "reviewed_by": "the base-swap audit that closed nine unported gaps"
+}
