@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Lazydocker
+Comment=Container manager
+Icon=docker
+# NoDisplay: this entry exists to give the app-id an icon and a name in the
+# overview and dock, not to be launched from a menu. The window is spawned by
+# a niri bind in
+# /usr/share/workstation-os-image/niri/includes/binds.kdl, which sets the
+# matching --app-id. No Exec is needed for that association.
+NoDisplay=true
+StartupWMClass=lazydocker
+Exec=/usr/bin/false

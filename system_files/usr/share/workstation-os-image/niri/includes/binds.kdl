@@ -173,14 +173,14 @@ binds {
     // the others, so herdr is never started from the shell rc: a second
     // terminal would be a clone of the first rather than a second context.
     Mod+Shift+T hotkey-overlay-title="Coding Session (herdr)" {
-        spawn-sh "foot --working-directory=$HOME --title=herdr --app-id=herdr /home/linuxbrew/.linuxbrew/bin/herdr";
+        spawn-sh "xdg-terminal-exec --app-id=herdr --title=herdr --dir=$HOME -- /home/linuxbrew/.linuxbrew/bin/herdr";
     }
     Mod+F hotkey-overlay-title="File Manager" { spawn "nautilus"; }
     Mod+Shift+P hotkey-overlay-title="Projects (coding session)" {
-        spawn-sh "foot --working-directory=$HOME --title=Projects --app-id=dev-terminal $HOME/.local/bin/workstation-dev --herdr";
+        spawn-sh "xdg-terminal-exec --app-id=dev-terminal --title=Projects --dir=$HOME -- $HOME/.local/bin/workstation-dev --herdr";
     }
     Mod+Shift+D hotkey-overlay-title="Monitor Docker Containers (lazydocker)" {
-        spawn-sh "foot --working-directory=$HOME --title=Lazydocker --app-id=lazydocker /home/linuxbrew/.linuxbrew/bin/lazydocker";
+        spawn-sh "xdg-terminal-exec --app-id=lazydocker --title=Lazydocker --dir=$HOME -- /home/linuxbrew/.linuxbrew/bin/lazydocker";
     }
     // Ctrl+Alt+Delete (btop) is claimed by DMS; reclaimed in local.kdl.
 

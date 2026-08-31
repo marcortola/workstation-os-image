@@ -6,16 +6,28 @@ live=${DMS_SETTINGS_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/DankMaterialShell/se
 overlay=${DMS_SETTINGS_OVERLAY:-$repo_root/system_files/usr/share/workstation-os-image/dms-settings.json}
 denylist="$repo_root/tooling/data/dms-settings-denylist"
 mode=capture
+selected=()
 
-case ${1:-} in
-    "") ;;
-    --list) mode=list ;;
-    --remove) mode=remove ;;
-    *)
-        echo "Usage: tooling/dms/capture [--list|--remove]" >&2
-        exit 2
-        ;;
-esac
+# --select takes the same key the picker shows in its first column, so anything
+# a human can choose interactively a script can choose by name. Repeatable.
+# Without it the only non-interactive path was driving fzf through
+# FZF_DEFAULT_OPTS='--filter=... --exact', which tests the filter rather than
+# this script.
+while (( $# )); do
+    case $1 in
+        --list) mode=list ;;
+        --remove) mode=remove ;;
+        --select)
+            [[ -n ${2:-} ]] || { echo "--select needs a key" >&2; exit 2; }
+            selected+=("$2"); shift ;;
+        --select=*) selected+=("${1#--select=}") ;;
+        *)
+            echo "Usage: tooling/dms/capture [--list|--remove] [--select KEY]..." >&2
+            exit 2
+            ;;
+    esac
+    shift
+done
 
 for command in jq node; do
     command -v "$command" >/dev/null || {
@@ -23,9 +35,27 @@ for command in jq node; do
         exit 2
     }
 done
-[[ $mode == list ]] || command -v fzf >/dev/null || {
-    echo "Missing required command: fzf" >&2
-    exit 2
+if [[ $mode != list && ${#selected[@]} -eq 0 ]]; then
+    command -v fzf >/dev/null || {
+        echo "Missing required command: fzf (or pass --select KEY)" >&2
+        exit 2
+    }
+fi
+
+# Pick by name when asked, otherwise ask. Fails on a key that is not on offer,
+# rather than silently selecting nothing.
+choose() {
+    local options="$1"; shift
+    if (( ${#selected[@]} )); then
+        local key
+        for key in "${selected[@]}"; do
+            grep -qP "^\\Q${key}\\E\\t" "$options" \
+                || { echo "no such key on offer: $key" >&2; return 1; }
+            grep -P "^\\Q${key}\\E\\t" "$options"
+        done
+        return 0
+    fi
+    fzf "$@" < "$options"
 }
 [[ -r $live && -r $overlay && -r $denylist ]] || {
     echo "DMS settings, overlay, or denylist is missing." >&2
@@ -60,10 +90,10 @@ if [[ $mode == remove ]]; then
         echo "No DMS settings are currently tracked."
         exit 0
     }
-    selection="$(fzf --multi --layout=reverse --height=80% --border \
+    selection="$(choose "$workdir/options" --multi --layout=reverse --height=80% --border \
         --delimiter=$'\t' --with-nth=1,2 \
         --header='Tab: mark overrides to remove · Enter: confirm · Esc: cancel' \
-        --prompt='Remove DMS defaults > ' < "$workdir/options")" || exit 0
+        --prompt='Remove DMS defaults > ')" || exit 1
     [[ -n $selection ]] || exit 0
     printf '%s\n' "$selection" | cut -f1 | \
         jq -Rsc 'split("\n") | map(select(length > 0))' > "$workdir/keys.json"
@@ -153,10 +183,10 @@ else
         echo "No portable DMS deviations are available to capture."
         exit 0
     }
-    selection="$(fzf --multi --layout=reverse --height=90% --border \
+    selection="$(choose "$workdir/options" --multi --layout=reverse --height=90% --border \
         --delimiter=$'\t' --with-nth=1,2,3,4 \
         --header='Tab: select defaults to capture/update · Enter: confirm · Esc: cancel' \
-        --prompt='Capture DMS defaults > ' < "$workdir/options")" || exit 0
+        --prompt='Capture DMS defaults > ' )" || exit 1
     [[ -n $selection ]] || exit 0
     printf '%s\n' "$selection" | cut -f1 | \
         jq -Rsc 'split("\n") | map(select(length > 0))' > "$workdir/keys.json"

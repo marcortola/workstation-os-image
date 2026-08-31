@@ -501,6 +501,7 @@ to those current defaults:
 
 ```bash
 wjust dms-capture   # Tab selects portable values to add or update
+wjust dms-capture --select acLockTimeout   # same, without a picker
 wjust dms-remove    # Tab selects tracked overrides to stop applying
 wjust dms-apply     # explicitly restore the tracked overlay (prompts)
 wjust audit
