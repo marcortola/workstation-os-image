@@ -146,11 +146,49 @@ capture_list="$(
 )"
 grep -Eq '^barConfigs\.bar123[[:space:]]' <<< "$capture_list"
 if grep -Eq '^barConfigs\.bar123\.' <<< "$capture_list" \
-    || grep -q 'builtInPluginSettings' <<< "$capture_list" \
     || grep -q 'frameScreenPreferences' <<< "$capture_list"; then
     echo "Unsafe or sparse DMS settings unexpectedly appeared in capture." >&2
     exit 1
 fi
+
+# builtInPluginSettings came off the denylist: dms_clipboard_search and
+# dms_settings_search are portable keyboard triggers, and the shipped overlay
+# has always carried them, so the list and the overlay disagreed until the
+# denylist gained an enforcer. The picker offers the key now.
+#
+# The guard moved rather than disappeared. validate-overlay owns it, and
+# tooling/dms/capture runs validate-overlay before it installs anything, so
+# opaque plugin state still cannot reach the overlay -- it is merely visible in
+# the picker on the way past. Assert the new layer rather than only the absence
+# of the old one, or dropping a denylist entry silently drops its protection.
+grep -q 'builtInPluginSettings' <<< "$capture_list"
+
+assert_overlay_rejected() {
+    local label=$1 file=$2
+    if DMS_SETTINGS_OVERLAY="$file" \
+        "$repo_root/tooling/dms/validate-overlay" >/dev/null 2>&1; then
+        echo "$label was accepted into the DMS overlay." >&2
+        exit 1
+    fi
+}
+
+jq -n '{builtInPluginSettings: {dankNotepadModule: {
+            currentFilePath: "/home/test/private-note.md",
+            sourceContent: "do not capture"}}}' \
+    > "$workdir/plugin-opaque.json"
+assert_overlay_rejected "Opaque plugin state" "$workdir/plugin-opaque.json"
+
+# customThemeFile came off the denylist for being templated. Templated is a
+# property of the current value, not of the key, so enforce it.
+jq -n '{customThemeFile: "/var/home/test/.config/DankMaterialShell/theme.json"}' \
+    > "$workdir/theme-absolute.json"
+assert_overlay_rejected "An absolute customThemeFile" "$workdir/theme-absolute.json"
+
+jq -n '{builtInPluginSettings: {dms_clipboard_search: {trigger: "cb"}},
+        customThemeFile: "${HOME}/.config/DankMaterialShell/theme.json"}' \
+    > "$workdir/portable.json"
+DMS_SETTINGS_OVERLAY="$workdir/portable.json" \
+    "$repo_root/tooling/dms/validate-overlay" >/dev/null
 
 mkdir -p "$workdir/bin"
 # This writes a literal test double whose variables expand when it runs.
