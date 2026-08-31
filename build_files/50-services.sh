@@ -20,6 +20,12 @@ systemctl disable rpm-ostreed-automatic.timer
 # so a preset line alone would not win.
 systemctl disable brew-update.timer brew-upgrade.timer
 
+# Fedora enables dnf-makecache.timer and base-main leaves it that way. Nothing
+# installs from dnf at runtime on an image-mode system, so it is pure wakeups
+# against repos we never read. Again a real /etc symlink, so the preset line
+# alone cannot undo it.
+systemctl disable dnf-makecache.timer
+
 # getty@tty1 stays enabled on purpose. greetd carries
 # Conflicts=getty@tty1.service so it is displaced at runtime, and it is the
 # only escape hatch if the greeter fails to start.

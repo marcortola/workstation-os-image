@@ -1,5 +1,14 @@
 enable dms.service
 enable dsearch.service
+# The SSH agent. gcr is installed and the units ship, but nothing enabled them,
+# so SSH_AUTH_SOCK was unset and every key use prompted. The socket carries the
+# ExecStartPost that publishes SSH_AUTH_SOCK into the user manager, and the
+# service pulls it in via Also=; both are listed so `systemctl --global preset`
+# in 50-services.sh sees each one.
+enable gcr-ssh-agent.service
+enable gcr-ssh-agent.socket
+# Creates ~/Downloads, ~/Pictures, ~/Documents and writes ~/.config/user-dirs.dirs.
+enable xdg-user-dirs.service
 enable fcitx5.service
 enable iio-niri.service
 enable udiskie.service

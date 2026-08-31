@@ -29,6 +29,7 @@ for p in \
     plasma-breeze kf6-qqc2-desktop-style kf6-kirigami kf6-kimageformats \
     qt6-qtimageformats qt6-qtmultimedia qt6-qtdeclarative \
     uupd satty iio-niri \
+    tuned tuned-ppd xdg-user-dirs \
     docker-ce containerd.io \
     pipewire wireplumber systemd firewalld accountsservice
 do
@@ -123,6 +124,9 @@ for t in brew-update.timer brew-upgrade.timer; do
     test -e "/etc/systemd/system/timers.target.wants/$t" \
         && fail "$t is still enabled; uupd is the single brew updater"
 done
+test -e /etc/systemd/system/timers.target.wants/dnf-makecache.timer \
+    && fail "dnf-makecache.timer is still enabled; nothing installs from dnf at runtime"
+
 test -L /etc/systemd/user/graphical-session.target.wants/dms.service || fail "dms.service not enabled"
 
 # --- every preset `enable` line actually took effect ------------------------
@@ -355,6 +359,51 @@ terra_release="$(GNUPGHOME="$(mktemp -d)" gpg --show-keys --with-colons \
 [ -n "$terra_release" ] || fail "could not read the Terra key uid"
 [ "$terra_release" = "$VERSION_ID" ] \
     || fail "the Terra key is for Fedora $terra_release but this image is $VERSION_ID; re-vendor it from repos.fyralabs.com/terra${VERSION_ID}/key.asc and update build_files/keys/rpm-key-sources.json"
+
+# --- every globally enabled third-party user unit skips system users ---------
+# AGENTS.md: a user unit needs ConditionUser=!@system, or it also runs in the
+# user manager pam_systemd creates for greetd's `greeter` account, whose home is
+# read-only. Our own workstation-* units carry the condition inline; the RPM-owned
+# ones we enable globally need a drop-in, and the drop-in is easy to forget
+# because nothing fails loudly when it is missing -- xdg-user-dirs.service would
+# just try to write the greeter's read-only home on every boot.
+require_file /usr/lib/systemd/user-preset/10-workstation-os-image.preset
+while read -r unit; do
+    case "$unit" in workstation-*) continue ;; esac
+    grep -rqs '^ConditionUser=!@system' "/usr/lib/systemd/user/$unit.d/" \
+        || fail "user preset enables $unit but no drop-in gives it ConditionUser=!@system"
+done < <(sed -n 's/^enable //p' \
+    /usr/lib/systemd/user-preset/10-workstation-os-image.preset)
+
+# --- reinstalling this image reproduces this machine's filesystem ------------
+# Without it `bootc install to-disk` refuses to run at all unless the operator
+# remembers --filesystem, and the obvious guess is not what this workstation runs.
+require_file /usr/lib/bootc/install/00-workstation.toml
+grep -q '^type = "btrfs"' /usr/lib/bootc/install/00-workstation.toml \
+    || fail "the bootc install default is no longer btrfs"
+
+# --- input method and font rendering reach the graphical session -------------
+# environment.d, not profile.d: the session is niri.service under the systemd
+# user manager and never sources a login shell.
+require_file /usr/lib/environment.d/50-workstation-input-method.conf
+for v in QT_IM_MODULE=fcitx XMODIFIERS=@im=fcitx SDL_IM_MODULE=fcitx GLFW_IM_MODULE=fcitx; do
+    grep -Fxq "$v" /usr/lib/environment.d/50-workstation-input-method.conf \
+        || fail "$v is missing; fcitx5 is installed and enabled but XWayland and SDL clients cannot reach it"
+done
+grep -Fxq 'GTK_IM_MODULE=' /usr/lib/environment.d/50-workstation-input-method.conf \
+    || fail "GTK_IM_MODULE must stay empty so GTK uses text-input-v3 rather than the legacy module"
+require_file /usr/lib/environment.d/60-workstation-fonts.conf
+
+# --- DMS cannot be talked into reinstalling the greeter ----------------------
+# /etc/greetd/config.toml is image-owned and was clobbered by `dms greeter
+# install` once already. dms reads this policy from /usr/share/dms first, which
+# keeps /etc free for a local override.
+require_file /usr/share/dms/cli-policy.json
+for blocked in "greeter install" "greeter enable" "setup"; do
+    jq -e --arg c "$blocked" '.blocked_commands | index($c)' \
+        /usr/share/dms/cli-policy.json >/dev/null \
+        || fail "the DMS CLI policy no longer blocks '$blocked'"
+done
 
 # --- config validators ---------------------------------------------------
 dockerd --validate --config-file=/usr/share/factory/etc/docker/daemon.json

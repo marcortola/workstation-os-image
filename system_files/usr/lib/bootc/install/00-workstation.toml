@@ -1,0 +1,6 @@
+# Default root filesystem for `bootc install to-disk`, which otherwise refuses
+# to run without an explicit --filesystem. btrfs is what this workstation
+# actually runs, so a reinstall reproduces the machine rather than a variant of
+# it. Files here are merged in alphanumeric order; 00- leaves room to override.
+[install.filesystem.root]
+type = "btrfs"

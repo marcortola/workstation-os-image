@@ -7,6 +7,10 @@ enable docker.service
 enable keyd.service
 enable workstation-brew-trust.service
 enable workstation-user-groups.service
+# net.hadess.PowerProfiles for DMS's battery widget and power-profile modal.
+# tuned-ppd is the D-Bus provider; it needs tuned itself running underneath.
+enable tuned.service
+enable tuned-ppd.service
 # Not ours, and 01-homebrew.preset still wins on ordering. Listed so the unit
 # falls under the preset-effect assertion in 99-check-build.sh: the day ublue
 # flips its verb, the build fails instead of shipping an image that never
@@ -25,5 +29,9 @@ enable brew-setup.service
 # otherwise go unnoticed.
 disable rpm-ostreed-automatic.timer
 disable bootc-fetch-apply-updates.timer
+# Pointless on an image-mode system: nothing installs from dnf at runtime, and
+# the metadata refresh is pure wakeups. base-main leaves Fedora's enablement
+# in place, so 50-services.sh disables it explicitly as well.
+disable dnf-makecache.timer
 disable brew-update.timer
 disable brew-upgrade.timer

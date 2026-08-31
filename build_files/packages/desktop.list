@@ -45,6 +45,20 @@ swaybg                      # Modules/Settings/WallpaperTab.qml
 breeze-gtk-gtk3
 breeze-gtk-gtk4
 
+# Power profiles. DMS ships Services/PowerProfileWatcher.qml and
+# Modals/PowerProfileModal.qml, which talk to net.hadess.PowerProfiles. Nothing
+# on base-main provides that name, so the widget had no backend at all.
+# tuned-ppd is the provider (power-profiles-daemon is the other, and they
+# conflict); the previous base used this same pair.
+tuned
+tuned-ppd
+
+# XDG user directories. Absent from base-main, so a fresh account got no
+# ~/Downloads, ~/Pictures or ~/Documents and `xdg-user-dir` answered $HOME for
+# every key. Ships /usr/lib/systemd/user/xdg-user-dirs.service, enabled in the
+# user preset.
+xdg-user-dirs
+
 # Session utilities referenced by the niri binds or our own scripts
 brightnessctl               # binds.kdl volume/brightness
 playerctl                   # binds.kdl media keys
