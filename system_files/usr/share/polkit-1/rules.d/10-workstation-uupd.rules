@@ -1,0 +1,32 @@
+// Let the desktop shell's update button start the updater without a password
+// prompt it cannot answer, and without granting anything else.
+//
+// The alternative it replaces was `sudo bootc upgrade` as the shell's update
+// command, which either needs passwordless sudo or fails silently from a GUI
+// with nowhere to type a password.
+//
+// Scoped three ways, all verified against systemd's own polkit call site
+// (src/core/dbus-util.c, bus_verify_manage_units_async_impl):
+//
+//   unit == uupd.service   systemd passes the unit id as a "unit" detail
+//   verb == start          it also passes the job type, so this grants start
+//                          only -- not stop, restart, reload or kill
+//   local && active wheel  a physically present admin session, not an SSH one
+//
+// The action's own default is auth_admin_keep, so everything not matched here
+// still prompts. uupd is already this image's single updater: the timer runs it
+// nightly, and it covers bootc, flatpak, brew and distrobox in one transaction,
+// which is strictly more than `bootc upgrade` did.
+//
+// Note uupd.service carries StartLimitBurst=3 / StartLimitIntervalSec=600, so a
+// fourth press inside ten minutes is refused by systemd, not by this rule.
+polkit.addRule(function (action, subject) {
+    if (action.id == "org.freedesktop.systemd1.manage-units" &&
+        action.lookup("unit") == "uupd.service" &&
+        action.lookup("verb") == "start" &&
+        subject.isInGroup("wheel") &&
+        subject.local &&
+        subject.active) {
+        return polkit.Result.YES;
+    }
+});

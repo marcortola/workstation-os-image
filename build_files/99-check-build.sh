@@ -304,6 +304,22 @@ grep -q "^VARIANT_ID=${IMAGE_NAME}$" /usr/lib/os-release \
 # ID stays fedora on purpose; the niri/grub reasoning below depends on it.
 grep -q '^ID=fedora$' /usr/lib/os-release || fail "os-release ID is no longer fedora"
 
+# --- the update button's grant matches the command it runs -------------------
+# The shell's updater command and the polkit rule that lets it run without a
+# password are two halves of one mechanism in two files. If they drift, the
+# button silently prompts for a password nobody can type into a GUI, which is
+# the failure this replaced.
+rule=/usr/share/polkit-1/rules.d/10-workstation-uupd.rules
+test -f "$rule" || fail "the uupd polkit rule did not ship"
+grep -q 'action.lookup("unit") == "uupd.service"' "$rule" \
+    || fail "$rule no longer scopes to uupd.service"
+grep -q 'action.lookup("verb") == "start"' "$rule" \
+    || fail "$rule no longer scopes to the start verb"
+# The seed is UI-owned after first boot, but what we SHIP must match the grant.
+jq -e '.updaterCustomCommand == "systemctl start uupd.service"' \
+    /usr/share/workstation-os-image/dms-settings.json >/dev/null \
+    || fail "the DMS updater command does not match the unit the polkit rule grants"
+
 # --- config validators ---------------------------------------------------
 dockerd --validate --config-file=/usr/share/factory/etc/docker/daemon.json
 keyd check /usr/share/factory/etc/keyd/default.conf

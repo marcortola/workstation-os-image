@@ -315,6 +315,12 @@ absence looks like success:
   `ghcr.io/marcortola`, merged into what base-main ships. The
   `ghcr.io/ublue-os` entry must survive that merge or the machine cannot pull
   its own base.
+- The desktop shell's update button runs `systemctl start uupd.service`, and
+  `/usr/share/polkit-1/rules.d/10-workstation-uupd.rules` grants exactly that:
+  the `start` verb on that one unit, for a local active member of `wheel`.
+  Everything else still prompts. `build_files/99-check-build.sh` fails the
+  build if the command and the grant stop matching, because the symptom would
+  otherwise be a password prompt in a GUI with nowhere to type it.
 - `/etc/containers/registries.d/workstation-signing.yaml` sets
   `use-sigstore-attachments: true`. Without it the signature is never fetched
   and the policy has nothing to check. `build_files/40-signing.sh` generates it
