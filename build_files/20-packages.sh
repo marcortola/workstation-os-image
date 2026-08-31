@@ -27,4 +27,5 @@ done
 # presets turns them back on. Removing the package removes the presets.
 # Nothing requires it (`rpm -q --whatrequires` is empty), and its %preun calls
 # systemd-update-helper, so no dangling /etc symlinks are left behind.
-dnf5 -y remove ublue-os-update-services
+rpm -q ublue-os-update-services >/dev/null \
+    && dnf5 -y remove ublue-os-update-services

@@ -22,7 +22,9 @@ status=0
 # key starts with an upper-case token (Mod, Ctrl, Alt, Super, Print, XF86...),
 # while the section names around them are lower-case.
 bind_keys() {
-    [[ -r $1 ]] || return 0
+    # Returning empty for an unreadable file would make the shadowing check
+    # below report success on a fragment that simply is not there.
+    [[ -r $1 ]] || { echo "bind source is unreadable: $1" >&2; return 1; }
     awk '/^[[:space:]]*\/\// { next } /\{/ && $1 ~ /^[A-Z]/ { print $1 }' "$1" |
         sort -u
 }
