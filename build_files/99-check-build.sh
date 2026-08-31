@@ -347,6 +347,7 @@ done
 # key does not, and nothing else in the repo would notice: renovate only manages
 # the Containerfile, and the fingerprint check in tooling/validate/rpm-keys
 # compares the key against the manifest, which would still agree with itself.
+# shellcheck source=/dev/null
 . /usr/lib/os-release
 terra_release="$(GNUPGHOME="$(mktemp -d)" gpg --show-keys --with-colons \
     /etc/pki/rpm-gpg/terra.asc 2>/dev/null \

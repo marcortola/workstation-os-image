@@ -126,8 +126,14 @@ jobs:
             find tooling build_files system_files/usr/bin system_files/usr/libexec -type f \
               \( -perm /111 -o -name '*.sh' \) -print | sort
           )
-          sudo apt-get update && sudo apt-get install --yes shellcheck
-          shellcheck "${files[@]}"
+          # Pinned container, like hadolint, actionlint and gitleaks in lint.yml.
+          # apt's shellcheck was the last unpinned tool in this workflow, and a
+          # silent version rollover here presents as a new finding on an
+          # unchanged tree. v0.9.0 is what noble currently ships, so this is a
+          # no-op today and reproducible tomorrow -- and it is the same command
+          # tooling/validate/all runs, so local and CI cannot diverge.
+          docker run --rm -v "$PWD":/repo:ro -w /repo \
+            docker.io/koalaman/shellcheck:v0.9.0 "${files[@]}"
 
   dms-settings-tests:
     runs-on: ubuntu-24.04
