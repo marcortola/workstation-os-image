@@ -7,11 +7,22 @@ enable docker.service
 enable keyd.service
 enable workstation-brew-trust.service
 enable workstation-user-groups.service
+# Not ours, and 01-homebrew.preset still wins on ordering. Listed so the unit
+# falls under the preset-effect assertion in 99-check-build.sh: the day ublue
+# flips its verb, the build fails instead of shipping an image that never
+# unpacks Homebrew.
+enable brew-setup.service
 
 # uupd covers bootc, flatpak, brew and distrobox in one transaction. base-main
 # enables its own three update timers with `systemctl enable`, which writes
 # real /etc symlinks that a preset cannot undo -- build_files/50-services.sh
-# disables them explicitly. These lines are defence in depth.
+# disables them explicitly.
+#
+# So these `disable` lines change nothing at build time -- 01-homebrew.preset
+# sorts before ours for the brew timers, and a preset cannot undo an existing
+# symlink for the others. They are here as the manifest tooling/audit/units
+# checks against the LIVE machine, where a local `systemctl enable` would
+# otherwise go unnoticed.
 disable rpm-ostreed-automatic.timer
 disable bootc-fetch-apply-updates.timer
 disable brew-update.timer

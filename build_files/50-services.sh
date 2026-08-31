@@ -24,29 +24,25 @@ systemctl disable brew-update.timer brew-upgrade.timer
 # Conflicts=getty@tty1.service so it is displaced at runtime, and it is the
 # only escape hatch if the greeter fails to start.
 
-# Explicit lists, never `preset-all`: base-main configured units deliberately
-# and re-evaluating all of them would undo that.
-systemctl preset \
-    greetd.service \
-    uupd.timer \
-    docker.service containerd.service \
-    keyd.service \
-    brew-setup.service \
-    workstation-brew-trust.service \
-    workstation-user-groups.service
+# Named units, never `preset-all`: base-main configured units deliberately and
+# re-evaluating all of them would undo that.
+#
+# The names come from the preset files themselves rather than a second list
+# here. They used to be two copies of the same intent with nothing keeping them
+# in sync, so a unit added to a preset and forgotten here would ship, pass
+# systemd-analyze verify, and simply never be enabled. tooling/audit/units reads
+# the same two files as its manifest, so all three now agree by construction.
+system_preset=/usr/lib/systemd/system-preset/10-workstation-os-image.preset
+user_preset=/usr/lib/systemd/user-preset/10-workstation-os-image.preset
+for f in "$system_preset" "$user_preset"; do
+    # An empty list would silently enable nothing at all.
+    test -f "$f" || { echo "preset file is missing: $f" >&2; exit 1; }
+done
 
-systemctl --global preset \
-    dms.service \
-    dsearch.service \
-    fcitx5.service \
-    iio-niri.service \
-    udiskie.service \
-    workstation-chezmoi-init.service \
-    workstation-chezmoi-update.timer \
-    workstation-bootstrap.service \
-    workstation-claude-mcp-seed.service \
-    workstation-dms-settings.service \
-    workstation-flatpak-wayland.service \
-    workstation-invoice-bookmarks.timer \
-    workstation-microsoft-fonts.service \
-    workstation-x11-clipsync.service
+mapfile -t system_units < <(sed -n 's/^enable //p' "$system_preset")
+mapfile -t user_units < <(sed -n 's/^enable //p' "$user_preset")
+(( ${#system_units[@]} && ${#user_units[@]} )) \
+    || { echo "a preset file yielded no enable lines" >&2; exit 1; }
+
+systemctl preset "${system_units[@]}"
+systemctl --global preset "${user_units[@]}"

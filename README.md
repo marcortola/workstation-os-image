@@ -430,7 +430,7 @@ lookup table.
 | Build inputs | `build_files/`, bind-mounted at `/ctx` | same |
 | Build scripts | `NN-name.sh`, flat; the prefix is execution order | same in bluefin and aurora; bazzite is flat and unnumbered |
 | Host-side scripts | `tooling/`, never baked | `just_scripts/` in bazzite |
-| Declarative source | `tooling/data/`, never baked | no direct analogue |
+| Declarative source | `tooling/data/`, never baked | no analogue. `main`'s `packages.json` and secureblue's `recipes/` are the nearest; bazzite's `post_install_files/` is installer payload, not this |
 | Image identity | `image.env`, read by CI, the Justfile and the image | `image-template.env`; bazzite uses `image-info.json` |
 | systemd units | `workstation-<function>` under `usr/lib/systemd/` | same shape (`bazzite-`, `bluefin-dx-`) |
 | Unit drop-ins | `NN-<concern>.conf` | bazzite uses `override.conf`; ours is deliberate |
