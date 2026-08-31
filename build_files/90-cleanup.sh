@@ -66,6 +66,25 @@ wheel:x:10:'
 # shadow-utils leaves these behind whenever a scriptlet adds an account.
 rm -f /etc/.pwd.lock /etc/passwd- /etc/group- /etc/shadow- /etc/gshadow-
 
+# rpm-ostree keeps a separate "base" rpmdb and it still holds the BASE image's
+# package set: 1244 entries against 1705 in the real rpmdb, with niri absent
+# entirely, so `rpm-ostree db list` and `db diff` misreport what this image
+# contains. Relink it. Must be a hard link, not a symlink.
+# See https://github.com/coreos/rpm-ostree/issues/4554
+base_db=/usr/lib/sysimage/rpm-ostree-base-db
+if [ -d "$base_db" ]; then
+    for f in rpmdb.sqlite rpmdb.sqlite-shm rpmdb.sqlite-wal; do
+        if [ -f "/usr/share/rpm/$f" ]; then
+            ln -f "/usr/share/rpm/$f" "$base_db/$f"
+        else
+            # Stale journal files left over from the base would otherwise sit
+            # beside a newer database. aurora leaves these; removing them keeps
+            # the pair consistent.
+            rm -f "$base_db/$f"
+        fi
+    done
+fi
+
 dnf5 clean all
 rm -rf /var/cache/libdnf5 /var/lib/dnf /var/log/dnf5.log* \
        /run/dnf /run/selinux-policy

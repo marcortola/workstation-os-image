@@ -79,7 +79,11 @@ COPY --from=toolchain /staging/ /
 COPY system_files/ /
 COPY image.env /usr/share/workstation-os-image/image.env
 
-RUN --mount=type=bind,from=ctx,src=/,dst=/ctx \
+# --network=none: every script in this chain works from the overlay and the
+# ctx mount. Making the cut structural means the day someone adds a fetch here
+# it fails in the build rather than becoming an unpinned input nobody notices.
+RUN --network=none \
+    --mount=type=bind,from=ctx,src=/,dst=/ctx \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/build_files/30-desktop.sh && \
     /ctx/build_files/40-signing.sh && \

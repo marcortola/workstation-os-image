@@ -53,6 +53,9 @@ curl -fsSL --retry 3 --retry-delay 2 --retry-max-time 60 -o /tmp/firacode.tar.xz
     "https://github.com/ryanoasis/nerd-fonts/releases/download/v${FIRACODE_VERSION}/FiraCode.tar.xz"
 echo "${FIRACODE_SHA256}  /tmp/firacode.tar.xz" > /tmp/firacode.sha256
 sha256sum -c /tmp/firacode.sha256
-install -d /staging/usr/share/fonts/firacode-nerd-fonts
+install -d -m 0755 /staging/usr/share/fonts/firacode-nerd-fonts
 tar -xJf /tmp/firacode.tar.xz -C /staging/usr/share/fonts/firacode-nerd-fonts \
     --wildcards '*.ttf'
+# The shipped mode is a decision here, not whatever the nerd-fonts release
+# happened to carry. fc-list is equally happy with an over-permissive font.
+chmod 0644 /staging/usr/share/fonts/firacode-nerd-fonts/*.ttf
