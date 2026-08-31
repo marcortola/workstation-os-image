@@ -57,3 +57,8 @@ workstation image.
 - `gitleaks` plus hand-written filters in `tooling/scrub/` gate every capture of
   personal configuration, because `gitleaks` does not recognise the key shapes
   the AI CLIs use.
+
+`docs/supply-chain.md` describes all of the above in full: what verifies the two
+pinned input images, how the published digest is signed and enforced, how the
+signing key is rotated without stranding a machine, and where the secret
+boundary actually sits.

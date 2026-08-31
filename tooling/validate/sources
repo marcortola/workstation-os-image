@@ -24,6 +24,7 @@ cd "$repo_root"
 
 require_file AGENTS.md
 require_file README.md
+require_file docs/README.md
 [[ $(< CLAUDE.md) == '@AGENTS.md' ]]
 # Raised from 210 when AGENTS.md gained its Conventions section, then to 266 for
 # the upstream-Zirconium watermark entry -- a source of truth an agent has to
@@ -33,22 +34,36 @@ require_file README.md
 # if each rise is deliberate, so keep it in one place with a reason attached.
 (( $(wc -l < AGENTS.md) <= 266 ))
 
-# The agent guide and the README state policy; nothing else proves their
-# references still exist, so they silently rot as recipes and paths are renamed.
-# Assert the two classes that are mechanically checkable: every `just`/`wjust`
-# target either names must be a real recipe, and every repo-root-relative path
-# AGENTS.md and README.md cite must exist. Prose stays the author's problem; dangling
-# pointers do not. The path alternation must name the CURRENT top-level trees --
-# it named the deleted ones for two commits and matched nothing under either
-# new tree.
+# README.md is a landing pad into docs/ and nothing else. Capped because it grows
+# back otherwise: it was 855 lines covering fourteen concerns before the handbook
+# existed, which is how install and recovery -- the two things wanted under time
+# pressure -- ended up in the last 14% of the file. The handbook itself has no
+# cap; a page may be as long as its subject. The front door may not.
+(( $(wc -l < README.md) <= 170 ))
+
+# The agent guide, the landing pad and the handbook state policy; nothing else
+# proves their references still exist, so they silently rot as recipes and paths
+# are renamed. Assert the two classes that are mechanically checkable: every
+# `just`/`wjust` target named must be a real recipe, and every repo-root-relative
+# path cited must exist. Prose stays the author's problem; dangling pointers do
+# not. The path alternation must name the CURRENT top-level trees -- it named the
+# deleted ones for two commits and matched nothing under either new tree.
 agents_stale=0
 recipes=" $(just --summary) "
-# The prose files plus the checked-in agent commands. A slash command is prose
-# that an agent executes, so a stale recipe or path in one is worse than in
-# AGENTS.md: nothing reads it until the moment it is being relied on.
+# The prose files, the handbook, and the checked-in agent commands. A slash
+# command is prose that an agent executes, so a stale recipe or path in one is
+# worse than in AGENTS.md: nothing reads it until the moment it is being relied
+# on. Each tree gets its own floor rather than one combined count, which would
+# let a whole tree vanish while the others held the total up.
 docs=(AGENTS.md README.md)
-while IFS= read -r f; do docs+=("$f"); done < <(find .claude/commands -name '*.md' 2>/dev/null | sort)
-(( ${#docs[@]} > 2 )) || { echo "no agent commands found under .claude/commands" >&2; exit 1; }
+doc_pages=()
+while IFS= read -r f; do doc_pages+=("$f"); done < <(find docs -name '*.md' | sort)
+(( ${#doc_pages[@]} >= 15 )) \
+    || { echo "handbook pages missing under docs/ (found ${#doc_pages[@]})" >&2; exit 1; }
+commands=()
+while IFS= read -r f; do commands+=("$f"); done < <(find .claude/commands -name '*.md' 2>/dev/null | sort)
+(( ${#commands[@]} > 0 )) || { echo "no agent commands found under .claude/commands" >&2; exit 1; }
+docs+=("${doc_pages[@]}" "${commands[@]}")
 while read -r target; do
     [[ $recipes == *" $target "* ]] && continue
     echo "docs reference unknown recipe: just $target" >&2
@@ -59,9 +74,46 @@ while read -r path; do
     [[ -e $path ]] && continue
     echo "docs reference missing path: $path" >&2
     agents_stale=1
-done < <(grep -ohE '`?(system_files|build_files|tooling)/[A-Za-z0-9._/-]*' "${docs[@]}" \
+done < <(grep -ohE '`?(system_files|build_files|tooling|docs)/[A-Za-z0-9._/-]*' "${docs[@]}" \
     | tr -d '`' | sed 's/[.,]$//' | sort -u)
 (( agents_stale == 0 ))
+
+# The handbook is twenty files that link to each other, and the path gate above
+# only sees a link whose target starts with a top-level tree name -- a sibling
+# link like (architecture.md) is invisible to it. Resolve every relative target
+# instead, and forbid a cross-file anchor outright: a fragment into another page
+# looks fine forever after the heading it names is renamed, so one file is one
+# address. Same-file anchors stay allowed and are checked against the headings.
+# Runs over the same file set as the gates above rather than docs/ alone: today
+# AGENTS.md carries no links at all, and the point is that adding one does not
+# quietly land outside the check.
+link_failures=0
+while IFS= read -r f; do
+    dir="$(dirname "$f")"
+    while IFS= read -r target; do
+        [[ -z $target ]] && continue
+        case "$target" in http://* | https://* | mailto:*) continue ;; esac
+        path="${target%%#*}"
+        if [[ -z $path ]]; then
+            # Pure fragment: GitHub slugs a heading by lowercasing, dropping
+            # everything but alphanumerics, spaces and hyphens, then joining on
+            # hyphens.
+            grep -qxF "${target#\#}" < <(grep -oE '^#{1,6} .*' "$f" \
+                | sed -E 's/^#+ //; s/`//g' \
+                | tr '[:upper:]' '[:lower:]' \
+                | sed -E 's/[^a-z0-9 -]//g; s/ /-/g') \
+                || { echo "docs link to missing anchor: $f -> $target" >&2; link_failures=1; }
+            continue
+        fi
+        if [[ $target == *'#'* ]]; then
+            echo "docs link carries a cross-file anchor: $f -> $target" >&2
+            link_failures=1
+        fi
+        [[ -e $dir/$path ]] \
+            || { echo "docs link to missing path: $f -> $path" >&2; link_failures=1; }
+    done < <(grep -ohE '\]\([^)]+\)' "$f" | sed -E 's/^\]\(//; s/\)$//')
+done < <(printf '%s\n' "${docs[@]}")
+(( link_failures == 0 ))
 
 # AI CLI config seeds must be secret-free by construction: the scrub filters
 # strip secrets/machine-state on capture, and these positive gates assert the

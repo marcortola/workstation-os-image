@@ -1,8 +1,9 @@
 #!/bin/sh
 # Jump the active virtual terminal to another logged-in user's session on this
-# seat (README "Switch user"). greetd runs one graphical session at a time, so a
-# second user logs in on a spare VT; this flips straight to the other running
-# session. If nobody else is logged in, it explains how to start a second one.
+# seat; see "Switch user" in docs/subsystems/desktop-session.md. greetd runs one
+# graphical session at a time, so a second user logs in on a spare VT; this
+# flips straight to the other running session. If nobody else is logged in, it
+# explains how to start a second one.
 set -eu
 
 target=""

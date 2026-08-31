@@ -18,9 +18,11 @@ validation are updated here.
 - `tooling/` — host-side management scripts, grouped by concern, plus
   `tooling/data/` (repo-owned declarative source the scripts read; never baked),
   `tooling/ai/` (the AI-CLI machinery) and `tooling/fixtures/` (test data).
+- `docs/` — the handbook, indexed by `docs/README.md`. Never baked.
 
-`README.md` is the only maintained architecture and operations document, and
-`just --list` is the recipe index. Do not restate either here and do not add a
+The `docs/` handbook is the maintained architecture and operations
+documentation, and `just --list` is the recipe index. `README.md` is only a
+landing pad into the handbook. Do not restate any of them here and do not add a
 second inventory. `CLAUDE.md` imports this file for Claude Code.
 
 ## Sources of truth

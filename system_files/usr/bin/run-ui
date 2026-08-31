@@ -1,7 +1,8 @@
 #!/bin/sh
 # Start the Niri graphical session on the current virtual terminal. Meant to be
-# typed after logging in as another user on a spare VT (README "Switch user") --
-# an easy-to-remember front for 'niri-session', which it simply execs.
+# typed after logging in as another user on a spare VT (see "Switch user" in
+# docs/subsystems/desktop-session.md) -- an easy-to-remember front for
+# 'niri-session', which it simply execs.
 set -eu
 
 if [ -n "${WAYLAND_DISPLAY:-}" ] || [ -n "${DISPLAY:-}" ]; then
