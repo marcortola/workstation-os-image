@@ -7,6 +7,9 @@
 # nothing but the repository, niri and chezmoi, and until now CI ran no gates
 # of any kind.
 set -euo pipefail
+# Several assertions here are bare `[[ ]]` with no message, so a failure used
+# to exit 1 printing nothing at all. Name the line instead.
+trap 'echo "FAILED ${BASH_SOURCE[0]}:${LINENO}" >&2' ERR
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$repo_root"

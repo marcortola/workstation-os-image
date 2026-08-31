@@ -11,6 +11,9 @@
 # Anything needing the live machine (DMS overlay, JetBrains, foot, chezmoi
 # against $HOME, audit/workstation) deliberately stays in validate/all.
 set -euo pipefail
+# Several assertions here are bare `[[ ]]` with no message, so a failure used
+# to exit 1 printing nothing at all. Name the line instead.
+trap 'echo "FAILED ${BASH_SOURCE[0]}:${LINENO}" >&2' ERR
 
 # A `while read ... done < <(grep FILE)` on a missing FILE iterates zero times
 # and passes. Assert the inputs exist so a rename breaks the gate loudly.
@@ -143,5 +146,15 @@ while IFS= read -r f; do
     esac
 done < <(git ls-files '*.json' '*.toml' '*.yml' '*.yaml')
 (( parse_failures == 0 )) || exit 1
+
+# --- shipped scripts use one of two shebangs ---------------------------------
+# #!/usr/bin/env bash for bash, #!/bin/sh for the POSIX ones. Anything else is
+# an outlier rather than a decision -- workstation-ocr carried #!/usr/bin/bash
+# alone among ten. build_files/ is excluded deliberately: those run inside the
+# image where bash is at a known path, and they all use #!/usr/bin/bash.
+while IFS= read -r f; do
+    head -1 "$f" | grep -qxE '#!/usr/bin/env bash|#!/bin/sh' \
+        || { echo "unexpected shebang in $f: $(head -1 "$f")" >&2; exit 1; }
+done < <(find system_files/usr/bin system_files/usr/libexec -type f)
 
 echo "Repo-only source gates passed."

@@ -14,6 +14,11 @@ ConditionUser=!@system
 
 [Service]
 Type=oneshot
+# Homebrew provides claude, and workstation-bootstrap installs it. Until then
+# this has nothing to seed. As an ExecCondition that is a SKIP; as a non-zero
+# ExecStart it was a failed unit, which our own audit then reported on every
+# fresh machine. The retry is unchanged -- the marker still stays absent.
+ExecCondition=/usr/bin/test -x /home/linuxbrew/.linuxbrew/bin/claude
 ExecStart=/usr/libexec/workstation-seed-claude-mcp
 
 [Install]
