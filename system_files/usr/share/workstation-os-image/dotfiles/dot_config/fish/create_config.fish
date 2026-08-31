@@ -1,5 +1,11 @@
 set -gx SHELL /usr/bin/fish
 
+# Silence the fish welcome banner. The previous base shipped
+# /usr/share/fish/vendor_conf.d/zmotd.fish, which replaced the fish_greeting
+# function outright; base-main ships no such override, so stock fish prints its
+# banner unless the variable exists. Set, deliberately empty.
+set -g fish_greeting
+
 # Homebrew
 if test -d /home/linuxbrew/.linuxbrew
     eval (/home/linuxbrew/.linuxbrew/bin/brew shellenv)
