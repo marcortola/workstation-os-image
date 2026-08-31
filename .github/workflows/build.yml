@@ -41,7 +41,8 @@ env:
 
 jobs:
   image-inputs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     outputs:
       changed: ${{ steps.changes.outputs.changed }}
     steps:
@@ -69,10 +70,13 @@ jobs:
           fi
 
   repo-gates:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Install just
         uses: extractions/setup-just@e33e0265a09d6d736e2ee1e0eb685ef1de4669ff # v3.0.0
@@ -84,6 +88,11 @@ jobs:
           tooling/validate/repo
           tooling/validate/image-build
           tooling/validate/sources
+          # Formatting and parse of the Justfile. These live in
+          # tooling/validate/all, which needs the live workstation, so CI never
+          # reached them -- and just is already on PATH here for the recipe gate.
+          just --fmt --check --unstable
+          just --list >/dev/null
 
       - name: Image identity matches this repository
         run: |
@@ -121,10 +130,13 @@ jobs:
           shellcheck "${files[@]}"
 
   dms-settings-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -142,13 +154,16 @@ jobs:
   build:
     needs: [image-inputs, dms-settings-tests, repo-gates]
     if: needs.image-inputs.outputs.changed == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
     permissions:
       contents: read
       packages: write
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Log in to GHCR
         # Not on pull_request: this job carries packages: write, and a PR never
