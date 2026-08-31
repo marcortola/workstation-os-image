@@ -1,0 +1,27 @@
+[Desktop Entry]
+Type=Application
+Name=Foot Client
+GenericName=Terminal
+Comment=Wayland terminal client for the socket-activated foot server
+Exec=footclient
+Icon=foot
+Terminal=false
+Categories=System;TerminalEmulator;
+Keywords=shell;prompt;command;commandline;
+# NoDisplay: this is the launcher target for xdg-terminal-exec, not a menu
+# entry. foot.desktop already represents "a terminal" to the user.
+NoDisplay=true
+# The reason this entry exists at all. Fedora's own foot.desktop and
+# footclient.desktop declare none of the Default Terminal Specification keys
+# below, so xdg-terminal-exec silently DROPS --app-id and --title: the herdr,
+# dev-terminal and lazydocker binds were landing as app-id "foot", which is why
+# herdr.desktop, dev-terminal.desktop and lazydocker.desktop never matched a
+# window. Verify with:
+#   xdg-terminal-exec --print-cmd --app-id=herdr --title=herdr -- /bin/true
+# The trailing "=" on three of these tells xdg-terminal-exec to join the value
+# to the flag; -e is accepted and ignored by footclient, for xterm compatibility.
+X-TerminalArgExec=-e
+X-TerminalArgAppId=--app-id=
+X-TerminalArgTitle=--title=
+X-TerminalArgDir=--working-directory=
+X-TerminalArgHold=--hold

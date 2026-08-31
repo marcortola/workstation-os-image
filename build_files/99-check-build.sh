@@ -375,6 +375,47 @@ while read -r unit; do
 done < <(sed -n 's/^enable //p' \
     /usr/lib/systemd/user-preset/10-workstation-os-image.preset)
 
+# --- the declared default terminal keeps the arguments the binds pass ---------
+# The gate that would have caught the regression it now guards. Fedora's
+# foot.desktop and footclient.desktop declare none of the Default Terminal
+# Specification's X-TerminalArg* keys, so xdg-terminal-exec silently DROPS
+# --app-id and --title: the herdr, dev-terminal and lazydocker binds all landed
+# as app-id "foot", and the three matching desktop entries could never associate.
+# Asserting which entry resolves is NOT enough -- that was the check that passed
+# while the arguments were being thrown away. Assert the resulting command line.
+#
+# XDG_CONFIG_DIRS points at the factory copy because /etc/xdg/xdg-terminals.list
+# is materialised by tmpfiles at boot and does not exist during the build.
+require_file /usr/share/factory/etc/xdg/xdg-terminals.list
+term_probe() {
+    HOME=/root XDG_CONFIG_HOME=/nonexistent \
+        XDG_CONFIG_DIRS=/usr/share/factory/etc/xdg \
+        xdg-terminal-exec "$@"
+}
+term_id=$(term_probe --print-id -- /bin/true) \
+    || fail "xdg-terminal-exec could not resolve a terminal"
+test "$term_id" = workstation-footclient.desktop \
+    || fail "default terminal resolved to $term_id, not workstation-footclient.desktop"
+term_cmd=$(term_probe --print-cmd --app-id=probe-app --title=probe-title -- /bin/true)
+for expected in footclient --app-id=probe-app --title=probe-title /bin/true; do
+    printf '%s\n' "$term_cmd" | grep -Fxq -- "$expected" \
+        || fail "the default terminal drops $expected; xdg-terminal-exec produced: $(echo "$term_cmd" | tr '\n' ' ')"
+done
+
+# --- launcher entries that are not applications are gone ---------------------
+for entry in btop.desktop foot-server.desktop org.fcitx.Fcitx5.desktop; do
+    test -e "/usr/share/applications/$entry" \
+        && fail "$entry is back in the launcher; 30-desktop.sh should have removed it"
+done
+# The rest of the fcitx5 entries are hidden by Fedora rather than by us. If that
+# ever changes they belong in the removal list above, so notice it here.
+for entry in fcitx5-wayland-launcher org.fcitx.fcitx5-config-qt org.fcitx.fcitx5-qt6-gui-wrapper; do
+    f="/usr/share/applications/$entry.desktop"
+    test -e "$f" || continue
+    grep -q '^NoDisplay=true' "$f" \
+        || fail "$entry.desktop lost its NoDisplay=true and now pollutes the launcher"
+done
+
 # --- reinstalling this image reproduces this machine's filesystem ------------
 # Without it `bootc install to-disk` refuses to run at all unless the operator
 # remembers --filesystem, and the obvious guess is not what this workstation runs.

@@ -1,0 +1,12 @@
+# Image-owned default terminal, materialised into /etc/xdg by
+# tmpfiles.d/10-workstation-terminal.conf.
+#
+# /etc/xdg is an XDG_CONFIG_DIRS entry, so it outranks the xdg-terminal-exec
+# package's own fallback list in /usr/share -- including that list's
+# "-footclient.desktop" line, because an explicit entry read at higher
+# precedence prevents a later fallback exclusion. Overwriting the package file
+# instead, which the previous base did, would have discarded its execarg_default
+# table along with it.
+#
+# A user overrides this with ~/.config/xdg-terminals.list, which is read first.
+workstation-footclient.desktop
