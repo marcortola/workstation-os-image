@@ -114,6 +114,11 @@ prefer them over reinventing the shape:
   the input exists. Assert coverage, not success.
 - A vendored repo needs `gpgcheck=1`, `gpgkey=file://`, an `https` source and an
   `includepkgs` allowlist. All four are gated.
+- Session environment belongs in `/usr/lib/environment.d`, never
+  `/etc/profile.d`: the session is `niri.service` under the user manager and
+  never sources a login shell.
+- A terminal entry `xdg-terminal-exec` may select must declare the
+  `X-TerminalArg*` keys, or it silently drops `--app-id` and `--title`.
 - When one mechanism spans two files, gate that they agree.
 - An interactive recipe takes a non-interactive selector; a destructive one
   takes `[confirm]` or defaults to a dry run.
