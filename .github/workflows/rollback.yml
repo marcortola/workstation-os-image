@@ -45,6 +45,7 @@ jobs:
           cosign-release: "v3.1.3"
 
       - name: Log in to GHCR
+        id: ghcr_login
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: echo "$GHCR_TOKEN" | skopeo login --username "$GITHUB_ACTOR" --password-stdin ghcr.io
@@ -73,5 +74,10 @@ jobs:
           echo ":latest now resolves to $DIGEST"
 
       - name: Log out of GHCR
-        if: always()
+        # Same pairing as build.yml, and this file needs it more: the Confirm
+        # step above exists to be cancelled during its sleep, and an always()
+        # teardown then runs `skopeo logout` against a store no login filled --
+        # exit 1, "not logged into ghcr.io" -- stamping a failed step on a
+        # deliberate operator cancel.
+        if: always() && steps.ghcr_login.outcome == 'success'
         run: skopeo logout ghcr.io
