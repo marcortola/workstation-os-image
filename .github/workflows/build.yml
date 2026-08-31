@@ -358,33 +358,29 @@ jobs:
           # the machine stuck until the next green build. Sign first, then move
           # the tag -- see the two steps below.
           #
-          # zstd, not the default gzip. Every published build replaces all six
-          # of this image's own layers, of which the packages layer alone is
-          # 1.26 GiB, so the compressor is the single biggest lever on what
-          # every machine downloads: measured through this same encoder, the six
-          # go from 1,415,392,837 B to 1,084,910,658 B, -23.4%. bootc decodes it
-          # natively (ostree-ext generic_decompress maps ImageLayerZstd), and
-          # zstd:chunked is deliberately NOT used -- bootc fetches whole blobs
-          # and discards the chunk table, and the TOC made the same layer 11%
-          # LARGER.
+          # Layers go out gzip, which is buildah's default. zstd was tried here
+          # and published exactly zero zstd layers, because
+          # `--force-compression=false` does not mean "leave the base's blobs
+          # alone" -- it means "reuse any blob the destination already has, in
+          # whatever format it already has it". The step above pushes these same
+          # layers to $CACHE_IMAGE, a sibling GHCR package under the same owner,
+          # and GHCR mounts blobs across repositories, so TryReusingBlob found
+          # all 266 already present as gzip and took them verbatim. The push
+          # logged no "Copying blob" line and finished in 23 seconds.
           #
-          # --force-compression=false is load-bearing, not decoration. buildah
-          # flips force to TRUE whenever --compression-format is given and force
-          # is not (cmd/buildah/push.go), which would recompress and re-upload
-          # all 266 layers -- including the base's 259, which every machine
-          # already has -- and hand every client a full 4.67 GB re-download.
-          # tooling/validate/image-build pins the flag for that reason.
+          # Forcing it (`--force-compression=true`) is the only way to pin the
+          # encoding, and it recompresses all 266 layers rather than our six:
+          # one full re-download for every machine, ~4 GB of upload per build,
+          # and -- the unresolved part -- containers/image takes zstd encoder
+          # concurrency from the CPU count on some paths, so if that varies
+          # between runners the BASE's 259 blobs churn every build and the
+          # nightly fetch goes UP, from ~0.9 GB to ~3.2 GB. Settle that with two
+          # consecutive builds before reaching for it.
           #
-          # --compression-level 10 rather than 19: containers/image maps the
-          # level through zstd.EncoderLevelFromZstd, where anything >= 10 is
-          # SpeedBestCompression, so 10, 15 and 19 emit identical bytes.
+          # See docs/design-records/upgrade-download-size.md.
           push_retry() {
             for attempt in 1 2 3; do
-              buildah push \
-                --compression-format zstd \
-                --compression-level 10 \
-                --force-compression=false \
-                "$1" "docker://$1" && return 0
+              buildah push "$1" "docker://$1" && return 0
               echo "push of $1 failed (attempt $attempt/3); retrying" >&2
               sleep $(( attempt * 5 ))
             done
