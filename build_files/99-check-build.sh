@@ -333,6 +333,20 @@ grep -q "^VARIANT_ID=${IMAGE_NAME}$" /usr/lib/os-release \
 # ID stays fedora on purpose; the niri/grub reasoning below depends on it.
 grep -q '^ID=fedora$' /usr/lib/os-release || fail "os-release ID is no longer fedora"
 
+# The OS name spans two files -- image.env declares it, 60-metadata.sh writes
+# it -- so gate that they agree. A `sed` whose pattern stops matching a future
+# base would otherwise leave the image calling itself "Fedora Linux" with
+# nothing red.
+grep -q "^NAME=\"${OS_NAME}\"$" /usr/lib/os-release \
+    || fail "NAME in /usr/lib/os-release does not match image.env OS_NAME"
+# PRETTY_NAME must carry the brand AND keep the base's per-deployment version,
+# which is what the boot menu shows; a bare brand string would drop the only
+# way to tell two entries apart.
+grep -q "^PRETTY_NAME=\"${OS_NAME} .*[0-9]" /usr/lib/os-release \
+    || fail "PRETTY_NAME is not '${OS_NAME} <version>'"
+[ "$(grep -c '^NAME=' /usr/lib/os-release)" = 1 ] \
+    || fail "/usr/lib/os-release carries more than one NAME= line"
+
 # --- the update button's grant matches the command it runs -------------------
 # The shell's updater command and the polkit rule that lets it run without a
 # password are two halves of one mechanism in two files. If they drift, the

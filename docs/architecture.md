@@ -79,7 +79,7 @@ Fifteen tracked files sit at the top level. Every one of them is load-bearing.
 | --- | --- |
 | `Containerfile` | The four-stage build. See [build-and-ci.md](build-and-ci.md). |
 | `Justfile` | The recipe index; `just --list` is authoritative, not any table in these docs. |
-| `image.env` | The one place the image's identity is declared (`IMAGE_NAME`, `REPO_ORGANIZATION`, `IMAGE_DESC`). The Justfile dotenv-loads it, `tooling/audit/deployment` and CI read it, and it is `COPY`d to `/usr/share/workstation-os-image/image.env` so runtime consumers resolve the same values. A fork edits this file. |
+| `image.env` | The one place the image's identity is declared (`IMAGE_NAME`, `REPO_ORGANIZATION`, `IMAGE_DESC`, `OS_NAME`). The Justfile dotenv-loads it, `tooling/audit/deployment` and CI read it, and it is `COPY`d to `/usr/share/workstation-os-image/image.env` so runtime consumers resolve the same values. A fork edits this file. |
 | `README.md` | The landing pad; it carries the pitch and links into `docs/` for everything else. |
 | `AGENTS.md` | The canonical policy for automated contributors: ownership rulings, invariants, the change workflow. |
 | `CLAUDE.md` | One line, `@AGENTS.md`. It exists so Claude Code loads the same policy rather than a divergent copy. |
