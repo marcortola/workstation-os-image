@@ -14,8 +14,8 @@ audit-diff:
     ./tooling/audit/workstation --diff
 
 # Review portable DMS deviations and capture selected values.
-dms-capture:
-    ./tooling/dms/capture
+dms-capture *args:
+    ./tooling/dms/capture {{ args }}
 
 # Stop tracking selected DMS preference overrides.
 dms-remove:
