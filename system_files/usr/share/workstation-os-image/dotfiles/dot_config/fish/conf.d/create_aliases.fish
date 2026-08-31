@@ -4,7 +4,7 @@ alias ...="cd ../.."
 alias cdp="cd ~/projects"
 
 # ls/eza
-alias ls="eza"
+command -v eza >/dev/null; and alias ls="eza"
 alias ll="eza -l --icons"
 alias la="eza -la --icons"
 alias lt="eza --tree --level=2"

@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
 # Screenshot -> OCR -> clipboard. Replaces Zirconium's zocr.
 set -euo pipefail
 shot=$(mktemp --suffix=.png)
