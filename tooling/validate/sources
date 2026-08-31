@@ -25,7 +25,11 @@ cd "$repo_root"
 require_file AGENTS.md
 require_file README.md
 [[ $(< CLAUDE.md) == '@AGENTS.md' ]]
-(( $(wc -l < AGENTS.md) <= 210 ))
+# Raised from 210 when AGENTS.md gained its Conventions section. The cap is a
+# forcing function against AGENTS.md becoming a second README, and invariants
+# are exactly what it should protect -- but it only works if each rise is
+# deliberate, so keep it in one place with a reason attached.
+(( $(wc -l < AGENTS.md) <= 260 ))
 
 # The agent guide and the README state policy; nothing else proves their
 # references still exist, so they silently rot as recipes and paths are renamed.

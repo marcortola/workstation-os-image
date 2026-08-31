@@ -415,6 +415,67 @@ which does not bridge two cross-boundary interactions:
 Tracked upstream at
 [Supreeeme/xwayland-satellite#133](https://github.com/Supreeeme/xwayland-satellite/issues/133).
 
+## Conventions
+
+Most of these follow the Universal Blue images this one derives from -- bazzite,
+bluefin, aurora and `ublue-os/main` -- and the rest exist because their absence
+produced a real failure here. `AGENTS.md` states them as rules; this is the
+lookup table.
+
+### Naming and placement
+
+| Element | Here | Upstream |
+| --- | --- | --- |
+| Shipped overlay | `system_files/`, mirroring absolute paths | same (`sys_files/` in `main`) |
+| Build inputs | `build_files/`, bind-mounted at `/ctx` | same |
+| Build scripts | `NN-name.sh`, flat; the prefix is execution order | same in bluefin and aurora; bazzite is flat and unnumbered |
+| Host-side scripts | `tooling/`, never baked | `just_scripts/` in bazzite |
+| Declarative source | `tooling/data/`, never baked | no direct analogue |
+| Image identity | `image.env`, read by CI, the Justfile and the image | `image-template.env`; bazzite uses `image-info.json` |
+| systemd units | `workstation-<function>` under `usr/lib/systemd/` | same shape (`bazzite-`, `bluefin-dx-`) |
+| Unit drop-ins | `NN-<concern>.conf` | bazzite uses `override.conf`; ours is deliberate |
+| tmpfiles | one file per feature, `NN-workstation-<feature>.conf` | same |
+| Presets | `10-workstation-os-image.preset`, sorting before Fedora's | bazzite enables units inline instead |
+| polkit rules | `NN-workstation-<thing>.rules` under `usr/share/polkit-1/rules.d/` | same |
+| Shipped scripts | `#!/usr/bin/env bash` or `#!/bin/sh` | bazzite mixes five forms |
+| Build scripts | `#!/usr/bin/bash` (bash is at a known path inside the image) | same |
+
+Where the numbering matters: build-script prefixes leave gaps so a step can be
+inserted without renumbering, and `99-check-build.sh` stays last because it
+asserts the finished image.
+
+### Mechanisms worth reaching for
+
+- **`/etc` is a three-way ostree merge.** Anything written there becomes
+  machine-local for the life of the install, and a later image version of the
+  same file is ignored silently. Ship image-owned config as
+  `/usr/share/factory` plus a tmpfiles `L+`, and put build-created accounts in
+  `/usr/lib`. `tooling/audit/etc-drift` reports what has diverged anyway.
+- **`/var` content needs a tmpfiles entry**, or it is applied at first
+  provisioning and frozen after. `bootc container lint --fatal-warnings`
+  catches the omission at build time.
+- **User units need `ConditionUser=!@system`.** Every user manager reaches
+  `default.target`, including the one started for greetd's `greeter`, whose home
+  is read-only.
+- **"Not ready yet" is an `ExecCondition`, not a non-zero `ExecStart`.** The
+  first is a skipped unit; the second is a permanently failed one that trains
+  you to ignore your own audit.
+- **A re-runnable seed hashes its own script** rather than touching a marker
+  file. A bare marker makes every later edit to that script dead code, with the
+  unit reporting success by not running. The DMS seed is the exception, being
+  UI-owned after first run.
+- **Gates fail on a missing input.** `while read ... done < <(cmd FILE)` on an
+  absent FILE iterates zero times and passes; that is how a restructure once
+  disarmed two gates with nothing going red. Assert coverage, not success.
+- **Vendored repos are fenced four ways**: `gpgcheck=1`, `gpgkey=file://`, an
+  `https` source and an `includepkgs` allowlist, all gated in
+  `tooling/validate/image-build`.
+- **A mechanism spanning two files gets a gate that they agree** -- the polkit
+  grant and the command it authorises, the Containerfile ARGs and `image.env`,
+  the two copies of the signing key.
+- **Interactive recipes take a non-interactive selector** (`dms-capture
+  --select`), and destructive ones take `[confirm]` or default to a dry run.
+
 ## Working with AI agents
 
 `AGENTS.md` is the canonical maintenance policy. `CLAUDE.md` imports it, and
