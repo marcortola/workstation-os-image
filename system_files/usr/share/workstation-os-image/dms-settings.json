@@ -134,7 +134,7 @@
   "spotlightSectionViewModes": {
     "apps": "list"
   },
-  "updaterCustomCommand": "sudo bootc upgrade",
+  "updaterCustomCommand": "systemctl start uupd.service",
   "updaterIntervalSeconds": 3600,
   "updaterUseCustomCommand": true
 }
