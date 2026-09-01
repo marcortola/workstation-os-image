@@ -21,11 +21,11 @@ pane the running program sees the rest.
 
 | Layer | Gateway | Owns | Configured in |
 |---|---|---|---|
-| Desktop | `Mod` | Windows, columns, workspaces, monitors, capture, media | `system_files/usr/share/workstation-os-image/niri/includes/binds.kdl` |
+| Desktop | `Mod` | Windows, columns, workspaces, monitors, capture, media | `system_files/usr/share/workstation-os-image/niri/includes/binds.kdl`, plus the reclaims in `system_files/usr/share/workstation-os-image/dotfiles/dot_config/niri/create_local.kdl.tmpl` and two binds DMS generates |
 | Session | `Ctrl+G` | Panes, tabs, spaces, worktrees, agents | `system_files/usr/share/workstation-os-image/dotfiles/dot_config/herdr/create_config.toml` |
-| Editor | `Space` | Buffers, pickers, LSP, git, everything in a file | `system_files/usr/share/workstation-os-image/dotfiles/dot_config/nvim/lua/config/create_keymaps.lua` and the plugin seeds beside it |
+| Editor | `Space` | Buffers, pickers, LSP, git, everything in a file | `system_files/usr/share/workstation-os-image/dotfiles/dot_config/nvim/lua/config/create_keymaps.lua` and the specs under `system_files/usr/share/workstation-os-image/dotfiles/dot_config/nvim/lua/plugins` |
 | Applications | varies | foot, lazygit, lazydocker, btop | Mostly stock; the exceptions are noted below |
-| Shell | `Ctrl+R` | History, file and directory pickers, project functions | `system_files/usr/share/workstation-os-image/dotfiles/dot_config/fish/conf.d/create_aliases.fish` |
+| Shell | `Ctrl+R` | History, file and directory pickers | `system_files/usr/share/workstation-os-image/dotfiles/dot_config/fish/conf.d/create_fzf.fish`, which sources fzf's own bindings |
 
 `Mod` is the Super key. `prefix` means `Ctrl+G`, pressed and released before the
 next key. `<leader>` is the space bar.
@@ -108,6 +108,8 @@ plus a vertical wheel moves between workspaces.
 | `Mod+Ctrl+J` / `Mod+Ctrl+K` | Move window down / up |
 | `Mod+Ctrl+Home` / `Mod+Ctrl+End` | Move column to first / last position |
 | `Mod+Ctrl+Up` / `Mod+Ctrl+Down` | Move column to the workspace above / below |
+| `Mod+Ctrl+Page_Up` / `Mod+Ctrl+Page_Down` | Move column to the workspace above / below |
+| `Mod+Ctrl+I` / `Mod+Ctrl+U` | Move column to the workspace above / below |
 | `Mod+Ctrl+1` … `Mod+Ctrl+9` | Move column to workspace *n* |
 
 ### Workspaces and monitors
@@ -119,8 +121,11 @@ plus a vertical wheel moves between workspaces.
 | `Mod+Page_Up` / `Mod+Page_Down` | Workspace up / down |
 | `Mod+1` … `Mod+9` | Go to workspace *n* |
 | `Mod+Shift+I` / `Mod+Shift+U` | Move the workspace itself up / down |
+| `Mod+Shift+Page_Up` / `Mod+Shift+Page_Down` | Move the workspace itself up / down |
 | `Mod+Shift+H`, `Mod+Shift+J`, `Mod+Shift+K`, `Mod+Shift+L` | Focus the monitor in that direction |
+| `Mod+Shift+Left`, `Mod+Shift+Down`, `Mod+Shift+Up`, `Mod+Shift+Right` | Focus the monitor in that direction |
 | `Mod+Shift+Ctrl+H`, `J`, `K`, `L` | Move the column to that monitor |
+| `Mod+Shift+Ctrl+Left`, `Down`, `Up`, `Right` | Move the column to that monitor |
 
 ### Capture, dictation and session
 
@@ -129,6 +134,7 @@ plus a vertical wheel moves between workspaces.
 | `Mod+Shift+S` | Screenshot a region |
 | `Print` / `Ctrl+Print` / `Alt+Print` | Region / whole screen / focused window |
 | `Mod+Print` | Screenshot, then OCR the result to the clipboard |
+| `Mod+Alt+Shift+S` | The same OCR capture, hidden from the overlay |
 | `Mod+Shift+R` | Start or stop a screen recording |
 | `Mod+Shift+V` | Start or stop dictation |
 | `Mod+Alt+L` | Lock the screen |
@@ -137,6 +143,8 @@ plus a vertical wheel moves between workspaces.
 | `Mod+Escape` | Toggle shortcut inhibit, so an application can grab keys |
 | `Mod+N` / `Mod+Shift+N` | Notification centre / notepad |
 | `Mod+Y` | Browse wallpapers |
+| `Super+Alt+S` | Toggle the Orca screen reader. Works while locked |
+| `Ctrl+Shift+Alt+Mod+L` | Open googleballs.com |
 
 Volume, mute, microphone mute, media transport and brightness are on their
 `XF86` hardware keys and keep working while the screen is locked.
@@ -277,8 +285,8 @@ which [subsystems/dev-environment.md](subsystems/dev-environment.md) explains.
 | `<leader>fs` | Grep the visual selection, literally |
 | `<leader>fi` | Which files reference this one |
 | `<leader>fy` / `<leader>fY` | Yank the buffer path, relative or absolute |
-| `<leader>sr` / `<leader>sR` | Search and replace, this file or the whole root |
-| `<leader>sy` | LSP symbols, moved off `<leader>ss` |
+| `<leader>sr` / `<leader>sR` | Search and replace, this file or the whole root. In visual mode the scope is unreliable: our spec and LazyVim's race, and either may win |
+| `<leader>sy` | LSP symbols, moved off `<leader>ss`. Buffer-local, created shortly after a language server attaches, so it does not exist on the host where no language extra loads |
 | `<leader>gs` | Stage or unstage the current file |
 | `<leader>gd` | Diffview |
 | `<leader>gb` | Branch review against `main`, toggling |
@@ -289,10 +297,16 @@ which [subsystems/dev-environment.md](subsystems/dev-environment.md) explains.
 | `<leader>uu` | Undo tree |
 | `<leader>DD` | lazydocker |
 | `<leader>uH` / `<leader>uR` | Hardtime toggle / report |
+| `<leader>uv` / `<leader>uV` | Precognition toggle / peek |
+| `<leader>sb` / `<leader>sB` | Plain `/` and `?`, replacing the stock buffer-line pickers |
 
 In the Diffview panel `<leader>gs` stages the entry under the cursor and `e`
 opens the real file, revealing it in the explorer. In the file explorer, `gs`
 stages the file under the cursor and `<leader>fy` copies its path.
+
+Inside any picker, `Ctrl+d` and `Ctrl+u` scroll the preview and `Ctrl+x` clears
+the query. In the explorer specifically, `f` jumps to the input and `Ctrl+o`
+reveals the file in the desktop file manager.
 
 ### Stock LazyVim worth knowing
 
@@ -301,7 +315,7 @@ stages the file under the cursor and `<leader>fy` copies its path.
 | `<leader><space>` | Find files |
 | `<leader>fr` / `<leader>e` / `<leader>,` | Recent files / explorer / buffer picker |
 | `<leader>/` | Grep the root directory |
-| `<leader>sw` | Grep the word under the cursor |
+| `<leader>sw` | Grep the word under the cursor, or the visual selection |
 | `<leader>sk` | Keymap picker, searchable |
 | `s` / `S` | Flash jump / flash treesitter |
 | `Shift+h` / `Shift+l` | Previous / next buffer |
@@ -323,18 +337,23 @@ stages the file under the cursor and `<leader>fy` copies its path.
 | `Ctrl+Slash` | Terminal |
 | `<leader>tr` / `<leader>tt` | Run the nearest test / the file |
 | `<leader>db` / `<leader>dc` | Toggle breakpoint / continue |
-| `<leader>D` | Database UI |
+| `<leader>D` | Database UI, but see the collision note below |
 
 ### hardtime blocks the arrow keys
 
 `Up`, `Down`, `Left` and `Right` do nothing in normal, visual and insert mode.
 That is a hard block, not a hint, and it is not governed by the plugin's
-`restriction_mode`. `h`, `j`, `k` and `l` only produce a suggestion after four
-presses inside a second, and are never swallowed.
+`restriction_mode`. `h`, `j`, `k` and `l` are never swallowed: the fourth press
+of one inside a second prints a suggestion, and a recognised pattern such as
+`k^` prints one immediately, on the pair, with no repetition needed.
 
-Arrows still work in Diffview, undotree, the dashboard, help, mason, trouble,
-aerial and the picker prompts, and `Ctrl` plus an arrow still resizes a window.
-`<leader>uH` turns the whole thing off.
+Arrows still work in undotree, the dashboard, help, mason, trouble and aerial,
+and `Ctrl` plus an arrow still resizes a window. Two exemptions people assume
+and do not have: only Diffview's **panels** are exempt, not the diff panes,
+which carry the source file's own filetype; and a picker prompt is not exempt at
+all — `Up` and `Down` survive there only because the picker binds them itself,
+so `Left` and `Right` cannot move the cursor inside a query. `<leader>uH` turns
+the whole thing off.
 
 ### One chord crosses Neovim and herdr
 
@@ -357,9 +376,10 @@ That is why herdr's own pane focus sits on `prefix` plus the arrow keys: bare
 
 ### foot
 
-foot ships entirely stock — no `[key-bindings]` section is defined in
-`system_files/usr/share/workstation-os-image/dotfiles/dot_config/foot/create_workstation.ini.tmpl`
-or in any file it includes.
+foot ships entirely stock. The entrypoint is
+`system_files/usr/share/workstation-os-image/dotfiles/dot_config/foot/foot.ini.tmpl`,
+which pulls in the colour seed and the personal `workstation.ini`; no
+`[key-bindings]` section exists in any of the four files.
 
 | Key | Action |
 |---|---|
@@ -396,15 +416,16 @@ everything else is stock.
 | `P` / `p` | Push / pull |
 | `z` / `Z` | Undo / redo |
 | `m` | Merge and rebase options |
-| `w` | New worktree |
 | `_` | Check out the previous branch |
 | `/` | Filter the current view |
 | `:` | Run a shell command |
+| `w` | Commit without the pre-commit hook, in the files panel. In the branches panel it creates a worktree |
 
 `-` is the shrink half of the screen-mode pair, mirroring `+`. Taking it cost
-the file tree's collapse-all and expand-all, which are now unbound, and pushed
-checkout-previous-branch onto `_`. Per-directory collapse still works with
-`enter`, and `` ` `` still toggles the tree view.
+the file tree's collapse-all and pushed checkout-previous-branch onto `_`.
+Expand-all, on `=`, never collided; it was released by choice so the pair stays
+symmetrical. Per-directory collapse still works with `enter`, and `` ` `` still
+toggles the tree view.
 
 ### lazydocker
 
@@ -425,7 +446,7 @@ checkout-previous-branch onto `_`. Per-directory collapse still works with
 | Key | Action |
 |---|---|
 | `h` or `?` | Help; `Esc` or `m` opens the menu |
-| `p` / `Shift+p` | Cycle the three configured presets |
+| `p` / `Shift+p` | Cycle presets: btop's own all-boxes preset, then the three configured here |
 | `1`, `2`, `3`, `4` | Toggle the CPU, memory, network and process boxes |
 | `f` or `/` | Filter processes; prefix with `!` for a regex |
 | `e` / `E` | Tree view / expand every node |
@@ -485,7 +506,7 @@ five keyspaces sharing one keyboard:
 | `<leader>gs` | Stage the file in Neovim; open the commit window in the JetBrains IDEs |
 | `f` | Buffer search in Neovim; flash find in the JetBrains IDEs |
 | `h`, `j`, `k`, `l` | Motion in Neovim; monitors under `Mod+Shift`; help and kill in btop |
-| `<leader>D` | Database UI, and it waits for a second `D` before firing lazydocker |
+| `<leader>D` | Database UI, and which-key labels it a "docker" group, so it waits for a second `D` before firing DBUI |
 
 ---
 
