@@ -29,10 +29,14 @@ require_file docs/README.md
 # Raised from 210 when AGENTS.md gained its Conventions section, then to 266 for
 # the upstream-Zirconium watermark entry -- a source of truth an agent has to
 # know exists, since nothing else in the tree implies that upstream is tracked
-# at all. The cap is a forcing function against AGENTS.md becoming a second
-# README, and invariants are exactly what it should protect -- but it only works
-# if each rise is deliberate, so keep it in one place with a reason attached.
-(( $(wc -l < AGENTS.md) <= 266 ))
+# at all. Raised to 279 for the dev.flow herdr plugin: it makes worktree
+# propagation a two-net mechanism where the rule had been "never add a second
+# copy list", and a rule that reversed is worse than no rule if the reversal is
+# not written down. The cap is a forcing function against AGENTS.md becoming a
+# second README, and invariants are exactly what it should protect -- but it
+# only works if each rise is deliberate, so keep it in one place with a reason
+# attached.
+(( $(wc -l < AGENTS.md) <= 279 ))
 
 # README.md is a landing pad into docs/ and nothing else. Capped because it grows
 # back otherwise: it was 855 lines covering fourteen concerns before the handbook
