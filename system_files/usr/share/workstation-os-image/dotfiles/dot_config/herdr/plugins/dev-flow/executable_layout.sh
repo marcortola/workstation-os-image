@@ -29,9 +29,18 @@ pane_cwd() {
   herdr_cli pane get "$1" | jq -r '.result.pane.cwd // empty'
 }
 
+# Whether the pane is idle, asked as "is the shell itself the foreground process
+# group". Matching process names instead is what the upstream probe did through a
+# field herdr 0.8.2 does not return (`argv0`, so `test` hit null and jq aborted
+# and every pane read as busy), and repairing that to `name` only traded one
+# failure for a flakier one: fish runs `direnv hook fish` while it starts, and a
+# probe landing in that window saw a non-shell name and skipped the agent in
+# roughly half of cold picks. The transient is a child of the shell's own process
+# group, so this comparison rides through it, and it needs no list of shell or
+# helper names to stay correct.
 pane_is_free() {
   herdr_cli pane process-info --pane "$1" |
-    jq -e -r '[.result.process_info.foreground_processes[]?.argv0] | all(test("^(zsh|bash|sh|fish|nu)$"))' >/dev/null 2>&1
+    jq -e '.result.process_info | .foreground_process_group_id == .shell_pid' >/dev/null 2>&1
 }
 
 create_tab_running() {
@@ -54,7 +63,11 @@ fi
 # has no .devcontainer, so pick the editor command per project rather than
 # leaving that tab showing an error.
 editor_command() {
-  local dir=$1 probe=$dir
+  # Two `local` assignments, not one: bash expands every word before the
+  # builtin runs, so `local dir=$1 probe=$dir` reads the caller's unset `dir`
+  # and `set -u` aborts the function.
+  local dir=$1
+  local probe=$dir
   local root
   root=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null || true)
   while :; do
@@ -62,7 +75,10 @@ editor_command() {
       printf 'dev nvim\n'
       return 0
     fi
-    [ "$probe" = "${root:-/}" ] && break
+    # -ef, not =: /home is a symlink to /var/home, so the caller's path and the
+    # physical one git reports never compare equal as strings and the walk would
+    # run past the repository into ~ and /.
+    [ "$probe" -ef "${root:-/}" ] && break
     [ "$probe" = / ] && break
     probe=$(dirname "$probe")
   done

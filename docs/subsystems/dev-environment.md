@@ -124,6 +124,17 @@ project twice no longer stacks duplicate workspaces. The compare is exact and
 matches the repository basename, so it never captures a worktree workspace,
 which the `dev.flow` popup labels with the branch slug.
 
+Either path then applies the dev layout — `main` running the agent, plus `nvim`
+and `term`. The `dev.flow` plugin applies it only for a herdr-created worktree or
+on demand from `prefix+shift+n`, and a workspace opened from the picker got
+neither. The gate is the workspace's tab count rather than which branch reached
+it: `layout.sh` creates its tabs unconditionally, so a second run would stack
+another `nvim` and `term`, while a single-tab workspace restored from an older
+session is laid out on the next pick. `layout.sh` calls `herdr`, `jq`, `git` and
+`dirname` by name, so the picker hands it a `PATH` rather than trusting the
+keybind's, and a failure never propagates, because the picker still owes the
+caller its `exec`.
+
 Scoping is also the whole job when a herdr window is already open. Every
 attached client mirrors the others, so the window on screen has already moved
 to the picked project by the time the workspace is focused — a second client
@@ -457,15 +468,24 @@ carries settings and run configurations, not the index.
 
 herdr is the terminal multiplexer and the agent sidebar. Its config seed is
 `system_files/usr/share/workstation-os-image/dotfiles/dot_config/herdr/create_config.toml`,
-deliberately minimal — herdr's own defaults (the `Ctrl+b` prefix, `prefix+?`
-help, `~/.herdr/worktrees` checkouts) are accepted wholesale, and only the
-settings whose defaults are wrong for a reproducible machine are pinned:
+deliberately minimal outside `[keys]` and `[ui]`, which carry the ported
+scheme. Elsewhere herdr's own defaults (`prefix+?` help, `~/.herdr/worktrees`
+checkouts) are accepted wholesale, and only the settings whose defaults are
+wrong for a reproducible machine are pinned:
 onboarding off, the tokyo-night theme, `default_shell = "/usr/bin/fish"` (a niri
 keybind never sources `config.fish`, so herdr would otherwise inherit the
 compositor's `$SHELL`), and both background calls to `herdr.dev` disabled —
 `manifest_check` in particular downloads agent-detection rules and applies them
 at runtime, which would change pane classification on a pinned binary with
 nothing here changing.
+
+The prefix is `Ctrl+G`. The scheme was ported carrying `ctrl+s`, which is XOFF
+and is also lazygit's `confirmInEditor-alt`, so a prefix on it would be
+swallowed in every pane; `ctrl+g` is bound by nothing here and costs only
+Neovim's built-in show-file-info. `[keys]` is a cascade — four actions are
+parked on chords nobody presses so the rest can move one slot along — so run
+`herdr config check` after editing it. It reports a collision as
+`kept keys.X, disabled keys.Y` rather than failing.
 
 Three rules, each with a failure behind it:
 
@@ -494,7 +514,10 @@ The worktree workspace is labelled with the branch slug alone. The repository is
 not lost, because `agent_panel_sort = "spaces"` groups rows under their space
 and `[ui.sidebar.spaces]` carries `branch` and `git_status` on the second row —
 which is why the previously pinned `sidebar_width = 36` is gone and herdr's
-default 26 is enough. Removal never touches the branch, deliberately: herdr does
+default 26 is enough. The sidebar also starts collapsed, which takes two keys,
+not one: `sidebar_collapsed_mode = "hidden"` only chooses how a collapsed sidebar
+draws, and `sidebar_start_collapsed = true` is what decides it begins that way.
+`Ctrl+G` `b` brings it back. Removal never touches the branch, deliberately: herdr does
 not delete branches and neither does the popup.
 
 The `ga` and `gd` fish functions this replaced are gone. Outside a herdr pane,
@@ -513,6 +536,19 @@ model does not change when you switch tools. The seed paths are inventoried in
 ---
 
 ## Gotchas and Tech Debt
+
+- **The `dev.flow` plugin reads herdr's API, so it drifts silently.** It was
+  vendored against a herdr that reported each foreground process as `argv0`;
+  0.8.2 reports `name`/`argv`/`cmdline`, `jq`'s `test` aborts on the resulting
+  null, and the probes answered "not a shell" and "not vim" for every pane. The
+  cost was invisible: `layout.sh` never started the agent in its `main` tab and
+  `ctrl+hjkl` never reached Neovim or fzf, both without an error. `layout.sh` now
+  asks whether the shell is the foreground process group — a comparison with no
+  process names in it, which also rides through the `direnv hook fish` fish runs
+  at startup — while `navigate.sh` still has to match names because it needs to
+  know Neovim from any other busy pane. When a herdr upgrade changes behaviour
+  here, the symptom is silence, so check the plugin's `jq` filters against a real
+  `herdr pane process-info` before looking anywhere else.
 
 - **Never run `:Lazy clean` on the host.** The host session has no project
   language in scope, so every language extra's plugins look unused there — but

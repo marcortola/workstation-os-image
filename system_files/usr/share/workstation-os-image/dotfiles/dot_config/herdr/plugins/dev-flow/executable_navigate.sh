@@ -20,9 +20,12 @@ key_for_direction() {
   esac
 }
 
+# See layout.sh's pane_is_free: `argv0` is not a field herdr 0.8.2 returns, and
+# jq aborts on the null, so this answered "not vim" for every pane and ctrl+hjkl
+# never reached Neovim or fzf.
 pane_runs_vim_or_fzf() {
   herdr_cli pane process-info --pane "$pane" |
-    jq -e -r '[.result.process_info.foreground_processes[]?.argv0] | any(test("^(n?vim|fzf)$"))' >/dev/null 2>&1
+    jq -e -r '[.result.process_info.foreground_processes[]? | .name // .argv0 // ""] | any(test("^(n?vim|fzf)$"))' >/dev/null 2>&1
 }
 
 if pane_runs_vim_or_fzf; then

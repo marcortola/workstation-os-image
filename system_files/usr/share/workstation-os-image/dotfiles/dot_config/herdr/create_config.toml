@@ -198,7 +198,11 @@ window_title = "{workspace}"
 agent_panel_sort = "spaces"
 show_agent_labels_on_pane_borders = false
 status_indicators = "dots"
+# collapsed_mode only chooses how a collapsed sidebar draws; start_collapsed is
+# what decides it begins that way. Setting one without the other leaves the
+# sidebar expanded on every start.
 sidebar_collapsed_mode = "hidden"
+sidebar_start_collapsed = true
 
 # Worktree workspaces are labelled with the branch slug alone; the repository
 # comes from the spaces panel's grouping rather than the label, which is why

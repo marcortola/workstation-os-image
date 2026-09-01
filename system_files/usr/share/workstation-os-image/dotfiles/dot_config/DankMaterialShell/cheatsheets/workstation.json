@@ -247,7 +247,7 @@
       },
       {
         "key": "Ctrl+G b",
-        "desc": "Hide the sidebar",
+        "desc": "Show or hide the sidebar",
         "subcat": "Agents"
       },
       {
@@ -406,7 +406,7 @@
       },
       {
         "key": "b",
-        "desc": "Hide the sidebar",
+        "desc": "Show or hide the sidebar",
         "subcat": "Agents and tools"
       },
       {

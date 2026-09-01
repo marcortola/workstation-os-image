@@ -101,7 +101,7 @@ Written with the prefix here, unlike the reference below.
 | `Ctrl+G` `alt+o` | opencode in a pane |
 | `Ctrl+G` `u` | Pick a link out of the scrollback |
 | `Ctrl+G` `c` | New tab |
-| `Ctrl+G` `b` | Hide the sidebar |
+| `Ctrl+G` `b` | Show or hide the sidebar |
 | `Ctrl+G` `?` | Every herdr key |
 
 ### Nvim (Space)
@@ -273,7 +273,7 @@ Two of these skip the prefix: `ctrl+alt+n` and `ctrl+alt+p` cycle tabs, and
 | `g` | lazygit here |
 | `u` | Pick a link out of the scrollback |
 | `alt+o` | opencode in a pane |
-| `b` | Hide the sidebar |
+| `b` | Show or hide the sidebar |
 | `?` | Every key, from herdr itself |
 
 ---

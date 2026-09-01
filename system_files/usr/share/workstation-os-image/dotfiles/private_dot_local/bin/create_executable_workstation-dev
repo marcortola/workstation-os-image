@@ -38,9 +38,31 @@ selection="$(
 
 project=${selection%%$'\t'*}
 
-# Both helpers read the resolved "$herdr_bin" and "$jq_bin" plus the picked
+# These helpers read the resolved "$herdr_bin" and "$jq_bin" plus the picked
 # "$project" and "$label"; the --herdr branch below is their only caller and
 # sets all four first.
+
+# The dev layout is three tabs -- main running the agent, plus nvim and term. The
+# plugin applies it only for a herdr-created worktree (worktree-create.sh) or on
+# demand from prefix+shift+n, so a workspace reached through this picker never
+# gets it. Gate on the tab count rather than on which branch called: layout.sh
+# creates its tabs unconditionally, so a second run stacks another nvim and term.
+# That gate also lays out a single-tab workspace restored from a session that
+# predates this. layout.sh calls herdr, jq, git and dirname by name, and this
+# script does not trust the PATH a niri keybind hands it. A failure here must not
+# cost the caller its exec below, so it never propagates.
+herdr_apply_layout() {
+    local workspace=$1 tabs
+
+    tabs="$("$herdr_bin" tab list --workspace "$workspace" 2>/dev/null |
+        "$jq_bin" -r '[.result.tabs[]?] | length')" || return 0
+    [[ $tabs == 1 ]] || return 0
+
+    HERDR_BIN_PATH="$herdr_bin" \
+        PATH="/usr/bin:/home/linuxbrew/.linuxbrew/bin:$PATH" \
+        "$HOME/.config/herdr/plugins/dev-flow/layout.sh" "$workspace" "$project" >/dev/null ||
+        return 0
+}
 
 # Focus the workspace an earlier pick already opened for this project rather
 # than stacking a second one under the same label. The compare is exact, so it
@@ -58,9 +80,19 @@ herdr_scope_workspace() {
 
     if [[ -n $existing ]]; then
         "$herdr_bin" workspace focus "$existing" >/dev/null
+        herdr_apply_layout "$existing"
     else
-        "$herdr_bin" workspace create --cwd "$project" \
-            --label "$label" --focus >/dev/null
+        local created
+
+        created="$(
+            "$herdr_bin" workspace create --cwd "$project" \
+                --label "$label" --focus |
+                "$jq_bin" -r '.result.workspace.workspace_id // empty'
+        )" || created=''
+
+        if [[ -n $created ]]; then
+            herdr_apply_layout "$created"
+        fi
     fi
 }
 
