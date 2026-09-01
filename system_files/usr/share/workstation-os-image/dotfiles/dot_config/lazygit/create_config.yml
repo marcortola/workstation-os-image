@@ -1,4 +1,6 @@
 gui:
+  # Open with the focused panel already enlarged; + and - toggle live.
+  screenMode: "half"
   nerdFontsVersion: "3"
   border: rounded
   theme:
@@ -28,3 +30,17 @@ gui:
       - red
     defaultFgColor:
       - white
+
+# `-` becomes the mirror of `+` for screen size, which costs two defaults: the
+# files panel had it on collapseAll, and the branches panel on
+# checkoutPreviousBranch. Collapsing the whole tree is not worth a top-row key,
+# so both tree toggles are released; checkoutPreviousBranch moves to the `_`
+# that prevScreenMode vacated.
+keybinding:
+  universal:
+    prevScreenMode: "-"
+  files:
+    collapseAll: "<disabled>"
+    expandAll: "<disabled>"
+  branches:
+    checkoutPreviousBranch: "_"
