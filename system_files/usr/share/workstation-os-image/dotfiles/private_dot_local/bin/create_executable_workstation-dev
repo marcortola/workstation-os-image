@@ -44,7 +44,7 @@ project=${selection%%$'\t'*}
 
 # Focus the workspace an earlier pick already opened for this project rather
 # than stacking a second one under the same label. The compare is exact, so it
-# never captures a worktree workspace: `ga` labels those `<repo>/<branch>`.
+# never captures a worktree workspace, which carries a branch slug as its label.
 herdr_scope_workspace() {
     local existing
 
@@ -81,6 +81,32 @@ herdr_scope_workspace_when_ready() {
     return 1
 }
 
+# Every attached herdr client mirrors the others, so a second window is a second
+# view of one session rather than a second context. When a window is already up,
+# scoping the workspace has already moved it to the picked project -- so focus
+# it and let this one close, instead of stacking a clone beside it. Both binds
+# that launch a client are matched: Mod+Shift+T uses app-id `herdr`, this picker
+# uses `dev-terminal`. Returns non-zero when there is nothing to focus, and the
+# caller falls through to exec'ing a client of its own.
+herdr_focus_existing_window() {
+    local self other
+
+    self="$("$niri_bin" msg -j focused-window 2>/dev/null |
+        "$jq_bin" -r '.id // empty')" || return 1
+
+    # This picker's own window is the focused one, so exclude it by id.
+    # shellcheck disable=SC2016
+    other="$(
+        "$niri_bin" msg -j windows 2>/dev/null |
+            "$jq_bin" -r --arg self "$self" \
+                '[.[] | select(.app_id == "herdr" or .app_id == "dev-terminal")
+                      | select((.id | tostring) != $self) | .id] | first // empty'
+    )" || return 1
+
+    [[ -n $other ]] || return 1
+    "$niri_bin" msg action focus-window --id "$other" >/dev/null 2>&1
+}
+
 if $open_herdr; then
     # Attaching an existing session lands on whatever pane is focused, so the
     # picked project has to be the focused workspace before the client attaches.
@@ -89,6 +115,8 @@ if $open_herdr; then
     command -v herdr >/dev/null 2>&1 || herdr_bin=/home/linuxbrew/.linuxbrew/bin/herdr
     jq_bin=jq
     command -v jq >/dev/null 2>&1 || jq_bin=/usr/bin/jq
+    niri_bin=niri
+    command -v niri >/dev/null 2>&1 || niri_bin=/usr/bin/niri
     label="$(basename -- "$project")"
 
     # herdr scopes its startup workspace from the cwd only while the restored
@@ -99,6 +127,8 @@ if $open_herdr; then
     # this launch is the one starting it.
     if "$herdr_bin" workspace list >/dev/null 2>&1; then
         herdr_scope_workspace
+        # A client is already showing the workspace we just focused.
+        herdr_focus_existing_window && exit 0
     else
         herdr_scope_workspace_when_ready >/dev/null 2>&1 &
     fi
