@@ -36,6 +36,24 @@ directory|.config/fish/functions|dot_config/fish/functions|*.fish
 copy|.config/foot/tokyo-night.ini|dot_config/foot/create_tokyo-night.ini|-
 template|.config/foot/workstation.ini|dot_config/foot/create_workstation.ini.tmpl|-
 copy|.config/herdr/config.toml|dot_config/herdr/create_config.toml|-
+# The dev-flow herdr plugin is image-owned like the niri scaffolding above:
+# hand-edited here, applied by chezmoi, never captured from live. herdr
+# discovers it from the linked directory, so every file must land together.
+scaffold|.config/herdr/plugins/dev-flow/herdr-plugin.toml|dot_config/herdr/plugins/dev-flow/herdr-plugin.toml|-
+scaffold|.config/herdr/plugins/dev-flow/adopt-worktrees.sh|dot_config/herdr/plugins/dev-flow/executable_adopt-worktrees.sh|-
+scaffold|.config/herdr/plugins/dev-flow/agents.sh|dot_config/herdr/plugins/dev-flow/executable_agents.sh|-
+scaffold|.config/herdr/plugins/dev-flow/close-workspace.sh|dot_config/herdr/plugins/dev-flow/executable_close-workspace.sh|-
+scaffold|.config/herdr/plugins/dev-flow/equalize-panes.sh|dot_config/herdr/plugins/dev-flow/executable_equalize-panes.sh|-
+scaffold|.config/herdr/plugins/dev-flow/focus-tab.sh|dot_config/herdr/plugins/dev-flow/executable_focus-tab.sh|-
+scaffold|.config/herdr/plugins/dev-flow/herdr-request.sh|dot_config/herdr/plugins/dev-flow/executable_herdr-request.sh|-
+scaffold|.config/herdr/plugins/dev-flow/layout.sh|dot_config/herdr/plugins/dev-flow/executable_layout.sh|-
+scaffold|.config/herdr/plugins/dev-flow/lazygit.sh|dot_config/herdr/plugins/dev-flow/executable_lazygit.sh|-
+scaffold|.config/herdr/plugins/dev-flow/navigate.sh|dot_config/herdr/plugins/dev-flow/executable_navigate.sh|-
+scaffold|.config/herdr/plugins/dev-flow/spaces.sh|dot_config/herdr/plugins/dev-flow/executable_spaces.sh|-
+scaffold|.config/herdr/plugins/dev-flow/urls.sh|dot_config/herdr/plugins/dev-flow/executable_urls.sh|-
+scaffold|.config/herdr/plugins/dev-flow/window-title.sh|dot_config/herdr/plugins/dev-flow/executable_window-title.sh|-
+scaffold|.config/herdr/plugins/dev-flow/worktree-create.sh|dot_config/herdr/plugins/dev-flow/executable_worktree-create.sh|-
+scaffold|.config/herdr/plugins/dev-flow/worktree-setup.sh|dot_config/herdr/plugins/dev-flow/executable_worktree-setup.sh|-
 template|.config/niri/local.kdl|dot_config/niri/create_local.kdl.tmpl|-
 template|.config/starship.toml|dot_config/create_starship.toml.tmpl|-
 copy|.config/lazygit/config.yml|dot_config/lazygit/create_config.yml|-

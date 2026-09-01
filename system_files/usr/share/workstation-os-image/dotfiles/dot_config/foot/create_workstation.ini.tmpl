@@ -1,7 +1,10 @@
 term=xterm-256color
 title=foot
-locked-title=yes
 app-id=foot
+# locked-title is deliberately off: herdr's window-title.sh sets the
+# focused workspace as the window title, and a locked title makes foot
+# ignore that escape. Nothing matches on a foot title -- the only niri
+# title rules are for firefox picture-in-picture and steam.
 
 font=FiraCode Nerd Font Mono:size=12
 font-bold=FiraCode Nerd Font Mono:size=12

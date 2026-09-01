@@ -1,9 +1,9 @@
 # Workstation herdr configuration.
 #
-# Deliberately minimal: herdr's own defaults are accepted wholesale (Ctrl+b
-# prefix, the built-in prefix+? keybinding help, single-pane worktree
-# workspaces, ~/.herdr/worktrees checkouts). Only the settings whose defaults
-# are wrong for a machine that is meant to be reproducible are pinned here.
+# The keybinding scheme and the dev-flow plugin were ported from a reviewed
+# upstream configuration; see docs/subsystems/dev-environment.md. Everything
+# outside [keys] and [ui] is still the deliberately minimal set: only the
+# settings whose defaults are wrong for a machine meant to be reproducible.
 #
 # Managed as a chezmoi create-only seed; see tooling/data/dotfiles.manifest and
 # dot_config/herdr/create_config.toml in the image. Sockets, logs, session.json
@@ -14,21 +14,65 @@
 onboarding = false
 
 [theme]
+# Matches foot's tokyo-night.ini, btop and nvim's tokyonight-night.
 name = "tokyo-night"
+
+[terminal]
+# herdr is launched from a niri keybind, which never sources config.fish, so
+# it would inherit the compositor's $SHELL rather than fish. Pin it.
+default_shell = "/usr/bin/fish"
 
 # Both checks are on by default and both talk to herdr.dev in the background.
 # version_check only nags, but manifest_check downloads agent-detection rules
 # and applies them at runtime, which would change how pane state is classified
 # on a pinned binary without anything here changing. uupd upgrades herdr
 # through Homebrew; detection stays whatever the installed binary ships.
-[terminal]
-# herdr is launched from a niri keybind, which never sources config.fish, so
-# it would inherit the compositor's $SHELL rather than fish. Pin it.
-default_shell = "/usr/bin/fish"
-
 [update]
 version_check = false
 manifest_check = false
+
+# The scheme is a cascade, not a pick-and-mix: the four parked actions below are
+# replaced by dev-flow popups, and freeing their keys pushes close_tab,
+# rename_workspace, reload_config and resize_mode each one slot along. Changing
+# one line in isolation collides with another.
+#
+# The prefix is ctrl+g rather than upstream's ctrl+s: ctrl+s is XOFF, and it is
+# also lazygit's `confirmInEditor-alt`, which a prefix would swallow in every
+# pane. ctrl+g is bound by nothing here -- not lazygit, not fish, not fzf, and
+# unmapped in every Neovim mode -- so it costs only Neovim's built-in
+# show-file-info. (The pickers still run `stty -ixon`: they use ctrl+s as an
+# fzf-internal chord, which XOFF would eat regardless of the prefix.)
+[keys]
+prefix = "ctrl+g"
+# Parked on a chord nobody presses; an empty string does not release the key.
+new_worktree = "prefix+alt+shift+g"
+remove_worktree = "prefix+alt+shift+x"
+workspace_picker = "prefix+alt+shift+w"
+close_workspace = "prefix+ctrl+d"
+goto = "prefix+alt+g"
+close_tab = "prefix+alt+x"
+resize_mode = "prefix+alt+r"
+open_worktree = "prefix+shift+o"
+new_workspace = "prefix+shift+c"
+rename_workspace = "prefix+shift+r"
+reload_config = "prefix+r"
+edit_scrollback = "prefix+shift+e"
+copy_mode = "prefix+y"
+settings = "prefix+shift+s"
+navigate_workspace_up = "k"
+navigate_workspace_down = "j"
+navigate_pane_up = "up"
+navigate_pane_down = "down"
+zoom = ["prefix+z", "prefix+enter"]
+next_tab = "ctrl+alt+n"
+previous_tab = "ctrl+alt+p"
+split_vertical = "prefix+v"
+split_horizontal = "prefix+h"
+# Pane focus moves to the arrows because navigate.sh claims bare ctrl+hjkl.
+focus_pane_left = "prefix+left"
+focus_pane_down = "prefix+down"
+focus_pane_up = "prefix+up"
+focus_pane_right = "prefix+right"
 
 # OpenCode in a pane rather than its own bare foot window: an agent outside a
 # herdr pane never reaches the sidebar.
@@ -37,20 +81,130 @@ key = "prefix+alt+o"
 type = "pane"
 command = "opencode"
 
-[ui]
-agent_panel_sort = "priority"
-# Worktree spaces are labelled "<repo>/<branch>" so the Agent rows keep the
-# repository, which costs columns. 36 is herdr's maximum.
-sidebar_width = 36
+# Vim-aware pane focus: forwarded into the pane when it runs nvim or fzf,
+# handled by herdr otherwise.
+[[keys.command]]
+key = "ctrl+h"
+type = "shell"
+command = "$HOME/.config/herdr/plugins/dev-flow/navigate.sh left"
+description = "focus pane left (vim/fzf-aware)"
 
-# The Agent panel's second row defaults to the detected agent kind alone, which
-# reads "claude" on every row. herdr has no token for the `agent start` name, so
-# carry the values that actually differ: the rolled-up state, and Claude Code's
-# own terminal title. Which checkout a row belongs to is already covered by
-# `workspace` — a worktree workspace is labelled with its branch.
-[ui.sidebar.agents]
+[[keys.command]]
+key = "ctrl+j"
+type = "shell"
+command = "$HOME/.config/herdr/plugins/dev-flow/navigate.sh down"
+description = "focus pane down (vim/fzf-aware)"
+
+[[keys.command]]
+key = "ctrl+k"
+type = "shell"
+command = "$HOME/.config/herdr/plugins/dev-flow/navigate.sh up"
+description = "focus pane up (vim/fzf-aware)"
+
+[[keys.command]]
+key = "ctrl+l"
+type = "shell"
+command = "$HOME/.config/herdr/plugins/dev-flow/navigate.sh right"
+description = "focus pane right (vim/fzf-aware)"
+
+[[keys.command]]
+key = "prefix+s"
+type = "popup"
+command = "$HOME/.config/herdr/plugins/dev-flow/spaces.sh"
+description = "space picker"
+width = "90%"
+height = "80%"
+
+[[keys.command]]
+key = "prefix+a"
+type = "popup"
+command = "$HOME/.config/herdr/plugins/dev-flow/agents.sh"
+description = "agent picker"
+width = "95%"
+height = "85%"
+
+[[keys.command]]
+key = "prefix+u"
+type = "popup"
+command = "$HOME/.config/herdr/plugins/dev-flow/urls.sh"
+description = "url picker"
+width = "80%"
+height = "70%"
+
+[[keys.command]]
+key = "prefix+g"
+type = "popup"
+command = "$HOME/.config/herdr/plugins/dev-flow/lazygit.sh"
+description = "lazygit at the pane's repo root"
+width = "90%"
+height = "85%"
+
+[[keys.command]]
+key = "prefix+shift+w"
+type = "popup"
+command = "$HOME/.config/herdr/plugins/dev-flow/worktree-create.sh"
+description = "new worktree"
+width = "70%"
+height = "50%"
+
+[[keys.command]]
+key = "prefix+shift+x"
+type = "popup"
+command = "$HOME/.config/herdr/plugins/dev-flow/close-workspace.sh"
+description = "close workspace, or delete worktree (asks)"
+width = "70%"
+height = "50%"
+
+[[keys.command]]
+key = "prefix+shift+n"
+type = "plugin_action"
+command = "dev.flow.layout"
+description = "apply dev layout"
+
+[[keys.command]]
+key = "prefix+shift+u"
+type = "plugin_action"
+command = "dev.flow.adopt-worktrees"
+description = "open worktrees of every repo"
+
+[[keys.command]]
+key = "prefix+m"
+type = "shell"
+command = "$HOME/.config/herdr/plugins/dev-flow/focus-tab.sh main"
+description = "focus main tab"
+
+[[keys.command]]
+key = "prefix+n"
+type = "shell"
+command = "$HOME/.config/herdr/plugins/dev-flow/focus-tab.sh nvim"
+description = "focus nvim tab"
+
+[[keys.command]]
+key = ["prefix+t", "ctrl+alt+t"]
+type = "shell"
+command = "$HOME/.config/herdr/plugins/dev-flow/focus-tab.sh term"
+description = "focus term tab"
+
+[[keys.command]]
+key = "prefix+plus"
+type = "shell"
+command = "$HOME/.config/herdr/plugins/dev-flow/equalize-panes.sh"
+description = "equalize pane widths"
+
+[ui]
+# window-title.sh sets this on the host terminal; foot's locked-title is off for
+# the herdr window so the escape is honoured.
+window_title = "{workspace}"
+agent_panel_sort = "spaces"
+show_agent_labels_on_pane_borders = false
+status_indicators = "dots"
+sidebar_collapsed_mode = "hidden"
+
+# Worktree workspaces are labelled with the branch slug alone; the repository
+# comes from the spaces panel's grouping rather than the label, which is why
+# the pinned sidebar_width = 36 is gone and herdr's default 26 is enough.
+[ui.sidebar.spaces]
 rows = [
-    ["state_icon", "workspace", "tab"],
-    ["agent", "state_text"],
-    ["terminal_title_stripped"],
+    ["workspace"],
+    ["branch", "git_status"],
 ]
