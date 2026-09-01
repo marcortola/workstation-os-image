@@ -55,7 +55,7 @@ own scripts.
 |---|---|
 | `Mod+T` | Terminal |
 | `Mod+Shift+T` | Coding session — herdr |
-| `Mod+Shift+P` | Project picker, then herdr |
+| `Mod+Shift+P` | Project picker: focuses the herdr window if one is open, otherwise opens one |
 | `Mod+Shift+D` | lazydocker |
 | `Mod+F` | File manager |
 | `Mod+Space` | Application launcher |

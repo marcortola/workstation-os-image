@@ -124,6 +124,17 @@ project twice no longer stacks duplicate workspaces. The compare is exact and
 matches the repository basename, so it never captures a worktree workspace,
 which the `dev.flow` popup labels with the branch slug.
 
+Scoping is also the whole job when a herdr window is already open. Every
+attached client mirrors the others, so the window on screen has already moved
+to the picked project by the time the workspace is focused — a second client
+would only be a second view of it. The picker therefore asks niri for a window
+whose app-id is `herdr` or `dev-terminal`, excluding its own by the focused
+window's id, and focuses that instead of `exec`ing a client; its own terminal
+closes behind it. Both launch binds are matched because both can hold a client:
+`Mod+Shift+T` opens one as `herdr`, the picker as `dev-terminal`. When niri
+answers with nothing to focus — no window open, or no compositor at all — the
+lookup fails and the picker falls through to `exec`ing a client as before.
+
 ---
 
 ## `dev nvim`: Neovim Inside the Container
