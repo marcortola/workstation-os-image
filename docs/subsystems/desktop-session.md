@@ -241,19 +241,58 @@ cheatsheet dropped in `~/.config/DankMaterialShell/cheatsheets/` in a
 layer-shell modal that focuses a search box on open, so `Mod+Slash` spawns
 `dms ipc call keybinds toggle workstation` instead.
 
-`tooling/keybindings/build-cheatsheet.py` generates that sheet from two sources
-and is wired into `just sync`, with `--check` in `tooling/validate/all`:
+`tooling/keybindings/build-cheatsheet.py` generates that sheet, wired into
+`just sync` with `--check` in `tooling/validate/all`. It is in two halves.
 
-| Source | Supplies |
+The **digest** is the first screen. The three `###` blocks of the "Every Day"
+section of [../keybindings.md](../keybindings.md) become the three columns --
+`Desktop (Mod)`, `Herdr (Ctrl+G)`, `Nvim (Space)` -- and their `####` headings
+become the groups inside each.
+
+The **reference** is everything below it: the rest of that page for the in-app
+layers, and `binds.kdl` plus the `local.kdl` seed for the desktop, which is
+rebuilt from the KDL rather than the doc so it is complete rather than curated.
+`tooling/data/cheatsheet-layout` groups it into topic-sized categories.
+
+#### Why the digest stays on top
+
+DMS ignores the order categories appear in the JSON. `KeybindsContent.qml`
+sorts them by estimated height, descending, then greedy-packs each into the
+shortest column:
+
+```js
+const sorted = [...categoryKeys].sort(
+    (a, b) => estimateCategoryHeight(b) - estimateCategoryHeight(a));
+```
+
+With three empty columns, the three *tallest* categories therefore land at the
+top of the three columns. That is the only lever over what sits above the fold,
+and the digest wins it by being taller than every reference category. Three
+numbers make that hold, and the generator asserts all three rather than trusting
+them:
+
+| Assertion | Why |
 | --- | --- |
-| [../keybindings.md](../keybindings.md) | Every layer except the desktop, in reviewed wording. Its `##` sections become categories, its `###` headings subcategories. A section the generator does not place fails the build rather than silently missing the modal. |
-| `binds.kdl` plus the `local.kdl` seed | The desktop layer, complete. Descriptions come from each bind's `hotkey-overlay-title`, subcategories from the `// ── Section ──` comments the file is already grouped by. |
+| a digest column is at most 28 rows-plus-headings | measured, not derived: a calibration sheet of numbered rows shows 25 rows plus 3 group headings per column before the fold at the overlay's 900px, and DMS bills a heading the same 28px as a bind |
+| every reference category is shorter than the shortest digest column | otherwise DMS packs it at the top of a column and pushes a digest column out of view |
+| no digest key exceeds 16 characters | DMS renders a key as `Mod + Shift + H`, spaces and all, in a narrow column. `Mod+Ctrl+Up/Down` (16) fits on one line; `Mod+Shift+H/J/K/L` (17) wraps onto two and costs a row the fold arithmetic has not budgeted for |
 
-So the titles below stay load-bearing, just for a different reader. A bind with
-no title has no label to borrow, so it must be named in
-`tooling/data/niri-bind-descriptions`; that file is asserted in both directions,
-and adding an untitled bind without describing it fails the build instead of
-dropping it from the sheet. `hotkey-overlay-title=null` still means hidden.
+The fold is the *overlay's*. The icon beside the search box switches to a
+floating window 80px shorter, where the last rows of each digest column need a
+scroll. That is a deliberate trade: sizing for the floating window would cost
+nine rows of the sheet people actually read.
+
+#### Where the labels come from
+
+Descriptions for the desktop come from each bind's `hotkey-overlay-title`, and
+group headings from the `// ── Section ──` comments `binds.kdl` is already
+organised by -- so that curation stays load-bearing, just for a different
+reader, and the section comments are structure now rather than decoration. A
+bind with no title has no label to borrow, so it must be named in
+`tooling/data/niri-bind-descriptions`; that file is asserted in both
+directions, and adding an untitled bind without describing it fails the build
+instead of dropping it from the sheet. `hotkey-overlay-title=null` still means
+hidden.
 
 Two keys are real on a running session but appear in no file this repo owns:
 `Mod+N` and `Mod+Shift+N` live only in the DMS-generated fragment. They are
@@ -262,12 +301,10 @@ than a description, and the generator rejects one that collides with a bind the
 repo already defines. `Mod+Y` and `Mod+Alt+L` are DMS's too, but `local.kdl`
 rebinds them `hotkey-overlay-title=null`, and that decision is honoured.
 
-Keys are shortened on the way in — `Mod+H` / `Mod+L` becomes `Mod+H/L`,
-`WheelScrollDown` becomes `Wheel↓` — because the modal gives the key its own
-narrow column and a long one wraps onto three lines and overlaps its neighbour.
-The doc's backticks are read before they are stripped, since `` `Space` `/` `` is
-a sequence while `` `Mod+H` / `Mod+L` `` is an alternation and the two are
-indistinguishable afterwards.
+Keys are shortened on the way in -- `Mod+H` / `Mod+L` becomes `Mod+H/L`,
+`WheelScrollDown` becomes `Wheel↓`. The doc's backticks are read before they
+are stripped, since `` `Space` `/` `` is a sequence while `` `Mod+H` / `Mod+L` ``
+is an alternation and the two are indistinguishable afterwards.
 
 ### niri's own overlay does not follow file order
 

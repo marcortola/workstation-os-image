@@ -13,64 +13,138 @@ session, `Space` the editor. Everything else hangs off one of them.**
 
 ## Every Day
 
-The keys that carry most of the work. If you learn one section, learn this one.
+The keys that carry most of the work, one block per layer. This section is the
+cheatsheet's first screen, so it is deliberately kept to 25 rows per layer --
+`tooling/keybindings/build-cheatsheet.py` fails the build if it grows past what
+fits above the fold.
 
-### Open something
+### Desktop (Mod)
+
+#### Windows
+
+| Key | Action |
+|---|---|
+| `Mod+H` / `Mod+L` | Focus the column left / right |
+| `Mod+J` / `Mod+K` | Focus the window down / up in the column |
+| `Mod+Ctrl+H` / `Mod+Ctrl+L` | Move the column |
+| `Mod+Ctrl+J` / `Mod+Ctrl+K` | Move the window in the column |
+| `Mod+R` | Cycle the column-width presets |
+| `Mod+M` | Maximise the column |
+| `Mod+W` | Tab the column instead of stacking it |
+| `Mod+V` | Float it |
+| `Mod+Q` | Close the window |
+
+#### Workspaces and screens
+
+| Key | Action |
+|---|---|
+| `Mod+1` … `Mod+9` | Go to a workspace |
+| `Mod+Up` / `Mod+Down` | Workspace up / down — not the window |
+| `Mod+Ctrl+Up` / `Mod+Ctrl+Down` | Send the column up / down |
+| `Mod+Ctrl+1` … `Mod+Ctrl+9` | Send the column to a workspace |
+| `Mod+O` | Overview of everything |
+| `Mod+Shift+H` / `Mod+Shift+L` | Focus the monitor left / right |
+| `Mod+Comma` / `Mod+Period` | Pull a window in / push it out |
+| `Mod+Shift+F` | Fullscreen |
+
+#### Launch and capture
 
 | Key | Action |
 |---|---|
 | `Mod+Space` | Any application |
 | `Mod+T` | A terminal |
-| `Mod+Shift+P` | A project — picks the repository and takes you to it |
-| `Ctrl+G` then `s` | Switch project, once a session is open |
-| `Ctrl+G` then `a` | Jump to an agent that needs you |
-| `Ctrl+G` then `g` | lazygit, in whatever repository this pane is in |
+| `Mod+Shift+T` | Coding session — herdr |
+| `Mod+Shift+P` | A project, picked by repository |
+| `Mod+Shift+S` | Screenshot a region |
+| `Mod+Print` | OCR the screen to the clipboard |
+| `Mod+Shift+V` | Dictate |
+| `Mod+Slash` | This sheet |
 
-### Move around
+### Herdr (Ctrl+G)
 
-| Key | Action |
-|---|---|
-| `Ctrl+H`, `Ctrl+J`, `Ctrl+K`, `Ctrl+L` | Between panes *and* editor splits, in one chord |
-| `Mod+H` / `Mod+L` | Between windows |
-| `Mod+1` … `Mod+9` | To a workspace |
-| `Mod+Up` / `Mod+Down` | Between workspaces |
-| `Ctrl+G` then `m`, `n` or `t` | To the `main`, `nvim` or `term` tab |
-| `Mod+O` | Overview of everything |
+Written with the prefix here, unlike the reference below.
 
-### Find something
+#### Projects and worktrees
 
 | Key | Action |
 |---|---|
-| `Space` `Space` | A file |
-| `Space` `/` | Text in the project |
-| `Space` `,` | An open buffer |
-| `Space` `e` | The file tree |
-| `Ctrl+R` | A command you ran before, in the shell |
-| `Ctrl+G` then `u` | A link that scrolled past |
+| `Ctrl+G` `s` | Space picker — projects, branches, worktrees |
+| `Ctrl+G` `shift+w` | New branch worktree, with the layout ready |
+| `Ctrl+G` `shift+o` | Open an existing worktree |
+| `Ctrl+G` `shift+x` | Close a space, showing uncommitted work first |
+| `Ctrl+G` `shift+n` | Build the layout: main, nvim, term |
+| `Ctrl+G` `g` | lazygit at this pane's repository |
+| `Mod+Shift+P` | Project picker, from the desktop |
+| `Mod+Shift+T` | Open herdr in the first place |
 
-### Git
-
-| Key | Action |
-|---|---|
-| `Space` `gg` | lazygit, from the editor |
-| `Space` `gs` | Stage or unstage this file |
-| `Space` `gd` | Diff the working tree |
-| `Space` `gb` | Review the whole branch against `main` |
-| `]h` / `[h` | Next / previous change |
-| `Space` `ghs` | Stage just this hunk |
-
-### Write code
+#### Tabs and panes
 
 | Key | Action |
 |---|---|
-| `gd` / `gr` | Go to definition / find references |
+| `Ctrl+H`, `Ctrl+J`, `Ctrl+K`, `Ctrl+L` | Focus panes, crossing into nvim. No prefix |
+| `Ctrl+G` `m` | The main tab, where claude runs |
+| `Ctrl+G` `n` | The nvim tab — not next-tab |
+| `Ctrl+G` `t` | The term tab |
+| `Ctrl+Alt+T` | The term tab, no prefix |
+| `Ctrl+Alt+N` / `Ctrl+Alt+P` | Cycle tabs, no prefix |
+| `Ctrl+G` `v` / `h` | Split beside / below |
+| `Ctrl+G` `z` | Zoom one pane, and back |
+| `Ctrl+G` `x` | Close the pane |
+
+#### Agents
+
+| Key | Action |
+|---|---|
+| `Ctrl+G` `a` | Agent picker, whatever needs you first |
+| `Ctrl+G` `a` then `enter` | Focus that agent's pane |
+| `Ctrl+G` `a` then `ctrl+o` | Send it a prompt without focusing it |
+| `Ctrl+G` `alt+o` | opencode in a pane |
+| `Ctrl+G` `u` | Pick a link out of the scrollback |
+| `Ctrl+G` `c` | New tab |
+| `Ctrl+G` `b` | Hide the sidebar |
+| `Ctrl+G` `?` | Every herdr key |
+
+### Nvim (Space)
+
+#### Find
+
+| Key | Action |
+|---|---|
+| `Space` `Space` | Find a file |
+| `Space` `/` | Grep the project |
+| `Space` `ss` | Grep, seeded with the last search |
+| `Space` `,` | Open buffers |
+| `Space` `e` | File tree |
+| `Space` `sw` | Search the word under the cursor |
+| `f` | Search inside this buffer |
+| `s` | Jump anywhere on screen, by two letters |
+
+#### Code
+
+| Key | Action |
+|---|---|
+| `gd` / `gr` | Definition / references |
 | `K` | Documentation under the cursor |
 | `Space` `ca` | Code action — the "fix it for me" key |
 | `Space` `cr` | Rename everywhere |
+| `Space` `cf` | Format. Never happens on save |
 | `]d` / `[d` | Next / previous problem |
 | `gcc` / `gc` | Comment the line / the selection |
-| `s` | Jump anywhere on screen by typing two letters |
-| `jk` | Escape, without reaching for it |
+| `jk` | Escape |
+| `Tab` | Accept the completion |
+
+#### Git
+
+| Key | Action |
+|---|---|
+| `Space` `gg` | lazygit |
+| `Space` `gs` | Stage or unstage this file |
+| `Space` `gd` | Diff the working tree |
+| `Space` `gb` | Review the whole branch against main |
+| `]h` / `[h` | Next / previous change |
+| `Space` `ghs` | Stage just this hunk |
+| `Space` `uu` | Undo history |
+| `Ctrl+H`, `Ctrl+J`, `Ctrl+K`, `Ctrl+L` | Splits, then out into the next pane |
 
 > The one chord worth internalising is `Ctrl+H`, `Ctrl+J`, `Ctrl+K`, `Ctrl+L`.
 > It walks Neovim's splits and keeps walking into the next terminal pane when it
@@ -131,7 +205,7 @@ moves as well.
 | `Mod+Up` / `Mod+Down` | Workspace up / down |
 | `Mod+Ctrl+1` … `Mod+Ctrl+9` | Send the column to a workspace |
 | `Mod+Ctrl+Up` / `Mod+Ctrl+Down` | Send it up / down |
-| `Mod+Shift+H`, `J`, `K`, `L` | Focus another monitor |
+| `Mod+Shift+H` / `Mod+Shift+L` | Focus the monitor left / right |
 | `Mod+Shift+Ctrl+H`, `J`, `K`, `L` | Send the column there |
 
 ### Capture and session
@@ -330,6 +404,8 @@ separate list, because `tooling/keybindings/build-cheatsheet.py` generates that
 modal from these tables and from the niri binds themselves. Editing this file
 and running `just cheatsheet` is how the modal changes; `just validate` fails if
 the two have drifted apart.
+
+### From inside the program
 
 | Key | Shows |
 |---|---|

@@ -1,0 +1,61 @@
+# How the cheatsheet's reference half is grouped into categories.
+#
+# The DIGEST -- the first screen -- is not configured here. It comes from the
+# three `###` blocks of the "Every Day" section of docs/keybindings.md, one per
+# column. Everything else is reference, and this file says which category each
+# group of binds lands in.
+#
+# WHY THIS FILE EXISTS. DMS ignores the order categories appear in the JSON.
+# Modals/KeybindsContent.qml sorts them by estimated height, descending, then
+# greedy-packs each into the shortest column:
+#
+#     const sorted = [...categoryKeys].sort(
+#         (a, b) => estimateCategoryHeight(b) - estimateCategoryHeight(a));
+#
+# With three empty columns the three TALLEST categories therefore land at the
+# top of the three columns. That is the only lever over what sits above the
+# fold, so the digest wins it by being taller than every category below --
+# which means every category here must stay under the cap. The generator
+# asserts exactly that, so a group that grows too large fails the build instead
+# of silently displacing the digest.
+#
+# Format: source group|category it belongs to
+# A source group is a `###` heading from docs/keybindings.md or a
+# `// -- Section --` heading from the niri binds.kdl. Every group must appear
+# here exactly once, and every line must name a group that exists.
+
+# --- the desktop, rebuilt from binds.kdl -----------------------------------
+Columns & window sizing|Windows and columns
+Focus|Windows and columns
+Move|Moving and workspaces
+Workspaces|Moving and workspaces
+Monitors|Monitors and scroll
+Scroll|Monitors and scroll
+Launchers & apps|Launchers and system
+System & utilities|Launchers and system
+Session|Launchers and system
+Overview|Launchers and system
+Reclaimed from DMS|Launchers and system
+Media & display|Media and capture
+Screenshots|Media and capture
+
+# --- herdr -----------------------------------------------------------------
+Projects|Herdr: projects and tabs
+Tabs|Herdr: projects and tabs
+Panes|Herdr: panes and agents
+Agents and tools|Herdr: panes and agents
+
+# --- nvim ------------------------------------------------------------------
+Files and search|Nvim: find and code
+Code|Nvim: find and code
+Editing|Nvim: edit and git
+Git and tools|Nvim: edit and git
+
+# --- terminal and the TUIs -------------------------------------------------
+foot|Terminal and shell
+Shell|Terminal and shell
+lazygit|lazygit, lazydocker and btop
+lazydocker and btop|lazygit, lazydocker and btop
+
+# --- the escape hatch ------------------------------------------------------
+From inside the program|When you are lost

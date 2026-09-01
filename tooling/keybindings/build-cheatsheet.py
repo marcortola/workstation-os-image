@@ -3,24 +3,38 @@
 
 niri's built-in hotkey overlay orders itself, cannot be searched, and only ever
 knows about niri. DMS ships a searchable modal that renders any JSON cheatsheet
-found in ~/.config/DankMaterialShell/cheatsheets/, so Mod+Slash opens ours
-instead. This builds that JSON from the two sources that already exist:
+found in ~/.config/DankMaterialShell/cheatsheets/, so Mod+Slash opens ours.
 
-  docs/keybindings.md  the curated study sheet -- every layer except the
-                       desktop, in the wording a human already reviewed.
-  binds.kdl + the      the desktop layer, complete. Descriptions come from each
-  local.kdl seed       bind's hotkey-overlay-title, and subcategories from the
-                       `// -- Section --` comments the file is already grouped
-                       by, so the curation in that file stays load-bearing.
+The sheet is in two halves.
 
-A bind carrying no title has no label to borrow, so it must be named in
-tooling/data/niri-bind-descriptions. That file is asserted in BOTH directions:
-a new bind with no title and no entry fails the build rather than silently
-vanishing from the sheet, and an entry naming a bind that no longer exists
-fails too. `hotkey-overlay-title=null` still means hidden, as it did for niri.
+The DIGEST is the first screen: the three `###` blocks of the "Every Day"
+section of docs/keybindings.md become the three columns, and their `####`
+headings become the groups inside each. It is capped at what actually fits
+above the fold, measured rather than guessed -- 25 rows plus 3 group headings
+per column at the overlay's 900px.
 
-With --check it regenerates into a temp file and diffs against the committed
-seed instead of writing, so validate can assert the seed is in sync.
+The REFERENCE is everything below it: the rest of docs/keybindings.md for the
+in-app layers, and binds.kdl plus the local.kdl seed for the desktop, which is
+rebuilt from the KDL rather than the doc so it is complete rather than curated.
+tooling/data/cheatsheet-layout groups it into topic-sized categories.
+
+WHY THE CAP MATTERS. DMS ignores the order categories appear in the JSON;
+Modals/KeybindsContent.qml sorts by estimated height, descending, and
+greedy-packs each into the shortest column. With three empty columns the three
+tallest categories land at the top of the three columns, which is the only
+lever over what sits above the fold. The digest wins it by being taller than
+every reference category, and check_layout() asserts exactly that -- so a
+category that grows too large fails the build instead of silently pushing the
+digest out of view.
+
+Descriptions for the desktop come from each bind's hotkey-overlay-title, and
+group headings from the `// -- Section --` comments binds.kdl is already
+organised by, so that curation stays load-bearing. A bind carrying no title
+must be named in tooling/data/niri-bind-descriptions, asserted in both
+directions. `hotkey-overlay-title=null` still means hidden.
+
+With --check it regenerates and diffs against the committed seed instead of
+writing, so validate can assert the seed is in sync.
 """
 
 from __future__ import annotations
@@ -37,21 +51,34 @@ DOC = REPO / "docs/keybindings.md"
 SYSTEM_BINDS = REPO / "system_files/usr/share/workstation-os-image/niri/includes/binds.kdl"
 LOCAL_SEED = REPO / "system_files/usr/share/workstation-os-image/dotfiles/dot_config/niri/create_local.kdl.tmpl"
 LEXICON = REPO / "tooling/data/niri-bind-descriptions"
+LAYOUT = REPO / "tooling/data/cheatsheet-layout"
 SEED = REPO / "system_files/usr/share/workstation-os-image/dotfiles/dot_config/DankMaterialShell/cheatsheets/workstation.json"
 
 TITLE = "Workstation Keys"
 PROVIDER = "workstation"
-DESKTOP_CATEGORY = "Desktop"
+
+# The doc section whose `###` blocks become the digest columns.
+DIGEST_SECTION = "Every Day"
+
+# Measured, not derived. A calibration sheet of numbered rows rendered in the
+# overlay at 900px shows 25 rows plus 3 group headings per column before the
+# fold. DMS costs a category at 40px and everything inside it at 28px
+# (KeybindsContent.qml estimateCategoryHeight), so one column is 28 units and a
+# unit is a row or a group heading.
+FOLD_UNITS = 28
+
+# The key gets its own narrow column, and DMS renders it as `Mod + Shift + H`
+# with spaces around every plus, so it runs out of room well before the
+# description does. Measured at the overlay's width: `Mod+Ctrl+Up/Down` (16)
+# renders on one line and `Mod+Shift+H/J/K/L` (17) wraps onto two, which costs
+# a row the fold arithmetic has not budgeted for.
+DIGEST_KEY_CHARS = 16
 
 # Every `##` in the doc is either a category in the sheet or listed here. A new
 # section can then never be added to the doc and silently miss the modal.
-DOC_CATEGORIES = {
-    "Every Day": "Every Day",
-    "Session": "Session (Ctrl+G)",
-    "Editor": "Editor (Space)",
-    "Terminal and Apps": "Terminal & Apps",
-    "When You Are Lost": "When You Are Lost",
-}
+# Sections whose rows are reference. Their `###` headings are the source groups
+# that tooling/data/cheatsheet-layout assigns to categories.
+DOC_REFERENCE = {"Session", "Editor", "Terminal and Apps", "When You Are Lost"}
 DOC_IGNORED = {
     # Rebuilt from binds.kdl instead, so it is complete rather than curated.
     "Desktop",
@@ -146,45 +173,71 @@ def normalise_desc(cell: str) -> str:
 
 # --- docs/keybindings.md -------------------------------------------------
 
-def parse_doc() -> dict[str, list[dict[str, str]]]:
-    category: str | None = None
-    subcat = ""
-    out: dict[str, list[dict[str, str]]] = {}
+def parse_doc() -> tuple[dict[str, list[dict[str, str]]], dict[str, list[dict[str, str]]]]:
+    """Returns (digest categories, reference groups).
+
+    Inside the digest section a `###` opens a column and a `####` a group
+    within it. Everywhere else `###` is itself a group, and which category it
+    lands in is tooling/data/cheatsheet-layout's business, not this function's.
+    """
+    digest: dict[str, list[dict[str, str]]] = {}
+    reference: dict[str, list[dict[str, str]]] = {}
+
+    section = ""
+    digest_column = ""
+    group = ""
     seen_sections: set[str] = set()
 
     for raw in DOC.read_text().splitlines():
         line = raw.rstrip()
-        if line.startswith("## "):
+        if line.startswith("## ") and not line.startswith("### "):
             section = line[3:].strip()
             seen_sections.add(section)
-            category = DOC_CATEGORIES.get(section)
-            subcat = ""
+            digest_column = group = ""
+            continue
+        if line.startswith("#### "):
+            group = line[5:].strip()
             continue
         if line.startswith("### "):
-            subcat = line[4:].strip()
+            if section == DIGEST_SECTION:
+                digest_column = line[4:].strip()
+                group = ""
+            else:
+                group = line[4:].strip()
             continue
-        if category is None or not line.startswith("|"):
+        if not line.startswith("|"):
             continue
-        cells = [c.strip() for c in line.strip().strip("|").split("|")]
-        if len(cells) != 2:
-            continue
-        if set(cells[0]) <= set("-: ") or cells[0] == "Key":
-            continue
-        entry = {"key": normalise_key(cells[0]), "desc": normalise_desc(cells[1])}
-        if subcat:
-            entry["subcat"] = subcat
-        out.setdefault(category, []).append(entry)
 
-    unknown = seen_sections - set(DOC_CATEGORIES) - DOC_IGNORED
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) != 2 or cells[0] == "Key" or set(cells[0]) <= set("-: "):
+            continue
+        row = {"key": normalise_key(cells[0]), "desc": normalise_desc(cells[1])}
+
+        if section == DIGEST_SECTION:
+            if not digest_column or not group:
+                fail(f"{DOC.relative_to(REPO)}: a row in {DIGEST_SECTION} sits outside a ### column and #### group.")
+            row["subcat"] = group
+            digest.setdefault(digest_column, []).append(row)
+        elif section in DOC_REFERENCE:
+            if not group:
+                fail(f"{DOC.relative_to(REPO)}: a row in '{section}' sits outside a ### group.")
+            reference.setdefault(group, []).append(row)
+
+    unknown = seen_sections - {DIGEST_SECTION} - DOC_REFERENCE - DOC_IGNORED
     if unknown:
         fail(
             f"{DOC.relative_to(REPO)} has sections this generator does not place: "
-            f"{sorted(unknown)}. Add them to DOC_CATEGORIES or DOC_IGNORED."
+            f"{sorted(unknown)}. Add them to DOC_REFERENCE or DOC_IGNORED."
         )
-    missing = set(DOC_CATEGORIES) - seen_sections
+    missing = ({DIGEST_SECTION} | DOC_REFERENCE) - seen_sections
     if missing:
         fail(f"{DOC.relative_to(REPO)} no longer has these sections: {sorted(missing)}.")
-    return out
+    if len(digest) != 3:
+        fail(
+            f"the digest must be exactly 3 columns, one per column DMS renders, but "
+            f"{DOC.relative_to(REPO)}'s {DIGEST_SECTION} section has {len(digest)}: {sorted(digest)}."
+        )
+    return digest, reference
 
 
 # --- niri binds ----------------------------------------------------------
@@ -318,7 +371,8 @@ def build_desktop(
     binds: list[dict[str, object]],
     lexicon: dict[str, tuple[str, str]],
     additions: dict[str, tuple[str, str]],
-) -> list[dict[str, str]]:
+) -> dict[str, list[dict[str, str]]]:
+    """The desktop layer as {section heading: rows}, ready for the layout file."""
     visible = [b for b in binds if not b["hidden"]]
 
     undescribed = sorted(
@@ -338,7 +392,6 @@ def build_desktop(
             f"{LEXICON.relative_to(REPO)} describes binds that no longer exist:\n  "
             + "\n  ".join(stale)
         )
-
     clash = sorted(set(additions) & known)
     if clash:
         fail(
@@ -346,42 +399,132 @@ def build_desktop(
             f"so they would appear twice:\n  " + "\n  ".join(clash)
         )
 
-    rows: list[dict[str, str]] = []
+    groups: dict[str, list[dict[str, str]]] = {}
     for bind in visible:
         key = str(bind["key"])
         subcat, desc = lexicon.get(key, ("", ""))
-        row = {
-            "key": shorten(key),
-            "desc": desc or str(bind["title"]),
-            "subcat": subcat or str(bind["section"]),
-        }
-        rows.append(row)
+        section = subcat or str(bind["section"])
+        groups.setdefault(section, []).append(
+            {"key": shorten(key), "desc": desc or str(bind["title"])}
+        )
     for key, (subcat, desc) in additions.items():
-        rows.append({"key": shorten(key), "desc": desc, "subcat": subcat})
-    return rows
+        groups.setdefault(subcat, []).append({"key": shorten(key), "desc": desc})
+    return groups
+
+
+def parse_layout() -> dict[str, str]:
+    """source group -> the reference category it belongs to."""
+    mapping: dict[str, str] = {}
+    for number, raw in enumerate(LAYOUT.read_text().splitlines(), 1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        fields = line.split("|")
+        if len(fields) != 2:
+            fail(f"{LAYOUT.relative_to(REPO)}:{number}: expected 'source group|category'.")
+        group, category = (f.strip() for f in fields)
+        if not group or not category:
+            fail(f"{LAYOUT.relative_to(REPO)}:{number}: both fields are required.")
+        if group in mapping:
+            fail(f"{LAYOUT.relative_to(REPO)}:{number}: '{group}' is assigned twice.")
+        mapping[group] = category
+    return mapping
+
+
+def units(rows: list[dict[str, str]]) -> int:
+    """What DMS charges for a category, in rows. estimateCategoryHeight bills a
+    named subcategory the same 28px as a bind, so a heading costs one row."""
+    return len(rows) + len({r["subcat"] for r in rows if r.get("subcat")})
+
+
+def build_reference(groups: dict[str, list[dict[str, str]]]) -> dict[str, list[dict[str, str]]]:
+    layout = parse_layout()
+
+    unassigned = sorted(set(groups) - set(layout))
+    if unassigned:
+        fail(
+            f"{LAYOUT.relative_to(REPO)} does not say which category these belong to, "
+            f"so they would not appear at all:\n  " + "\n  ".join(unassigned)
+        )
+    unknown = sorted(set(layout) - set(groups))
+    if unknown:
+        fail(
+            f"{LAYOUT.relative_to(REPO)} names groups that do not exist:\n  "
+            + "\n  ".join(unknown)
+        )
+
+    out: dict[str, list[dict[str, str]]] = {}
+    for group in sorted(groups):
+        for row in groups[group]:
+            out.setdefault(layout[group], []).append({**row, "subcat": group})
+    return out
+
+
+def check_layout(digest: dict[str, list[dict[str, str]]],
+                 reference: dict[str, list[dict[str, str]]]) -> None:
+    """Assert the digest actually lands above the fold.
+
+    DMS sorts categories by height and greedy-packs them, so the three tallest
+    take the top of the three columns. The digest gets them by being taller
+    than everything else and no taller than one column.
+    """
+    oversized = {c: units(r) for c, r in digest.items() if units(r) > FOLD_UNITS}
+    if oversized:
+        fail(
+            f"a digest column may be at most {FOLD_UNITS} rows-plus-headings or it "
+            f"scrolls; these are bigger: {oversized}. Trim "
+            f"{DOC.relative_to(REPO)}'s {DIGEST_SECTION} section."
+        )
+
+    long_keys = sorted(
+        {r["key"] for rows in digest.values() for r in rows if len(r["key"]) > DIGEST_KEY_CHARS}
+    )
+    if long_keys:
+        fail(
+            f"these digest keys are longer than {DIGEST_KEY_CHARS} characters, so they wrap "
+            f"onto a second line and push the column past the fold:\n  " + "\n  ".join(long_keys)
+        )
+
+    smallest = min(units(r) for r in digest.values())
+    too_tall = {c: units(r) for c, r in reference.items() if units(r) >= smallest}
+    if too_tall:
+        fail(
+            f"these reference categories are at least as tall as the smallest digest "
+            f"column ({smallest}), so DMS would pack them at the top of a column and "
+            f"push the digest below the fold: {too_tall}. Split them in "
+            f"{LAYOUT.relative_to(REPO)}."
+        )
 
 
 def main() -> None:
     check = "--check" in sys.argv[1:]
 
-    categories = parse_doc()
+    digest, doc_groups = parse_doc()
+
     binds = parse_binds(SYSTEM_BINDS, "Desktop")
     binds += parse_binds(LOCAL_SEED, "Reclaimed from DMS")
     lexicon, additions = parse_lexicon()
-    categories[DESKTOP_CATEGORY] = build_desktop(binds, lexicon, additions)
+    kdl_groups = build_desktop(binds, lexicon, additions)
 
-    order = ["Every Day", DESKTOP_CATEGORY, "Session (Ctrl+G)", "Editor (Space)",
-             "Terminal & Apps", "When You Are Lost"]
-    missing = [c for c in order if c not in categories]
-    if missing:
-        fail(f"no rows produced for {missing}.")
+    collision = sorted(set(doc_groups) & set(kdl_groups))
+    if collision:
+        fail(
+            "these group headings exist in both docs/keybindings.md and the niri "
+            f"binds, so the layout file cannot tell them apart:\n  " + "\n  ".join(collision)
+        )
 
+    reference = build_reference({**doc_groups, **kdl_groups})
+    check_layout(digest, reference)
+
+    # Digest first for a human reading the JSON. DMS repacks by height anyway;
+    # check_layout is what actually guarantees the order on screen.
     sheet = {
         "title": TITLE,
         "provider": PROVIDER,
-        "binds": {name: categories[name] for name in order},
+        "binds": {**digest, **{k: reference[k] for k in sorted(reference)}},
     }
     rendered = json.dumps(sheet, indent=2, ensure_ascii=False) + "\n"
+    total = sum(len(v) for v in sheet["binds"].values())
 
     if check:
         if not SEED.exists():
@@ -393,14 +536,17 @@ def main() -> None:
                 input=rendered, text=True, check=False,
             )
             fail(f"{SEED.relative_to(REPO)} is stale: run 'just cheatsheet' and commit.")
-        total = sum(len(v) for v in sheet["binds"].values())
         print(f"Keybindings cheatsheet is in sync ({total} binds).")
         return
 
     SEED.parent.mkdir(parents=True, exist_ok=True)
     SEED.write_text(rendered)
-    total = sum(len(v) for v in sheet["binds"].values())
-    print(f"Wrote {SEED.relative_to(REPO)} ({total} binds across {len(sheet['binds'])} categories).")
+    widest = max(units(r) for r in digest.values())
+    print(
+        f"Wrote {SEED.relative_to(REPO)}: {total} binds, "
+        f"{len(digest)} digest columns (tallest {widest}/{FOLD_UNITS}) "
+        f"and {len(reference)} reference categories."
+    )
 
 
 if __name__ == "__main__":
