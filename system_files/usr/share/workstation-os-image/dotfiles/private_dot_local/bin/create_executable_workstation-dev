@@ -38,17 +38,71 @@ selection="$(
 
 project=${selection%%$'\t'*}
 
+# Both helpers read the resolved "$herdr_bin" and "$jq_bin" plus the picked
+# "$project" and "$label"; the --herdr branch below is their only caller and
+# sets all four first.
+
+# Focus the workspace an earlier pick already opened for this project rather
+# than stacking a second one under the same label. The compare is exact, so it
+# never captures a worktree workspace: `ga` labels those `<repo>/<branch>`.
+herdr_scope_workspace() {
+    local existing
+
+    # $label is a jq variable, not a shell one.
+    # shellcheck disable=SC2016
+    existing="$(
+        "$herdr_bin" workspace list 2>/dev/null |
+            "$jq_bin" -r --arg label "$label" \
+                '[.result.workspaces[]? | select(.label == $label) | .workspace_id] | first // empty'
+    )" || existing=''
+
+    if [[ -n $existing ]]; then
+        "$herdr_bin" workspace focus "$existing" >/dev/null
+    else
+        "$herdr_bin" workspace create --cwd "$project" \
+            --label "$label" --focus >/dev/null
+    fi
+}
+
+# The client this script execs into is what starts the server, so poll the API
+# socket rather than guess how long that takes, and give up rather than linger
+# when it never answers.
+herdr_scope_workspace_when_ready() {
+    local attempt
+
+    for ((attempt = 0; attempt < 100; attempt++)); do
+        if "$herdr_bin" workspace list >/dev/null 2>&1; then
+            herdr_scope_workspace
+            return
+        fi
+        sleep 0.1
+    done
+
+    return 1
+}
+
 if $open_herdr; then
-    # Attaching an existing session lands on whatever pane is focused, so ask
-    # herdr for a workspace on the picked project first. With no server running
-    # that call fails harmlessly and herdr scopes the workspace from the cwd.
+    # Attaching an existing session lands on whatever pane is focused, so the
+    # picked project has to be the focused workspace before the client attaches.
     # A niri keybind runs this with a minimal PATH, so do not trust it.
     herdr_bin=herdr
     command -v herdr >/dev/null 2>&1 || herdr_bin=/home/linuxbrew/.linuxbrew/bin/herdr
+    jq_bin=jq
+    command -v jq >/dev/null 2>&1 || jq_bin=/usr/bin/jq
+    label="$(basename -- "$project")"
+
+    # herdr scopes its startup workspace from the cwd only while the restored
+    # session has none, and session.json carries workspaces across restarts, so
+    # on a cold start the cwd is ignored and the pick lands in whichever
+    # workspace was persisted. Scope over the socket instead: inline when a
+    # server is already up, and from a waiter that outlives the exec below when
+    # this launch is the one starting it.
     if "$herdr_bin" workspace list >/dev/null 2>&1; then
-        "$herdr_bin" workspace create --cwd "$project" \
-            --label "$(basename -- "$project")" --focus >/dev/null
+        herdr_scope_workspace
+    else
+        herdr_scope_workspace_when_ready >/dev/null 2>&1 &
     fi
+
     cd -- "$project"
     exec "$herdr_bin"
 fi
