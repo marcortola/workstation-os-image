@@ -120,8 +120,9 @@ after a reboot would otherwise land in whichever workspace was persisted —
 background waiter polls `workspace list` for up to ten seconds and scopes as
 soon as the socket answers. Both paths first look for a workspace already
 labelled with the repository's basename and focus that, so picking the same
-project twice no longer stacks duplicate workspaces. The compare is exact, which
-is what keeps it off worktree workspaces: `ga` labels those `<repo>/<branch>`.
+project twice no longer stacks duplicate workspaces. The compare is exact and
+matches the repository basename, so it never captures a worktree workspace,
+which the `dev.flow` popup labels with the branch slug.
 
 ---
 
@@ -397,7 +398,7 @@ wiring that keeps them in sync.
 | Path | How it reaches `.worktreeinclude` |
 |---|---|
 | **herdr** (`herdr worktree create`) | Shells out to `git worktree add`, so the `post-checkout` hook fires |
-| **`ga <branch>`** | Delegates to herdr inside a session; on the plain-git path it calls `workstation-worktree-sync` itself as belt and braces |
+| **`dev.flow` `worktree-setup.sh`** | A second, machine-local net on the `worktree.created` event: the union of every `.worktreeinclude` in `~/projects`, copied only where git already ignores the file and the target does not have it |
 | **Claude Code** (`--worktree`, subagent isolation) | Reads `.worktreeinclude` natively |
 | **JetBrains "New Worktree"** | The IDE shells out to git, so the same `post-checkout` hook applies |
 
@@ -479,22 +480,27 @@ Three rules, each with a failure behind it:
   pane never reaches the sidebar". Outside a pane the state hook exits 0
   silently, so nothing warns you.
 
-Two fish functions cover the per-branch worktree loop. `ga` places the checkout
-at `~/.herdr/worktrees/<repo>/<branch-slug>`, herdr's own layout, with `/`
-replaced by `-` in the slug; `gd` acts on whatever worktree you are standing in:
+The per-branch worktree loop lives in the `dev.flow` plugin, reachable by key
+from any pane. Checkouts land beside the repository at
+`<repo>__worktrees/<branch-slug>`:
 
-| Command | Effect |
+| Key | Effect |
 |---|---|
-| `ga <branch>` | Create or open the worktree. Inside herdr it hands the job over so the checkout opens as its own workspace grouped under the parent repo; outside, plain `git worktree add` then `cd` |
-| `gd` | Confirm, then remove the current worktree *and* its branch, returning to the main checkout. Refuses to remove the main worktree |
+| `prefix+shift+w` | Popup: prompt for a branch, validate it with `git check-ref-format`, create the worktree and apply the dev layout |
+| `prefix+shift+x` | Popup: show the checkout and any uncommitted work, confirm, then remove it. The branch is never deleted |
+| `prefix+s` | Space picker: live workspaces plus on-disk worktrees that have no workspace yet, grouped by repository and sorted so a blocked or finished agent rises to the top |
+| `prefix+shift+u` | Open every linked worktree of every repository as a workspace. Also runs at server start |
 
-`ga` passes `--label <repo>/<branch>` on purpose: herdr labels a worktree
-workspace with the branch alone, and the Agent sidebar's only location token is
-that workspace name, so without the label every worktree row loses the
-repository it belongs to. That is also why `sidebar_width = 36` (herdr's maximum)
-is pinned. `gd` asks herdr to remove the workspace when herdr opened the
-checkout, so the workspace goes away with the directory; deleting the branch
-stays the function's job on either path, because herdr never deletes branches.
+The worktree workspace is labelled with the branch slug alone. The repository is
+not lost, because `agent_panel_sort = "spaces"` groups rows under their space
+and `[ui.sidebar.spaces]` carries `branch` and `git_status` on the second row —
+which is why the previously pinned `sidebar_width = 36` is gone and herdr's
+default 26 is enough. Removal never touches the branch, deliberately: herdr does
+not delete branches and neither does the popup.
+
+The `ga` and `gd` fish functions this replaced are gone. Outside a herdr pane,
+use `git worktree add` directly; the `post-checkout` hook still fires, so
+`.worktreeinclude` propagation is unaffected.
 
 For heavier parallel work — several agents on several branches at once — the
 unit is one herdr workspace plus one worktree per branch, and the agent drives

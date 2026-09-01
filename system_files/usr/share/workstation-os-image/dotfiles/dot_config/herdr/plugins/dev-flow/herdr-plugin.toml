@@ -1,0 +1,43 @@
+# Vendored from a reviewed upstream dev-flow plugin and adapted for this image.
+#
+# `platforms` upstream reads ["macos"]; herdr links such a plugin without
+# complaint but refuses every action at invoke time with
+# `platform_unsupported ... (linux)`, so the field must name this platform.
+id = "dev.flow"
+name = "Dev flow"
+version = "0.1.0"
+min_herdr_version = "0.8.2"
+description = "Worktree bootstrap and dev pane layout"
+platforms = ["linux", "macos"]
+
+[[actions]]
+id = "layout"
+title = "Apply dev layout"
+contexts = ["workspace"]
+command = ["./layout.sh"]
+
+[[actions]]
+id = "adopt-worktrees"
+title = "Open worktrees of every repo"
+contexts = ["workspace"]
+command = ["./adopt-worktrees.sh"]
+
+# The second propagation net for a herdr-created checkout; the committed
+# .worktreeinclude and the post-checkout hook remain the first.
+[[events]]
+on = "worktree.created"
+command = ["./worktree-setup.sh"]
+
+[[startup]]
+command = ["./adopt-worktrees.sh"]
+
+[[startup]]
+command = ["./window-title.sh"]
+
+[[events]]
+on = "workspace.focused"
+command = ["./window-title.sh"]
+
+[[events]]
+on = "workspace.renamed"
+command = ["./window-title.sh"]

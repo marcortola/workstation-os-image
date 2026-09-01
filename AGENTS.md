@@ -200,13 +200,26 @@ prefer them over reinventing the shape:
   named sessions fragment the only thing herdr was adopted for.
 - Run coding agents inside a herdr pane. Outside one the state hook exits 0
   silently and the agent never reaches the sidebar.
+- The `dev.flow` herdr plugin is image-owned `scaffold`. Its manifest must name
+  `linux` in `platforms`, or herdr links it and then refuses every action with
+  `platform_unsupported`. Its `[keys]` block is a cascade -- four actions parked
+  on dead chords free the keys the rest moves into -- so run `herdr config
+  check` after any edit; it reports a collision as `kept keys.X, disabled
+  keys.Y` rather than failing.
 
 ### Worktrees
 
-- Untracked-file propagation is driven by each repo's committed
-  `.worktreeinclude`, and every creation path reads that one inventory. herdr
-  shells out to `git worktree add`, so the post-checkout hook covers it. Never
-  add a second copy list, such as a herdr plugin that copies `.env` files.
+- Untracked-file propagation has exactly two nets. Primary: each repo's
+  committed `.worktreeinclude`, applied by the post-checkout hook, reached by
+  every path that shells out to `git worktree add`. Extend that one first --
+  it is per repo and shared with the team. Secondary: `dev.flow`'s
+  `worktree-setup.sh` on `worktree.created`, machine-local, holding the union
+  of those lists as a backstop for a repo that has none.
+- Keep the union conservative: root-level globs and explicit nested paths,
+  never a gitignore engine, only what git already ignores, never overwriting.
+  Refuse a third list. When the two disagree, `.worktreeinclude` is right.
+- Checkouts live at `<repo>__worktrees/<branch-slug>`, created by the
+  `prefix+shift+w` popup. No fish helper; outside herdr use plain git.
 
 ## Safety
 
