@@ -14,10 +14,23 @@ lines=10000
 [cursor]
 style=block
 
+# foot defaults both of these to no, so an unattended build or test run that
+# rings BEL leaves no trace. Both only fire while the window is unfocused.
+[bell]
+urgent=yes
+notify=yes
+
+# Already foot's default, pinned so the permissive choice is deliberate:
+# coding agents run inside dev containers and over SSH, which is exactly the
+# case the manual flags. Tighten to copy-enabled to stop a container reading
+# the host clipboard.
+[security]
+osc52=enabled
+
 [main]
 shell=/usr/bin/fish
-pad=8x6
+pad=10x10
 include={{ .chezmoi.homeDir }}/.config/foot/tokyo-night.ini
 
 [colors-dark]
-alpha=0.95
+alpha=1.0
