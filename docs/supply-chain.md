@@ -61,6 +61,42 @@ Each verified reference is then checked for existence with `skopeo inspect`,
 because a pin to a pruned image fails the build later and more confusingly than
 it fails here.
 
+That check distinguishes *"the registry says this digest is gone"* from *"the
+registry did not answer"*, and only the first is a pruned pin. It used to run as
+`skopeo inspect ... >/dev/null 2>&1` and report **any** non-zero exit as
+`DIGEST NO LONGER FETCHABLE -- bump the pin`, so a rate limit, a 5xx or a DNS
+blip on a CI runner all read as a dead pin — with the actual error already
+discarded. That fired on 2026-09-01 against a pin that was perfectly live, and
+the advice it printed would have destroyed the signal the gate exists to give.
+
+The classifier matches on the message, not the exit code, against strings
+measured rather than guessed:
+
+| skopeo says | means |
+| --- | --- |
+| `manifest unknown` (exit 2) | the digest is genuinely gone — fail, bump the pin |
+| `bearer token: ... 403 Forbidden` (exit 1) | the repository is missing or private |
+| `dial tcp: lookup ...: no such host` (exit 1) | DNS |
+| `connect: connection refused` (exit 1) | the host is down |
+| anything unrecognised | unanswered |
+
+Only the first fails. Everything else is reported with its real error and
+counted as unanswered, and `skopeo --retry-times 3` absorbs the blips before it
+comes to that. The two ways to be wrong are not symmetric: calling a live pin
+pruned invites bumping a good pin, while calling a dead pin unanswered only
+defers the failure to the build — which is exactly where it landed before this
+check existed.
+
+Note what this means about the old message: `cosign verify` runs first on the
+same reference and `continue`s past the skopeo check when it fails, and cosign
+cannot verify a digest it cannot resolve (it exits 10 on a pruned one). The
+"bump the pin" branch was therefore only ever reachable when cosign had just
+resolved that digest — so it was nearly always wrong by construction.
+
+A run with unanswered checks does not print `All source images verified.`; it
+says how many went unanswered, because a check that did not run is not a check
+that passed.
+
 It runs in CI's `repo-gates` job as *Verify every input image before building on
 it*, and locally from `just validate` — though only conditionally there:
 `tooling/validate/all` guards it with `command -v cosign >/dev/null`, so a

@@ -35,7 +35,56 @@ key_for() {
     esac
 }
 
+# A registry that answers "I do not have that" is a pruned pin, and the build
+# must stop. Anything else -- a rate limit, a 5xx, DNS, a refused connection --
+# means the question went unanswered, which is NOT the same answer.
+#
+# Measured with skopeo 1.x against ghcr.io, since guessing these is how the bug
+# below got written:
+#   pruned digest, real repo  manifest unknown                               exit 2
+#   repo does not exist       bearer token: ... 403 Forbidden                exit 1
+#   host does not resolve     dial tcp: lookup ...: no such host             exit 1
+#   connection refused        dial tcp ...: connect: connection refused      exit 1
+#
+# Match on the message rather than the exit code: only "manifest unknown" is a
+# statement about the digest, and exit 2 is corroboration, not the signal.
+# Everything unrecognised is treated as unanswered on purpose. The two ways to
+# be wrong are not symmetric -- calling a live pin pruned invites bumping a good
+# pin, which destroys the signal this gate exists to give, while calling a dead
+# pin unanswered only defers the failure to the build, which is where it landed
+# before this check existed.
+digest_is_gone() {
+    case "$1" in
+        *"manifest unknown"*|*MANIFEST_UNKNOWN*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# present | gone | unanswered<TAB><the error skopeo actually gave>
+probe_digest() {
+    local err
+    if err="$(skopeo inspect --no-tags --retry-times 3 "docker://$1" 2>&1 >/dev/null)"; then
+        printf 'present'
+    elif digest_is_gone "$err"; then
+        printf 'gone\t%s' "$err"
+    else
+        printf 'unanswered\t%s' "$err"
+    fi
+}
+
+# The one line worth printing out of cosign's stderr. It opens with a
+# deprecation notice about --new-bundle-format on every run, and when a key does
+# not match it embeds both PEMs in the message and spills over many lines -- so
+# a plain `tail` prints the tail of a public key rather than the reason.
+cosign_reason() {
+    printf '%s\n' "$1" \
+        | grep -m1 -E '^(Error|error during command execution):' \
+        | cut -c1-200 \
+        | grep . || printf 'cosign failed; re-run it by hand for the full output'
+}
+
 status=0
+skipped=0
 for ref in "${refs[@]}"; do
     printf '%s\n' "$ref"
     if ! ref_key="$(key_for "$ref")"; then
@@ -43,15 +92,12 @@ for ref in "${refs[@]}"; do
         status=1
         continue
     fi
-    if cosign verify --new-bundle-format=false --key "$ref_key" "$ref" >/dev/null 2>&1; then
-        echo "  signature verified against $ref_key"
-    else
-        echo "  SIGNATURE VERIFICATION FAILED" >&2
-        status=1
-        continue
-    fi
-    # The digest must still be fetchable; a pin to a pruned image fails the
-    # build later and more confusingly than it fails here.
+    # Ask the registry about the digest BEFORE cosign, because its answer is
+    # what explains a cosign failure. cosign cannot verify a digest it cannot
+    # resolve and reports that as `no signatures found` -- indistinguishable
+    # from a real signing problem -- so with the checks the other way round a
+    # pruned pin was diagnosed as a signature failure and the "bump the pin"
+    # branch below was unreachable.
     #
     # skopeo rejects the combined repo:tag@digest form that cosign accepts, so
     # strip the tag for this lookup.
@@ -59,13 +105,47 @@ for ref in "${refs[@]}"; do
     # the whole reference would eat "sha256" out of a tagless pin.
     repo_and_tag="${ref%@*}"
     canonical="${repo_and_tag%:*}@${ref#*@}"
-    if skopeo inspect --no-tags "docker://$canonical" >/dev/null 2>&1; then
-        echo "  digest still present in the registry"
+    probe="$(probe_digest "$canonical")"
+    case "${probe%%$'\t'*}" in
+        present)
+            echo "  digest still present in the registry"
+            ;;
+        gone)
+            echo "  DIGEST NO LONGER FETCHABLE -- bump the pin" >&2
+            echo "    ${probe#*$'\t'}" >&2
+            status=1
+            continue
+            ;;
+        *)
+            # Unanswered is not an answer of "gone". Report it as what it is and
+            # keep going: the signature check below is the one that carries the
+            # security weight, and it still has to pass.
+            echo "  could not confirm the digest, so not claiming it is pruned:"
+            echo "    ${probe#*$'\t'}"
+            skipped=$((skipped + 1))
+            ;;
+    esac
+    # A cosign failure is never downgraded -- this is the check the whole
+    # inbound chain rests on. Only its diagnosis improves: the reason used to be
+    # discarded with `2>&1`, so a rate limit and a bad signature printed the
+    # same line.
+    if cosign_err="$(cosign verify --new-bundle-format=false --key "$ref_key" "$ref" 2>&1 >/dev/null)"; then
+        echo "  signature verified against $ref_key"
     else
-        echo "  DIGEST NO LONGER FETCHABLE -- bump the pin" >&2
+        echo "  SIGNATURE VERIFICATION FAILED" >&2
+        cosign_reason "$cosign_err" | sed 's/^/    /' >&2
         status=1
+        continue
     fi
 done
 
-(( status == 0 )) && echo "All source images verified." 
+# Never print a clean bill for a check that did not run. The point of the gate
+# is coverage, not a green line.
+if (( status == 0 )); then
+    if (( skipped )); then
+        echo "Signatures verified, but $skipped digest presence check(s) went unanswered."
+    else
+        echo "All source images verified."
+    fi
+fi
 exit "$status"
