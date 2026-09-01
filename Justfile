@@ -65,8 +65,12 @@ ai-reset *args:
 ai-diff *args:
     ./tooling/ai/reset-ai-cli --diff {{ args }}
 
+# Rebuild the Mod+Slash cheatsheet from docs/keybindings.md and the niri binds.
+cheatsheet:
+    python3 ./tooling/keybindings/build-cheatsheet.py
+
 # Refresh create-only seeds from manifest-listed live files.
-sync:
+sync: cheatsheet
     ./tooling/dotfiles/sync
 
 # Capture reviewed live changes, validate them, and show the Git diff.

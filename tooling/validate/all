@@ -75,6 +75,8 @@ fish --no-execute \
     system_files/usr/share/workstation-os-image/dotfiles/dot_config/fish/conf.d/*.fish \
     system_files/usr/share/workstation-os-image/dotfiles/dot_config/fish/functions/*.fish
 
+python3 tooling/keybindings/build-cheatsheet.py --check
+
 tooling/dotfiles/validate-manifest
 tooling/jetbrains/validate
 tooling/ai/test-reset
@@ -129,6 +131,7 @@ for target in \
     .config/foot/foot.ini \
     .config/foot/workstation.ini \
     .config/DankMaterialShell/themes/tokyoNightDark/theme.json \
+    .config/DankMaterialShell/cheatsheets/workstation.json \
     .config/git/config \
     .config/git/ignore \
     .config/git/template/hooks/post-checkout \

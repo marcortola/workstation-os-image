@@ -50,6 +50,7 @@ Twelve entries, none of which ever reaches an image layer.
 | `dotfiles/` | `sync` regenerates the create-only chezmoi seeds from live files per the manifest; `validate-manifest` checks the manifest itself; `preflight-migration` proves a chezmoi state migration is safe *before* you reboot into the new image. |
 | `fixtures/` | Test data. `dms-settings-spec.js` is a stand-in DMS schema modelling only the keys the capture and validation paths exercise, so the CI `dms-settings-tests` job can run the DMS lifecycle on a runner with no DMS installed. |
 | `jetbrains/` | `apply-settings`, `apply-plugins`, `diff`, `promote-shared`, `validate`, `ide-setup`, `intelephense-licence`. |
+| `keybindings/` | `build-cheatsheet.py`, which generates the `Mod+Slash` cheatsheet from `docs/keybindings.md` and the niri binds. Backs `just cheatsheet`, runs inside `just sync`, and gates itself with `--check`. |
 | `lib/` | Shared helpers the scripts source rather than duplicate: `dotfiles.sh` (seed-path and manifest primitives) and `jetbrains-xml-flatten.py`, which flattens JetBrains XML into sorted canonical key lines so attribute order and whitespace do not register as divergence while real key/value changes do. |
 | `scrub/` | The filters that strip secrets and tool-injection surface out of the mixed AI-CLI seeds: `claude-settings` and `codex-config`. |
 | `upstream/` | `zirconium-diff`: fetches Zirconium, filters to the profiles this image is comparable to, and reports which of our files each upstream change maps onto. Backs `just upstream-diff` and `just upstream-accept`. |
@@ -66,6 +67,7 @@ The declarative half: files the scripts in the other directories read.
 | `jetbrains-settings/` | The canonical IDE configuration: `_shared/` for product-neutral settings, plus `PhpStorm/` and `WebStorm/` for each product's remainder. |
 | `ai-tools/` | `opencode-mcp-fragment.json`, the only tracked piece of the fusion-generated `opencode.json`. |
 | `dms-settings-denylist` | DMS keys excluded from generic interactive capture because they are runtime, device-specific, sensitive, path-bound, or need nested review. |
+| `niri-bind-descriptions` | Labels for the niri binds that carry no `hotkey-overlay-title`, so the generated cheatsheet can name them. Also declares, with a leading `+`, the handful of binds that exist only in the DMS-generated fragment. Asserted in both directions by `tooling/keybindings/build-cheatsheet.py`. |
 | `image-provided-brew-formulae` | The Homebrew shadows the image owns — `btop`, `chezmoi`, `git`, `just`, `fzf` and friends — where the `/usr/bin` binary is authoritative and the brew copy must not be installed. |
 | `zirconium-watermark` | The last Zirconium commit reviewed against this image, with the date and who reviewed it. `just upstream-diff` reports what changed since; only `just upstream-accept` advances it, and only in the change that did the review. |
 

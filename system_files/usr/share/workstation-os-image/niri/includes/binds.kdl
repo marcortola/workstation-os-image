@@ -1,5 +1,17 @@
 // Workstation fork of the Zirconium/DMS niri binds and hotkey overlay.
 //
+// WHAT THE TITLES BELOW ARE FOR. Mod+Slash no longer opens niri's own overlay;
+// it opens the generated cheatsheet (see that bind). Every
+// hotkey-overlay-title here is what labels a row in THAT sheet, and
+// hotkey-overlay-title=null still hides the bind from it, so the annotations
+// stay load-bearing. A bind with no title needs an entry in
+// tooling/data/niri-bind-descriptions or the build fails. The section headings
+// below (`// -- Focus --`) become the sheet's subcategories, so they are
+// structure now, not decoration.
+//
+// The rest of this comment describes niri's own overlay, which nothing binds
+// today but which still governs what a title does if it is ever bound again.
+//
 // OVERLAY ORDER (Super+/) IS NOT THIS FILE'S ORDER. niri builds it in
 // `collect_actions` (src/ui/hotkey_overlay.rs), which emits:
 //
@@ -61,7 +73,15 @@ hotkey-overlay {
 
 binds {
     // ── Session ─────────────────────────────────────────────────────────
-    Mod+Slash { show-hotkey-overlay; }
+    // Not show-hotkey-overlay: that overlay orders itself (see above), cannot
+    // be searched, and only ever knows about niri. DMS renders any cheatsheet
+    // JSON in ~/.config/DankMaterialShell/cheatsheets/ in a searchable modal,
+    // and tooling/keybindings/build-cheatsheet.py generates the `workstation`
+    // sheet from THIS file plus docs/keybindings.md, so the in-app layers are
+    // on the same key. The titles below still supply that sheet's labels.
+    Mod+Slash hotkey-overlay-title="Keyboard Cheatsheet" {
+        spawn "dms" "ipc" "call" "keybinds" "toggle" "workstation";
+    }
     Mod+Q repeat=false { close-window; }
 
     // ── Columns & window sizing ─────────────────────────────────────────

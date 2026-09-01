@@ -1,0 +1,1058 @@
+{
+  "title": "Workstation Keys",
+  "provider": "workstation",
+  "binds": {
+    "Every Day": [
+      {
+        "key": "Mod+Space",
+        "desc": "Any application",
+        "subcat": "Open something"
+      },
+      {
+        "key": "Mod+T",
+        "desc": "A terminal",
+        "subcat": "Open something"
+      },
+      {
+        "key": "Mod+Shift+P",
+        "desc": "A project — picks the repository and takes you to it",
+        "subcat": "Open something"
+      },
+      {
+        "key": "Ctrl+G s",
+        "desc": "Switch project, once a session is open",
+        "subcat": "Open something"
+      },
+      {
+        "key": "Ctrl+G a",
+        "desc": "Jump to an agent that needs you",
+        "subcat": "Open something"
+      },
+      {
+        "key": "Ctrl+G g",
+        "desc": "lazygit, in whatever repository this pane is in",
+        "subcat": "Open something"
+      },
+      {
+        "key": "Ctrl+H/J/K/L",
+        "desc": "Between panes and editor splits, in one chord",
+        "subcat": "Move around"
+      },
+      {
+        "key": "Mod+H/L",
+        "desc": "Between windows",
+        "subcat": "Move around"
+      },
+      {
+        "key": "Mod+1..9",
+        "desc": "To a workspace",
+        "subcat": "Move around"
+      },
+      {
+        "key": "Mod+Up/Down",
+        "desc": "Between workspaces",
+        "subcat": "Move around"
+      },
+      {
+        "key": "Ctrl+G m/n/t",
+        "desc": "To the main, nvim or term tab",
+        "subcat": "Move around"
+      },
+      {
+        "key": "Mod+O",
+        "desc": "Overview of everything",
+        "subcat": "Move around"
+      },
+      {
+        "key": "Space Space",
+        "desc": "A file",
+        "subcat": "Find something"
+      },
+      {
+        "key": "Space /",
+        "desc": "Text in the project",
+        "subcat": "Find something"
+      },
+      {
+        "key": "Space ,",
+        "desc": "An open buffer",
+        "subcat": "Find something"
+      },
+      {
+        "key": "Space e",
+        "desc": "The file tree",
+        "subcat": "Find something"
+      },
+      {
+        "key": "Ctrl+R",
+        "desc": "A command you ran before, in the shell",
+        "subcat": "Find something"
+      },
+      {
+        "key": "Ctrl+G u",
+        "desc": "A link that scrolled past",
+        "subcat": "Find something"
+      },
+      {
+        "key": "Space gg",
+        "desc": "lazygit, from the editor",
+        "subcat": "Git"
+      },
+      {
+        "key": "Space gs",
+        "desc": "Stage or unstage this file",
+        "subcat": "Git"
+      },
+      {
+        "key": "Space gd",
+        "desc": "Diff the working tree",
+        "subcat": "Git"
+      },
+      {
+        "key": "Space gb",
+        "desc": "Review the whole branch against main",
+        "subcat": "Git"
+      },
+      {
+        "key": "]h/[h",
+        "desc": "Next / previous change",
+        "subcat": "Git"
+      },
+      {
+        "key": "Space ghs",
+        "desc": "Stage just this hunk",
+        "subcat": "Git"
+      },
+      {
+        "key": "gd/gr",
+        "desc": "Go to definition / find references",
+        "subcat": "Write code"
+      },
+      {
+        "key": "K",
+        "desc": "Documentation under the cursor",
+        "subcat": "Write code"
+      },
+      {
+        "key": "Space ca",
+        "desc": "Code action — the \"fix it for me\" key",
+        "subcat": "Write code"
+      },
+      {
+        "key": "Space cr",
+        "desc": "Rename everywhere",
+        "subcat": "Write code"
+      },
+      {
+        "key": "]d/[d",
+        "desc": "Next / previous problem",
+        "subcat": "Write code"
+      },
+      {
+        "key": "gcc/gc",
+        "desc": "Comment the line / the selection",
+        "subcat": "Write code"
+      },
+      {
+        "key": "s",
+        "desc": "Jump anywhere on screen by typing two letters",
+        "subcat": "Write code"
+      },
+      {
+        "key": "jk",
+        "desc": "Escape, without reaching for it",
+        "subcat": "Write code"
+      }
+    ],
+    "Desktop": [
+      {
+        "key": "Mod+Slash",
+        "desc": "Keyboard Cheatsheet",
+        "subcat": "Session"
+      },
+      {
+        "key": "Mod+Q",
+        "desc": "Close the window",
+        "subcat": "Session"
+      },
+      {
+        "key": "Mod+R",
+        "desc": "Switch Column Preset",
+        "subcat": "Columns & window sizing"
+      },
+      {
+        "key": "Mod+Minus",
+        "desc": "Decrease/Increase Column Width",
+        "subcat": "Columns & window sizing"
+      },
+      {
+        "key": "Mod+C",
+        "desc": "Center Column",
+        "subcat": "Columns & window sizing"
+      },
+      {
+        "key": "Mod+BracketLeft",
+        "desc": "Move Window Between Columns Left/Right",
+        "subcat": "Columns & window sizing"
+      },
+      {
+        "key": "Mod+Comma",
+        "desc": "Pull the next window into this column",
+        "subcat": "Columns & window sizing"
+      },
+      {
+        "key": "Mod+Period",
+        "desc": "Push this window out of the column",
+        "subcat": "Columns & window sizing"
+      },
+      {
+        "key": "Mod+V",
+        "desc": "Float the window, or tile it again",
+        "subcat": "Columns & window sizing"
+      },
+      {
+        "key": "Mod+W",
+        "desc": "Show the column as tabs instead of a stack",
+        "subcat": "Columns & window sizing"
+      },
+      {
+        "key": "Mod+Shift+F",
+        "desc": "Fullscreen the window",
+        "subcat": "Columns & window sizing"
+      },
+      {
+        "key": "Mod+Ctrl+F",
+        "desc": "Grow the window to the screen edges",
+        "subcat": "Columns & window sizing"
+      },
+      {
+        "key": "Mod+Ctrl+C",
+        "desc": "Centre every visible column",
+        "subcat": "Columns & window sizing"
+      },
+      {
+        "key": "Mod+Ctrl+R",
+        "desc": "Reset the window's height",
+        "subcat": "Columns & window sizing"
+      },
+      {
+        "key": "Mod+Shift+Minus",
+        "desc": "Shrink the window's height by 10%",
+        "subcat": "Columns & window sizing"
+      },
+      {
+        "key": "Mod+Shift+Equal",
+        "desc": "Grow the window's height by 10%",
+        "subcat": "Columns & window sizing"
+      },
+      {
+        "key": "Mod+Left",
+        "desc": "Focus Column Left/Right",
+        "subcat": "Focus"
+      },
+      {
+        "key": "Mod+H",
+        "desc": "Focus the column to the left",
+        "subcat": "Focus"
+      },
+      {
+        "key": "Mod+J",
+        "desc": "Focus Window Down/Up",
+        "subcat": "Focus"
+      },
+      {
+        "key": "Mod+L",
+        "desc": "Focus the column to the right",
+        "subcat": "Focus"
+      },
+      {
+        "key": "Mod+Home",
+        "desc": "Focus First/Last Column",
+        "subcat": "Focus"
+      },
+      {
+        "key": "Mod+Ctrl+Left",
+        "desc": "Move Column Left/Right",
+        "subcat": "Move"
+      },
+      {
+        "key": "Mod+Ctrl+H",
+        "desc": "Move the column left",
+        "subcat": "Move"
+      },
+      {
+        "key": "Mod+Ctrl+J",
+        "desc": "Move Window Down/Up",
+        "subcat": "Move"
+      },
+      {
+        "key": "Mod+Ctrl+L",
+        "desc": "Move the column right",
+        "subcat": "Move"
+      },
+      {
+        "key": "Mod+Ctrl+Home",
+        "desc": "Move Column to First/Last Position",
+        "subcat": "Move"
+      },
+      {
+        "key": "Mod+Up",
+        "desc": "Switch Workspace Up/Down",
+        "subcat": "Workspaces"
+      },
+      {
+        "key": "Mod+Ctrl+Up",
+        "desc": "Move Column to Workspace Up/Down",
+        "subcat": "Workspaces"
+      },
+      {
+        "key": "Mod+Page_Down",
+        "desc": "Go to the workspace below",
+        "subcat": "Workspaces"
+      },
+      {
+        "key": "Mod+Page_Up",
+        "desc": "Go to the workspace above",
+        "subcat": "Workspaces"
+      },
+      {
+        "key": "Mod+U",
+        "desc": "Go to the workspace below",
+        "subcat": "Workspaces"
+      },
+      {
+        "key": "Mod+I",
+        "desc": "Go to the workspace above",
+        "subcat": "Workspaces"
+      },
+      {
+        "key": "Mod+Ctrl+Page_Down",
+        "desc": "Send the column to the workspace below",
+        "subcat": "Workspaces"
+      },
+      {
+        "key": "Mod+Ctrl+Page_Up",
+        "desc": "Send the column to the workspace above",
+        "subcat": "Workspaces"
+      },
+      {
+        "key": "Mod+Ctrl+U",
+        "desc": "Send the column to the workspace below",
+        "subcat": "Workspaces"
+      },
+      {
+        "key": "Mod+Ctrl+I",
+        "desc": "Send the column to the workspace above",
+        "subcat": "Workspaces"
+      },
+      {
+        "key": "Mod+1",
+        "desc": "Switch to Workspace 1–9",
+        "subcat": "Workspaces"
+      },
+      {
+        "key": "Mod+Ctrl+1",
+        "desc": "Move Column to Workspace 1–9",
+        "subcat": "Workspaces"
+      },
+      {
+        "key": "Mod+Shift+Page_Down",
+        "desc": "Move Workspace Down/Up",
+        "subcat": "Workspaces"
+      },
+      {
+        "key": "Mod+Shift+U",
+        "desc": "Move this workspace down",
+        "subcat": "Workspaces"
+      },
+      {
+        "key": "Mod+Shift+I",
+        "desc": "Move this workspace up",
+        "subcat": "Workspaces"
+      },
+      {
+        "key": "Mod+Shift+H",
+        "desc": "Focus the monitor to the left",
+        "subcat": "Monitors"
+      },
+      {
+        "key": "Mod+Shift+J",
+        "desc": "Focus the monitor below",
+        "subcat": "Monitors"
+      },
+      {
+        "key": "Mod+Shift+K",
+        "desc": "Focus the monitor above",
+        "subcat": "Monitors"
+      },
+      {
+        "key": "Mod+Shift+L",
+        "desc": "Focus the monitor to the right",
+        "subcat": "Monitors"
+      },
+      {
+        "key": "Mod+Shift+Ctrl+H",
+        "desc": "Send the column to the monitor left",
+        "subcat": "Monitors"
+      },
+      {
+        "key": "Mod+Shift+Ctrl+J",
+        "desc": "Send the column to the monitor below",
+        "subcat": "Monitors"
+      },
+      {
+        "key": "Mod+Shift+Ctrl+K",
+        "desc": "Send the column to the monitor above",
+        "subcat": "Monitors"
+      },
+      {
+        "key": "Mod+Shift+Ctrl+L",
+        "desc": "Send the column to the monitor right",
+        "subcat": "Monitors"
+      },
+      {
+        "key": "Mod+O",
+        "desc": "Show Overview",
+        "subcat": "Overview"
+      },
+      {
+        "key": "Mod+T",
+        "desc": "Terminal",
+        "subcat": "Launchers & apps"
+      },
+      {
+        "key": "Mod+Shift+T",
+        "desc": "Coding Session (herdr)",
+        "subcat": "Launchers & apps"
+      },
+      {
+        "key": "Mod+F",
+        "desc": "File Manager",
+        "subcat": "Launchers & apps"
+      },
+      {
+        "key": "Mod+Shift+P",
+        "desc": "Projects (coding session)",
+        "subcat": "Launchers & apps"
+      },
+      {
+        "key": "Mod+Shift+D",
+        "desc": "Monitor Docker Containers (lazydocker)",
+        "subcat": "Launchers & apps"
+      },
+      {
+        "key": "Ctrl+Alt+U",
+        "desc": "Switch User",
+        "subcat": "System & utilities"
+      },
+      {
+        "key": "Mod+Shift+S",
+        "desc": "Take a Screenshot",
+        "subcat": "System & utilities"
+      },
+      {
+        "key": "Mod+Print",
+        "desc": "Read contents of screen",
+        "subcat": "System & utilities"
+      },
+      {
+        "key": "Mod+Shift+R",
+        "desc": "Start/stop screen recording",
+        "subcat": "System & utilities"
+      },
+      {
+        "key": "Mod+Shift+V",
+        "desc": "Start/stop dictation",
+        "subcat": "System & utilities"
+      },
+      {
+        "key": "Ctrl+Alt+Space",
+        "desc": "Switch Keyboard Language",
+        "subcat": "System & utilities"
+      },
+      {
+        "key": "Mod+Wheel↓",
+        "desc": "Wheel: next workspace",
+        "subcat": "Scroll"
+      },
+      {
+        "key": "Mod+Wheel↑",
+        "desc": "Wheel: previous workspace",
+        "subcat": "Scroll"
+      },
+      {
+        "key": "Mod+Ctrl+Wheel↓",
+        "desc": "Wheel: send the column down a workspace",
+        "subcat": "Scroll"
+      },
+      {
+        "key": "Mod+Ctrl+Wheel↑",
+        "desc": "Wheel: send the column up a workspace",
+        "subcat": "Scroll"
+      },
+      {
+        "key": "Mod+Wheel→",
+        "desc": "Wheel: next column",
+        "subcat": "Scroll"
+      },
+      {
+        "key": "Mod+Wheel←",
+        "desc": "Wheel: previous column",
+        "subcat": "Scroll"
+      },
+      {
+        "key": "Mod+Ctrl+Wheel→",
+        "desc": "Wheel: move the column right",
+        "subcat": "Scroll"
+      },
+      {
+        "key": "Mod+Ctrl+Wheel←",
+        "desc": "Wheel: move the column left",
+        "subcat": "Scroll"
+      },
+      {
+        "key": "Mod+Shift+Wheel↓",
+        "desc": "Wheel: next column",
+        "subcat": "Scroll"
+      },
+      {
+        "key": "Mod+Shift+Wheel↑",
+        "desc": "Wheel: previous column",
+        "subcat": "Scroll"
+      },
+      {
+        "key": "Mod+Ctrl+Shift+Wheel↓",
+        "desc": "Wheel: move the column right",
+        "subcat": "Scroll"
+      },
+      {
+        "key": "Mod+Ctrl+Shift+Wheel↑",
+        "desc": "Wheel: move the column left",
+        "subcat": "Scroll"
+      },
+      {
+        "key": "XF86AudioRaiseVolume",
+        "desc": "Volume up",
+        "subcat": "Media & display"
+      },
+      {
+        "key": "XF86AudioLowerVolume",
+        "desc": "Volume down",
+        "subcat": "Media & display"
+      },
+      {
+        "key": "XF86AudioMute",
+        "desc": "Mute the speakers",
+        "subcat": "Media & display"
+      },
+      {
+        "key": "XF86AudioMicMute",
+        "desc": "Mute the microphone",
+        "subcat": "Media & display"
+      },
+      {
+        "key": "XF86AudioPlay",
+        "desc": "Play or pause",
+        "subcat": "Media & display"
+      },
+      {
+        "key": "XF86AudioNext",
+        "desc": "Next track",
+        "subcat": "Media & display"
+      },
+      {
+        "key": "XF86AudioPrev",
+        "desc": "Previous track",
+        "subcat": "Media & display"
+      },
+      {
+        "key": "XF86MonBrightnessUp",
+        "desc": "Brighter screen",
+        "subcat": "Media & display"
+      },
+      {
+        "key": "XF86MonBrightnessDown",
+        "desc": "Dimmer screen",
+        "subcat": "Media & display"
+      },
+      {
+        "key": "Ctrl+Print",
+        "desc": "Screenshot the whole screen",
+        "subcat": "Screenshots"
+      },
+      {
+        "key": "Alt+Print",
+        "desc": "Screenshot the focused window",
+        "subcat": "Screenshots"
+      },
+      {
+        "key": "Mod+Escape",
+        "desc": "Stop an app from swallowing shortcuts",
+        "subcat": "System & utilities"
+      },
+      {
+        "key": "Mod+M",
+        "desc": "Maximize Column",
+        "subcat": "Reclaimed from DMS"
+      },
+      {
+        "key": "Mod+Space",
+        "desc": "Application Launcher",
+        "subcat": "Reclaimed from DMS"
+      },
+      {
+        "key": "Ctrl+Alt+Delete",
+        "desc": "Task Manager and Activity (btop)",
+        "subcat": "Reclaimed from DMS"
+      },
+      {
+        "key": "Mod+N",
+        "desc": "Notification centre",
+        "subcat": "Launchers & apps"
+      },
+      {
+        "key": "Mod+Shift+N",
+        "desc": "Notepad",
+        "subcat": "Launchers & apps"
+      }
+    ],
+    "Session (Ctrl+G)": [
+      {
+        "key": "s",
+        "desc": "Space picker — projects and branches, whatever needs you first",
+        "subcat": "Projects"
+      },
+      {
+        "key": "shift+w",
+        "desc": "New branch worktree, with the tab layout ready",
+        "subcat": "Projects"
+      },
+      {
+        "key": "shift+x",
+        "desc": "Close a space, showing anything uncommitted before it does",
+        "subcat": "Projects"
+      },
+      {
+        "key": "shift+o",
+        "desc": "Open an existing worktree",
+        "subcat": "Projects"
+      },
+      {
+        "key": "shift+n",
+        "desc": "Build the layout: main, nvim, term",
+        "subcat": "Projects"
+      },
+      {
+        "key": "m/n/t",
+        "desc": "Jump to main, nvim, term",
+        "subcat": "Tabs"
+      },
+      {
+        "key": "c",
+        "desc": "New tab",
+        "subcat": "Tabs"
+      },
+      {
+        "key": "1..9",
+        "desc": "Tab by number",
+        "subcat": "Tabs"
+      },
+      {
+        "key": "alt+x",
+        "desc": "Close the tab",
+        "subcat": "Tabs"
+      },
+      {
+        "key": "ctrl+h/j/k/l",
+        "desc": "Focus, crossing into the editor. No prefix",
+        "subcat": "Panes"
+      },
+      {
+        "key": "v/h",
+        "desc": "Split beside / below",
+        "subcat": "Panes"
+      },
+      {
+        "key": "z",
+        "desc": "Zoom one pane, and back",
+        "subcat": "Panes"
+      },
+      {
+        "key": "x",
+        "desc": "Close the pane",
+        "subcat": "Panes"
+      },
+      {
+        "key": "plus",
+        "desc": "Even the widths out",
+        "subcat": "Panes"
+      },
+      {
+        "key": "alt+r",
+        "desc": "Resize mode",
+        "subcat": "Panes"
+      },
+      {
+        "key": "arrows",
+        "desc": "Focus, staying inside herdr",
+        "subcat": "Panes"
+      },
+      {
+        "key": "a",
+        "desc": "Agent picker — read any pane, and send it a prompt with ctrl+o",
+        "subcat": "Agents and tools"
+      },
+      {
+        "key": "g",
+        "desc": "lazygit here",
+        "subcat": "Agents and tools"
+      },
+      {
+        "key": "u",
+        "desc": "Pick a link out of the scrollback",
+        "subcat": "Agents and tools"
+      },
+      {
+        "key": "alt+o",
+        "desc": "opencode in a pane",
+        "subcat": "Agents and tools"
+      },
+      {
+        "key": "b",
+        "desc": "Hide the sidebar",
+        "subcat": "Agents and tools"
+      },
+      {
+        "key": "?",
+        "desc": "Every key, from herdr itself",
+        "subcat": "Agents and tools"
+      }
+    ],
+    "Editor (Space)": [
+      {
+        "key": "Space Space",
+        "desc": "Find a file",
+        "subcat": "Files and search"
+      },
+      {
+        "key": "Space fr",
+        "desc": "Recent files",
+        "subcat": "Files and search"
+      },
+      {
+        "key": "Space e",
+        "desc": "File tree",
+        "subcat": "Files and search"
+      },
+      {
+        "key": "Space ,",
+        "desc": "Open buffers",
+        "subcat": "Files and search"
+      },
+      {
+        "key": "Space /",
+        "desc": "Search the project",
+        "subcat": "Files and search"
+      },
+      {
+        "key": "Space ss",
+        "desc": "Search, seeded with the last thing you looked for",
+        "subcat": "Files and search"
+      },
+      {
+        "key": "Space sw",
+        "desc": "Search the word under the cursor",
+        "subcat": "Files and search"
+      },
+      {
+        "key": "Space fi",
+        "desc": "What uses this file",
+        "subcat": "Files and search"
+      },
+      {
+        "key": "Space sr",
+        "desc": "Search and replace",
+        "subcat": "Files and search"
+      },
+      {
+        "key": "f",
+        "desc": "Search inside this buffer",
+        "subcat": "Files and search"
+      },
+      {
+        "key": "gd/gr",
+        "desc": "Definition / references",
+        "subcat": "Code"
+      },
+      {
+        "key": "K",
+        "desc": "Documentation",
+        "subcat": "Code"
+      },
+      {
+        "key": "Space ca",
+        "desc": "Code action",
+        "subcat": "Code"
+      },
+      {
+        "key": "Space cr",
+        "desc": "Rename symbol",
+        "subcat": "Code"
+      },
+      {
+        "key": "Space cf",
+        "desc": "Format. Always deliberate here, never on save",
+        "subcat": "Code"
+      },
+      {
+        "key": "Space cs",
+        "desc": "Outline of this file",
+        "subcat": "Code"
+      },
+      {
+        "key": "]d/[d",
+        "desc": "Next / previous problem",
+        "subcat": "Code"
+      },
+      {
+        "key": "Space xx",
+        "desc": "Every problem",
+        "subcat": "Code"
+      },
+      {
+        "key": "jk",
+        "desc": "Escape",
+        "subcat": "Editing"
+      },
+      {
+        "key": "s",
+        "desc": "Jump to any word on screen",
+        "subcat": "Editing"
+      },
+      {
+        "key": "gcc/gc",
+        "desc": "Comment the line / the selection",
+        "subcat": "Editing"
+      },
+      {
+        "key": "gsa/gsd/gsr",
+        "desc": "Add, delete, change surrounding quotes or brackets",
+        "subcat": "Editing"
+      },
+      {
+        "key": "Ctrl+A/X",
+        "desc": "Increment / decrement, including dates and booleans",
+        "subcat": "Editing"
+      },
+      {
+        "key": "Alt+J/K",
+        "desc": "Move the line or selection",
+        "subcat": "Editing"
+      },
+      {
+        "key": "Tab",
+        "desc": "Accept the completion",
+        "subcat": "Editing"
+      },
+      {
+        "key": "d",
+        "desc": "Delete without replacing what you last copied",
+        "subcat": "Editing"
+      },
+      {
+        "key": "Space gg",
+        "desc": "lazygit",
+        "subcat": "Git and tools"
+      },
+      {
+        "key": "Space gs",
+        "desc": "Stage / unstage this file",
+        "subcat": "Git and tools"
+      },
+      {
+        "key": "Space gd",
+        "desc": "Diff view",
+        "subcat": "Git and tools"
+      },
+      {
+        "key": "Space gb",
+        "desc": "Branch review",
+        "subcat": "Git and tools"
+      },
+      {
+        "key": "]h/[h",
+        "desc": "Next / previous change",
+        "subcat": "Git and tools"
+      },
+      {
+        "key": "Space ghs/Space ghr",
+        "desc": "Stage / undo a hunk",
+        "subcat": "Git and tools"
+      },
+      {
+        "key": "Space uu",
+        "desc": "Undo history",
+        "subcat": "Git and tools"
+      },
+      {
+        "key": "Space fy",
+        "desc": "Copy this file's path",
+        "subcat": "Git and tools"
+      }
+    ],
+    "Terminal & Apps": [
+      {
+        "key": "Control+Shift+c/v",
+        "desc": "Copy / paste",
+        "subcat": "foot"
+      },
+      {
+        "key": "Control+Shift+r",
+        "desc": "Search the scrollback",
+        "subcat": "foot"
+      },
+      {
+        "key": "Control+Shift+o",
+        "desc": "Label every link on screen, then press its letter",
+        "subcat": "foot"
+      },
+      {
+        "key": "Control+plus/minus/0",
+        "desc": "Font size",
+        "subcat": "foot"
+      },
+      {
+        "key": "Control+Shift+z/x",
+        "desc": "Jump to the previous / next shell prompt",
+        "subcat": "foot"
+      },
+      {
+        "key": "Ctrl+R",
+        "desc": "Search your history",
+        "subcat": "Shell"
+      },
+      {
+        "key": "Ctrl+T",
+        "desc": "Insert a file path",
+        "subcat": "Shell"
+      },
+      {
+        "key": "Alt+C",
+        "desc": "Jump to a directory",
+        "subcat": "Shell"
+      },
+      {
+        "key": "Shift+Tab",
+        "desc": "Fuzzy complete",
+        "subcat": "Shell"
+      },
+      {
+        "key": "pro",
+        "desc": "Pick a project and go there",
+        "subcat": "Shell"
+      },
+      {
+        "key": "dev nvim",
+        "desc": "Neovim with the project's real toolchain",
+        "subcat": "Shell"
+      },
+      {
+        "key": "?",
+        "desc": "Every key",
+        "subcat": "lazygit"
+      },
+      {
+        "key": "1..5",
+        "desc": "Status, files, branches, commits, stash",
+        "subcat": "lazygit"
+      },
+      {
+        "key": "space",
+        "desc": "Stage / unstage. a for everything",
+        "subcat": "lazygit"
+      },
+      {
+        "key": "enter",
+        "desc": "Stage single lines",
+        "subcat": "lazygit"
+      },
+      {
+        "key": "c/A",
+        "desc": "Commit / amend",
+        "subcat": "lazygit"
+      },
+      {
+        "key": "P/p",
+        "desc": "Push / pull",
+        "subcat": "lazygit"
+      },
+      {
+        "key": "z",
+        "desc": "Undo",
+        "subcat": "lazygit"
+      },
+      {
+        "key": "+/-",
+        "desc": "Bigger / smaller layout",
+        "subcat": "lazygit"
+      },
+      {
+        "key": "x",
+        "desc": "lazydocker: what can I do here",
+        "subcat": "lazydocker and btop"
+      },
+      {
+        "key": "1..6",
+        "desc": "Projects, services, containers, images, volumes, networks",
+        "subcat": "lazydocker and btop"
+      },
+      {
+        "key": "E/m",
+        "desc": "Shell into a container / read its logs",
+        "subcat": "lazydocker and btop"
+      },
+      {
+        "key": "b",
+        "desc": "Bulk commands, including prune",
+        "subcat": "lazydocker and btop"
+      },
+      {
+        "key": "f",
+        "desc": "btop: filter processes",
+        "subcat": "lazydocker and btop"
+      },
+      {
+        "key": "t/k",
+        "desc": "btop: terminate / kill",
+        "subcat": "lazydocker and btop"
+      },
+      {
+        "key": "h",
+        "desc": "btop help — note it is not a motion key there",
+        "subcat": "lazydocker and btop"
+      }
+    ],
+    "When You Are Lost": [
+      {
+        "key": "Mod+Slash",
+        "desc": "This page, as a searchable modal"
+      },
+      {
+        "key": "Ctrl+G ?",
+        "desc": "Every session shortcut"
+      },
+      {
+        "key": "Space",
+        "desc": "Wait a beat and the editor lists what can follow"
+      },
+      {
+        "key": "Space sk",
+        "desc": "Search every editor mapping"
+      },
+      {
+        "key": "?",
+        "desc": "lazygit and lazydocker. x for lazydocker's context menu"
+      }
+    ]
+  }
+}

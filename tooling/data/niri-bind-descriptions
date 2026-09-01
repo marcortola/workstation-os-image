@@ -1,0 +1,102 @@
+# Descriptions for niri binds that carry no hotkey-overlay-title.
+#
+# A titled bind supplies its own label to both the DMS cheatsheet and (still)
+# niri's native overlay. An untitled one has nothing to show, so it is named
+# here instead of being given a title -- a title would also add it to niri's
+# fixed-order overlay, which is the thing Mod+Slash no longer opens.
+#
+# tooling/keybindings/build-cheatsheet asserts this file in both directions:
+# every untitled, non-hidden bind must appear here, and every entry must name a
+# bind that still exists. Adding a bind without describing it fails the build.
+#
+# Format: key|subcat|description
+# An empty subcat inherits the `// -- Section --` heading the bind sits under
+# in binds.kdl. An empty description is not allowed.
+
+# --- Columns & window sizing --------------------------------------------
+Mod+Q||Close the window
+Mod+Comma||Pull the next window into this column
+Mod+Period||Push this window out of the column
+Mod+V||Float the window, or tile it again
+Mod+W||Show the column as tabs instead of a stack
+Mod+Shift+F||Fullscreen the window
+Mod+Ctrl+F||Grow the window to the screen edges
+Mod+Ctrl+C||Centre every visible column
+Mod+Ctrl+R||Reset the window's height
+Mod+Shift+Minus||Shrink the window's height by 10%
+Mod+Shift+Equal||Grow the window's height by 10%
+
+# --- Focus ---------------------------------------------------------------
+# The letters and the arrows are the same binds; the arrow halves are titled.
+Mod+H||Focus the column to the left
+Mod+L||Focus the column to the right
+
+# --- Move ----------------------------------------------------------------
+Mod+Ctrl+H||Move the column left
+Mod+Ctrl+L||Move the column right
+
+# --- Workspaces ----------------------------------------------------------
+Mod+U||Go to the workspace below
+Mod+I||Go to the workspace above
+Mod+Page_Down||Go to the workspace below
+Mod+Page_Up||Go to the workspace above
+Mod+Ctrl+U||Send the column to the workspace below
+Mod+Ctrl+I||Send the column to the workspace above
+Mod+Ctrl+Page_Down||Send the column to the workspace below
+Mod+Ctrl+Page_Up||Send the column to the workspace above
+Mod+Shift+U||Move this workspace down
+Mod+Shift+I||Move this workspace up
+
+# --- Monitors ------------------------------------------------------------
+Mod+Shift+H||Focus the monitor to the left
+Mod+Shift+J||Focus the monitor below
+Mod+Shift+K||Focus the monitor above
+Mod+Shift+L||Focus the monitor to the right
+Mod+Shift+Ctrl+H||Send the column to the monitor left
+Mod+Shift+Ctrl+J||Send the column to the monitor below
+Mod+Shift+Ctrl+K||Send the column to the monitor above
+Mod+Shift+Ctrl+L||Send the column to the monitor right
+
+# --- System & utilities --------------------------------------------------
+Mod+Escape|System & utilities|Stop an app from swallowing shortcuts
+
+# --- Scroll --------------------------------------------------------------
+Mod+WheelScrollDown||Wheel: next workspace
+Mod+WheelScrollUp||Wheel: previous workspace
+Mod+WheelScrollRight||Wheel: next column
+Mod+WheelScrollLeft||Wheel: previous column
+Mod+Shift+WheelScrollDown||Wheel: next column
+Mod+Shift+WheelScrollUp||Wheel: previous column
+Mod+Ctrl+WheelScrollDown||Wheel: send the column down a workspace
+Mod+Ctrl+WheelScrollUp||Wheel: send the column up a workspace
+Mod+Ctrl+WheelScrollRight||Wheel: move the column right
+Mod+Ctrl+WheelScrollLeft||Wheel: move the column left
+Mod+Ctrl+Shift+WheelScrollDown||Wheel: move the column right
+Mod+Ctrl+Shift+WheelScrollUp||Wheel: move the column left
+
+# --- Media & display -----------------------------------------------------
+XF86AudioRaiseVolume||Volume up
+XF86AudioLowerVolume||Volume down
+XF86AudioMute||Mute the speakers
+XF86AudioMicMute||Mute the microphone
+XF86AudioPlay||Play or pause
+XF86AudioNext||Next track
+XF86AudioPrev||Previous track
+XF86MonBrightnessUp||Brighter screen
+XF86MonBrightnessDown||Dimmer screen
+
+# --- Screenshots ---------------------------------------------------------
+Ctrl+Print||Screenshot the whole screen
+Alt+Print||Screenshot the focused window
+
+# --- Binds DMS owns outright ---------------------------------------------
+# A leading + marks an addition rather than a description. These live only in
+# the DMS-generated ~/.config/niri/dms/binds.kdl, which is machine-generated and
+# not in this repo, so nothing here can parse them -- but they are real keys on
+# a running session and the sheet is meant to be complete.
+#
+# Only the ones we let DMS keep belong here. Mod+Y and Mod+Alt+L are DMS's too
+# but local.kdl rebinds them hotkey-overlay-title=null to hide them, and that
+# decision is honoured rather than undone.
++Mod+N|Launchers & apps|Notification centre
++Mod+Shift+N|Launchers & apps|Notepad

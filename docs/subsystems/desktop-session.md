@@ -206,6 +206,7 @@ page owns; the key list is not.
 
 | Key | Runs | Notes |
 | --- | --- | --- |
+| `Mod+Slash` | `dms ipc call keybinds toggle workstation` | The generated cheatsheet, in DMS's searchable modal. See below. |
 | `Mod+T` | `xdg-terminal-exec` | A plain Foot window. |
 | `Mod+Shift+T` | `herdr` in a terminal with `--app-id=herdr` | The coding multiplexer. Launched deliberately, never from a shell rc, because every attached client mirrors the others: a second window would be a clone of the first, not a second context. |
 | `Mod+Shift+P` | `workstation-dev --herdr` with `--app-id=dev-terminal` | Project picker; hands the chosen repository to herdr. See [dev-environment.md](dev-environment.md). |
@@ -231,10 +232,48 @@ Reclaimed from DMS in the `local.kdl` seed, and therefore absent from the system
 | `Ctrl+Alt+Delete` | `btop` in a Foot window | DMS binds it to its task manager. |
 | `Mod+Y`, `Mod+Alt+L` | DMS's own wallpaper and lock actions | Reclaimed to re-hide them from the overlay. |
 
-### The hotkey overlay does not follow file order
+### Mod+Slash opens the generated cheatsheet, not niri's overlay
 
-`Mod+Slash` opens niri's overlay, and its order is niri's, not this file's. niri
-emits three tiers: a fixed compiled block of "important" actions, always in the
+niri's own overlay orders itself (below), cannot be searched, and only ever
+knows about niri — so it never showed the editor, the session multiplexer or the
+terminal, which is most of what there is to forget. DMS renders any JSON
+cheatsheet dropped in `~/.config/DankMaterialShell/cheatsheets/` in a
+layer-shell modal that focuses a search box on open, so `Mod+Slash` spawns
+`dms ipc call keybinds toggle workstation` instead.
+
+`tooling/keybindings/build-cheatsheet.py` generates that sheet from two sources
+and is wired into `just sync`, with `--check` in `tooling/validate/all`:
+
+| Source | Supplies |
+| --- | --- |
+| [../keybindings.md](../keybindings.md) | Every layer except the desktop, in reviewed wording. Its `##` sections become categories, its `###` headings subcategories. A section the generator does not place fails the build rather than silently missing the modal. |
+| `binds.kdl` plus the `local.kdl` seed | The desktop layer, complete. Descriptions come from each bind's `hotkey-overlay-title`, subcategories from the `// ── Section ──` comments the file is already grouped by. |
+
+So the titles below stay load-bearing, just for a different reader. A bind with
+no title has no label to borrow, so it must be named in
+`tooling/data/niri-bind-descriptions`; that file is asserted in both directions,
+and adding an untitled bind without describing it fails the build instead of
+dropping it from the sheet. `hotkey-overlay-title=null` still means hidden.
+
+Two keys are real on a running session but appear in no file this repo owns:
+`Mod+N` and `Mod+Shift+N` live only in the DMS-generated fragment. They are
+declared in the same file with a leading `+`, which marks an addition rather
+than a description, and the generator rejects one that collides with a bind the
+repo already defines. `Mod+Y` and `Mod+Alt+L` are DMS's too, but `local.kdl`
+rebinds them `hotkey-overlay-title=null`, and that decision is honoured.
+
+Keys are shortened on the way in — `Mod+H` / `Mod+L` becomes `Mod+H/L`,
+`WheelScrollDown` becomes `Wheel↓` — because the modal gives the key its own
+narrow column and a long one wraps onto three lines and overlaps its neighbour.
+The doc's backticks are read before they are stripped, since `` `Space` `/` `` is
+a sequence while `` `Mod+H` / `Mod+L` `` is an alternation and the two are
+indistinguishable afterwards.
+
+### niri's own overlay does not follow file order
+
+Nothing binds `show-hotkey-overlay` now, but the annotations that shaped it are
+still what labels the generated sheet, so the ordering rules stay documented.
+niri emits three tiers: a fixed compiled block of "important" actions, always in the
 same sequence; then every bind carrying a custom `hotkey-overlay-title` whose
 action is not already in that block, in file order; then any untitled `Mod`/`Super`
 `spawn` bind. A custom title on a fixed-block action only *relabels* its row; it

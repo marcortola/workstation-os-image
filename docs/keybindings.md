@@ -325,9 +325,15 @@ something to memorise.
 Five keys that answer the question from inside the program. These are always
 right, which no cheatsheet can promise.
 
+`Mod+Slash` is the exception that proves it: it opens this page rather than a
+separate list, because `tooling/keybindings/build-cheatsheet.py` generates that
+modal from these tables and from the niri binds themselves. Editing this file
+and running `just cheatsheet` is how the modal changes; `just validate` fails if
+the two have drifted apart.
+
 | Key | Shows |
 |---|---|
-| `Mod+Slash` | Every desktop shortcut |
+| `Mod+Slash` | This page, as a searchable modal |
 | `Ctrl+G` then `?` | Every session shortcut |
 | `Space` | Wait a beat and the editor lists what can follow |
 | `Space` `sk` | Search every editor mapping |
