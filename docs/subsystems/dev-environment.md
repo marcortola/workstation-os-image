@@ -517,16 +517,6 @@ model does not change when you switch tools. The seed paths are inventoried in
 
 ## Gotchas and Tech Debt
 
-- **Four code comments still name `workmux`.** The repository migrated to herdr,
-  and the root `.worktreeinclude` header has been corrected — but two comments in
-  `tooling/worktree/init` (lines 7 and 82), one in
-  `create_executable_workstation-worktree-sync` and one in the `post-checkout`
-  hook still name the old multiplexer. Line 82 is the one that matters: it is the
-  header `tooling/worktree/init` writes into every starter `.worktreeinclude` it
-  generates, so the stale name keeps spreading to newly onboarded repositories
-  even though the file it was copied from is now right. Only the wording is
-  stale: the mechanism is unaffected, since every path goes through
-  `git worktree add`.
 - **Never run `:Lazy clean` on the host.** The host session has no project
   language in scope, so every language extra's plugins look unused there — but
   containers bind-mount that same directory as `/nvim-plugins`. Cleaning on the
