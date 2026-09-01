@@ -14,7 +14,14 @@ target_workspace() {
     printf '%s\n' "$HERDR_WORKSPACE_ID"
     return 0
   fi
-  printf '%s' "${HERDR_PLUGIN_CONTEXT_JSON:-}" | jq -r '.workspace.workspace_id // empty'
+  # herdr's PluginInvocationContext is flat: `workspace_id`, `workspace_label`,
+  # `tab_id`, and no nested `workspace` object -- unlike an API response, where
+  # `.result.workspace.workspace_id` is right. Reading only the nested path made
+  # this fallback resolve to nothing; it went unnoticed because an action is also
+  # handed HERDR_WORKSPACE_ID, which the branch above takes first. Read both, so
+  # an event hook reaching here still resolves.
+  printf '%s' "${HERDR_PLUGIN_CONTEXT_JSON:-}" |
+    jq -r '.workspace_id // .workspace.workspace_id // empty'
 }
 
 first_tab_of() {
