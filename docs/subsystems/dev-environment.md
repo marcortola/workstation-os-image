@@ -110,6 +110,19 @@ repository. The picker resolves the `herdr` binary defensively —
 — because a niri keybind runs it with a minimal `PATH`. Keybind ownership and the
 full bind inventory belong to [desktop-session.md](desktop-session.md).
 
+Scoping goes over herdr's socket, never through the launch directory. herdr
+scopes its startup workspace from the cwd only while the restored session has no
+workspaces, and `session.json` carries them across restarts, so the first pick
+after a reboot would otherwise land in whichever workspace was persisted —
+`restored session already has workspaces; ignoring startup cwd` in
+`herdr-server.log`. With a server already up the picker scopes inline before it
+`exec`s the client; when this launch is the one starting the server, a
+background waiter polls `workspace list` for up to ten seconds and scopes as
+soon as the socket answers. Both paths first look for a workspace already
+labelled with the repository's basename and focus that, so picking the same
+project twice no longer stacks duplicate workspaces. The compare is exact, which
+is what keeps it off worktree workspaces: `ga` labels those `<repo>/<branch>`.
+
 ---
 
 ## `dev nvim`: Neovim Inside the Container
