@@ -1,0 +1,19 @@
+// Global markdownlint-cli2 config (Markdown linter).
+// Injected by nvim-lint via lua/plugins/lint.lua.
+// Disabled rules:
+//   MD013 (line-length)         → modern soft-wrap; 80-col hard-wrap is noise
+//   MD041 (first-line-heading)  → fails on READMEs with frontmatter, fragments, task plans
+//   MD033 (no-inline-html)      → Astro/MDX need inline HTML
+//   MD007 (ul-indent)           → 2 and 4 spaces render the same; forcing one clashes with others' READMEs
+// Relaxed rules:
+//   MD012 (no-multiple-blanks)  → allow up to 2 blank lines for visual breathing room
+//   MD009 (no-trailing-spaces)  → allow 0 or 2 spaces (2 = <br> in CommonMark)
+{
+  "default": true,
+  "MD013": false,
+  "MD041": false,
+  "MD033": false,
+  "MD007": false,
+  "MD012": { "maximum": 2 },
+  "MD009": { "br_spaces": 2, "strict": false }
+}

@@ -294,17 +294,19 @@ which compile-checks every Lua seed with the image's own Neovim
 
 ## Vim Bindings in Every Editor
 
-Neovim and the JetBrains IDEs answer to the same keys, so a habit built in one
-transfers to the other. That parity is deliberate and it is enforced by
-*subtraction*: `lua/config/create_keymaps.lua` is empty on purpose.
+Neovim and the JetBrains IDEs share LazyVim's *stock* bindings, so the common
+half of a habit transfers. They are no longer expected to agree beyond that.
 
-```lua
--- Deliberately empty. This workstation runs stock Vim/LazyVim bindings in both
--- editors ... A JetBrains-parity keymap that exists in only one of the two
--- editors is a habit that has to be unlearned later, so none are defined.
-```
+Parity used to be enforced by subtraction — `lua/config/create_keymaps.lua` was
+empty on purpose, on the argument that a binding existing in only one editor is
+a habit that has to be unlearned. That rule was retired when the Neovim config
+grew a keymap layer: most of what is worth binding drives Snacks pickers,
+Diffview and the herdr pane navigation, none of which has a JetBrains
+equivalent, so the constraint only ever excluded the useful half. The trade is
+explicit — `<leader>fi`, `<leader>gs`, `<leader>n` and the rest are Neovim-only,
+and reaching for them in PhpStorm does nothing.
 
-The IDEs get the same set through **IdeaVim**, driven by `~/.ideavimrc` — a
+The IDEs still get LazyVim's stock set through **IdeaVim**, driven by `~/.ideavimrc` — a
 chezmoi seed at
 `system_files/usr/share/workstation-os-image/dotfiles/create_dot_ideavimrc`,
 declared in `tooling/data/dotfiles.manifest`. It sits at `~/.ideavimrc` rather
@@ -547,9 +549,9 @@ model does not change when you switch tools. The seed paths are inventoried in
   working store.
 - **The Neovim checksum check is conditional.** If `shasum.txt` cannot be
   fetched the tarball is installed unverified — a soft failure that is silent.
-- **IdeaVim has no `<localleader>`.** LazyVim's `<localleader>` bindings are
-  Neovim-only and cannot be practised in the IDEs, so the parity claim has this
-  one hole by construction.
+- **The two editors diverge above LazyVim's stock bindings.** Everything in
+  `lua/config/create_keymaps.lua` and the plugin `keys =` entries is Neovim-only,
+  as is every `<localleader>` binding, which IdeaVim does not implement at all.
 - **`hardtime.nvim` and `precognition.nvim` are scheduled for deletion.** Their
   own seed says to remove the file once the habits stick — a condition nobody
   re-checks. Leaving them in indefinitely turns scaffolding into config.

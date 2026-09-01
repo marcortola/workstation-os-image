@@ -1,0 +1,3 @@
+// markdownlint-cli2 with everything off. Selected by lua/plugins/lint.lua
+// for scratch buffers and paths under /.claude/, where prose rules are noise.
+{ "default": false }
