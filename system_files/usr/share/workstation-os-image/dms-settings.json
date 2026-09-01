@@ -105,6 +105,7 @@
   "loginctlLockIntegration": true,
   "maxFprintTries": 3,
   "monoFontFamily": "FiraCode Nerd Font Mono",
+  "networkPreference": "wifi",
   "niriLayoutBorderSize": 1,
   "notificationRules": [
     {
@@ -133,7 +134,7 @@
   "spotlightSectionViewModes": {
     "apps": "list"
   },
-  "updaterCustomCommand": "systemctl start uupd.service",
+  "updaterCustomCommand": "sudo bootc upgrade",
   "updaterIntervalSeconds": 3600,
   "updaterUseCustomCommand": true
 }
