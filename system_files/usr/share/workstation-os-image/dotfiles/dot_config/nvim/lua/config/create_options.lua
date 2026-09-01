@@ -33,3 +33,53 @@ end
 if os.getenv("NVIM_IN_CONTAINER") and vim.fn.executable("bash") == 1 then
   vim.o.shell = vim.fn.exepath("bash")
 end
+
+-- Reload a file the moment it changes on disk. A coding agent editing the
+-- project while a buffer is open is the normal case here, not the exception.
+vim.o.autoread = true
+
+-- Write on leaving insert or after a change. Formatting deliberately does NOT
+-- run here: vim.g.autoformat above stays false, so an agent reading the file
+-- always sees current text without a host-resolved formatter rewriting code a
+-- devcontainer owns.
+vim.api.nvim_create_autocmd({ "TextChanged", "InsertLeave" }, {
+  group = vim.api.nvim_create_augroup("user_autosave", { clear = true }),
+  callback = function()
+    if vim.bo.modified and vim.bo.buftype == "" and vim.api.nvim_buf_get_name(0) ~= "" then
+      vim.cmd("silent! write")
+    end
+  end,
+})
+
+-- Auto-save covers the crash-recovery case swap files exist for, and a stale
+-- .swp after a herdr server restart is a prompt on every reopen.
+vim.opt.swapfile = false
+
+-- Absolute line numbers: the relative pair is for counted motions, which
+-- hardtime already discourages.
+vim.opt.relativenumber = false
+
+-- Case-insensitive search even when the pattern has uppercase. LazyVim ships
+-- smartcase, which silently flips to case-sensitive the moment you type one.
+vim.opt.ignorecase = true
+vim.opt.smartcase = false
+
+-- Wrap at word boundaries rather than scrolling horizontally.
+vim.opt.wrap = true
+vim.opt.linebreak = true
+
+-- `gf` over a TypeScript "@/" import. Harmless where no such alias exists.
+vim.opt.isfname:append("@-@")
+vim.opt.path:append("src/**")
+vim.opt.suffixesadd:append(".ts,.tsx,.js,.jsx,.json")
+vim.opt.includeexpr = "substitute(v:fname,'^@/','src/','g')"
+
+-- SQLite files are binary: mark them so previewers skip them instead of dumping
+-- raw bytes. Open them with DBUI (see lua/plugins/db.lua) instead.
+vim.filetype.add({
+  extension = {
+    db = "sqlite",
+    sqlite = "sqlite",
+    sqlite3 = "sqlite",
+  },
+})

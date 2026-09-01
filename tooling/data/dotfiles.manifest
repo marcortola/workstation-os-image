@@ -89,6 +89,8 @@ copy|.config/nvim/init.lua|dot_config/nvim/create_init.lua|-
 copy|.config/nvim/lazy-lock.json|dot_config/nvim/create_lazy-lock.json|-
 copy|.config/nvim/lazyvim.json|dot_config/nvim/create_lazyvim.json|-
 copy|.config/nvim/stylua.toml|dot_config/nvim/create_stylua.toml|-
+copy|.config/nvim/markdownlint.jsonc|dot_config/nvim/create_markdownlint.jsonc|-
+copy|.config/nvim/markdownlint-off.jsonc|dot_config/nvim/create_markdownlint-off.jsonc|-
 tree|.config/nvim/lua|dot_config/nvim/lua|*
 # IdeaVim gives the JetBrains IDEs the same Vim/LazyVim bindings as nvim. Lives
 # at ~/.ideavimrc, not under XDG: IdeaVim resolves the first existing rc and
