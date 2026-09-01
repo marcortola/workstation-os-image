@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # workstation-worktree-sync — copy a repository's .worktreeinclude-listed
 # gitignored files (.env, .idea, ...) from the main worktree into the current
-# linked worktree. Shared by the workmux post_create hook, the `ga` fish helper,
-# and the git post-checkout hook so every worktree-creation path behaves the
-# same from one committed inventory.
+# linked worktree. Driven by the git post-checkout hook, which every
+# worktree-creation path reaches because they all shell out to `git worktree
+# add` -- herdr's dev-flow popup, the JetBrains "New Worktree" UI, the agent
+# CLIs' worktree skills, and plain git -- so all of them behave the same from
+# one committed inventory.
 #
 # Safe by construction: no-op outside a git work tree, no-op in the main
 # checkout, no-op when git-worktreeinclude or a .worktreeinclude is absent, and

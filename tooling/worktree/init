@@ -4,7 +4,7 @@
 #      the JetBrains IDE (or any raw `git worktree add`) copy their untracked
 #      files, and
 #   2. drop a starter .worktreeinclude when the repo has none, so all four
-#      creation paths (workmux, Claude Code, the hook, the IDE External Tool)
+#      creation paths (herdr, Claude Code, the hook, the IDE External Tool)
 #      have an inventory to read.
 #
 # init.templateDir already seeds the hook into freshly cloned repos; this is the
@@ -79,7 +79,7 @@ generate_worktreeinclude() {
     if {
         echo "# Untracked files to copy into new git worktrees (gitignore syntax)."
         echo "# Only files git IGNORES and that match here are copied; tracked files"
-        echo "# never are. Read by Claude Code, workmux, the post-checkout hook, and the"
+        echo "# never are. Read by Claude Code, herdr, the post-checkout hook, and the"
         echo "# JetBrains 'Sync worktree files' External Tool. Commit to share with the"
         echo "# team. node_modules/vendor/.venv belong in a per-project install step, not"
         echo "# here — copying them per worktree is the wrong tool."

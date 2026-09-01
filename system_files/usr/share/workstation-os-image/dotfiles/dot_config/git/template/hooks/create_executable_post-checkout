@@ -2,8 +2,8 @@
 # workstation-worktree-init: managed post-checkout hook v1
 # post-checkout — populate new git worktrees with their .worktreeinclude-listed
 # gitignored files. Seeded into every repository's .git/hooks by init.templateDir
-# (new clones) and by `just worktree-init` (existing repos). Because the IDE and
-# workmux both shell out to the git binary, this fires for `git worktree add`
+# (new clones) and by `just worktree-init` (existing repos). Because herdr and
+# the IDE both shell out to the git binary, this fires for `git worktree add`
 # from any client, including the JetBrains "New Worktree" UI.
 #
 # Args: $1 previous HEAD, $2 new HEAD, $3 branch-checkout flag (1 branch, 0 file).
