@@ -95,12 +95,13 @@ Then read the guide for whichever part of the machine you are working on.
 
 ## Reference
 
-One page is a lookup sheet rather than a guide. It is not part of the reading
-order: you consult it, you do not work through it.
+One page is a study sheet rather than a guide. It is not part of the reading
+order, and it is deliberately not exhaustive: rare binds are left out so the
+common ones are findable.
 
 | Page | For |
 |------|-----|
-| [keybindings.md](keybindings.md) | Every key the workstation binds, across all five layers — the compositor, herdr, Neovim, the TUI applications and the shell — plus the chords whose meaning has changed and the four that mean different things in different layers. |
+| [keybindings.md](keybindings.md) | The shortcuts worth knowing, grouped by what you are trying to do rather than by which program answers — with the everyday set first, and the five keys that make each program list its own bindings. |
 
 ---
 

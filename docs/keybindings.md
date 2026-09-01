@@ -1,522 +1,348 @@
 # Keybindings
 
-Every key this workstation binds, in one place: the compositor, the terminal
-multiplexer, Neovim, the TUI applications and the shell. This is a lookup sheet,
-not an explanation — where a binding exists for a reason, the reason lives on
-the page that owns the subsystem and is linked from here. Read this when you
-have forgotten a key, or after an update moved one.
+The shortcuts worth knowing on this workstation, grouped by what you are trying
+to do rather than by which program answers. It is a study sheet, not an
+inventory: the rare binds are left out on purpose, and every program here can
+list its own keys better than this page can. Read this to learn the shape, and
+ask the program when you need the exact key.
 
-**Five layers, and each is opened by a single key: `Mod` reaches the
-compositor, `Ctrl+G` the multiplexer, `Space` the editor. Learn the three
-gateways and the rest is lookup.**
-
----
-
-## The Five Layers
-
-A chord belongs to exactly one layer, and the layer is decided by whichever
-program grabs the key first. The compositor sees every key before the terminal
-does; the multiplexer sees its prefix before the pane's process does; inside a
-pane the running program sees the rest.
-
-| Layer | Gateway | Owns | Configured in |
-|---|---|---|---|
-| Desktop | `Mod` | Windows, columns, workspaces, monitors, capture, media | `system_files/usr/share/workstation-os-image/niri/includes/binds.kdl`, plus the reclaims in `system_files/usr/share/workstation-os-image/dotfiles/dot_config/niri/create_local.kdl.tmpl` and two binds DMS generates |
-| Session | `Ctrl+G` | Panes, tabs, spaces, worktrees, agents | `system_files/usr/share/workstation-os-image/dotfiles/dot_config/herdr/create_config.toml` |
-| Editor | `Space` | Buffers, pickers, LSP, git, everything in a file | `system_files/usr/share/workstation-os-image/dotfiles/dot_config/nvim/lua/config/create_keymaps.lua` and the specs under `system_files/usr/share/workstation-os-image/dotfiles/dot_config/nvim/lua/plugins` |
-| Applications | varies | foot, lazygit, lazydocker, btop | Mostly stock; the exceptions are noted below |
-| Shell | `Ctrl+R` | History, file and directory pickers | `system_files/usr/share/workstation-os-image/dotfiles/dot_config/fish/conf.d/create_fzf.fish`, which sources fzf's own bindings |
-
-`Mod` is the Super key. `prefix` means `Ctrl+G`, pressed and released before the
-next key. `<leader>` is the space bar.
-
-> Never learn a key from this page alone when the machine can tell you.
-> `Mod+Slash` opens niri's own overlay, `prefix+?` opens herdr's, `<leader>sk`
-> opens a searchable picker of every Neovim mapping, and `?` works in both
-> lazygit and lazydocker. Those four are always current; this page is only as
-> current as its last edit.
+**Three keys open three layers: `Mod` reaches the desktop, `Ctrl+G` the terminal
+session, `Space` the editor. Everything else hangs off one of them.**
 
 ---
 
-## Desktop: `Mod`
+## Every Day
 
-niri lays windows out as an endless horizontal strip of columns, and a column
-may hold several stacked windows. That geometry is why the bindings separate
-*column* movement from *window* movement.
+The keys that carry most of the work. If you learn one section, learn this one.
 
-Keybind ownership, the DMS reclaims and the hotkey overlay's ordering belong to
-[subsystems/desktop-session.md](subsystems/desktop-session.md), which also
-carries the rationale for each launcher bind that reaches one of this image's
-own scripts.
-
-### Launching
+### Open something
 
 | Key | Action |
 |---|---|
+| `Mod+Space` | Any application |
+| `Mod+T` | A terminal |
+| `Mod+Shift+P` | A project — picks the repository and takes you to it |
+| `Ctrl+G` then `s` | Switch project, once a session is open |
+| `Ctrl+G` then `a` | Jump to an agent that needs you |
+| `Ctrl+G` then `g` | lazygit, in whatever repository this pane is in |
+
+### Move around
+
+| Key | Action |
+|---|---|
+| `Ctrl+H`, `Ctrl+J`, `Ctrl+K`, `Ctrl+L` | Between panes *and* editor splits, in one chord |
+| `Mod+H` / `Mod+L` | Between windows |
+| `Mod+1` … `Mod+9` | To a workspace |
+| `Mod+Up` / `Mod+Down` | Between workspaces |
+| `Ctrl+G` then `m`, `n` or `t` | To the `main`, `nvim` or `term` tab |
+| `Mod+O` | Overview of everything |
+
+### Find something
+
+| Key | Action |
+|---|---|
+| `Space` `Space` | A file |
+| `Space` `/` | Text in the project |
+| `Space` `,` | An open buffer |
+| `Space` `e` | The file tree |
+| `Ctrl+R` | A command you ran before, in the shell |
+| `Ctrl+G` then `u` | A link that scrolled past |
+
+### Git
+
+| Key | Action |
+|---|---|
+| `Space` `gg` | lazygit, from the editor |
+| `Space` `gs` | Stage or unstage this file |
+| `Space` `gd` | Diff the working tree |
+| `Space` `gb` | Review the whole branch against `main` |
+| `]h` / `[h` | Next / previous change |
+| `Space` `ghs` | Stage just this hunk |
+
+### Write code
+
+| Key | Action |
+|---|---|
+| `gd` / `gr` | Go to definition / find references |
+| `K` | Documentation under the cursor |
+| `Space` `ca` | Code action — the "fix it for me" key |
+| `Space` `cr` | Rename everywhere |
+| `]d` / `[d` | Next / previous problem |
+| `gcc` / `gc` | Comment the line / the selection |
+| `s` | Jump anywhere on screen by typing two letters |
+| `jk` | Escape, without reaching for it |
+
+> The one chord worth internalising is `Ctrl+H`, `Ctrl+J`, `Ctrl+K`, `Ctrl+L`.
+> It walks Neovim's splits and keeps walking into the next terminal pane when it
+> runs out of editor. No prefix, no mode switch, and no thinking about which
+> program you are currently inside.
+
+---
+
+## Desktop
+
+`Mod` is the Super key. Windows sit in an endless horizontal strip of columns,
+and a column can stack several windows — which is why moving a *column* and
+moving a *window* are different keys.
+
+### Launch
+
+| Key | Action |
+|---|---|
+| `Mod+Space` | Application launcher |
 | `Mod+T` | Terminal |
-| `Mod+Shift+T` | Coding session — herdr |
-| `Mod+Shift+P` | Project picker: focuses the herdr window if one is open, otherwise opens one |
+| `Mod+Shift+T` | Coding session |
+| `Mod+Shift+P` | Project picker |
 | `Mod+Shift+D` | lazydocker |
 | `Mod+F` | File manager |
-| `Mod+Space` | Application launcher |
-| `Ctrl+Alt+Delete` | Activity — btop |
+| `Ctrl+Alt+Delete` | btop |
 
-### Windows
-
-| Key | Action |
-|---|---|
-| `Mod+Q` | Close window |
-| `Mod+V` | Toggle floating |
-| `Mod+W` | Toggle tabbed column display |
-| `Mod+Shift+F` | Fullscreen |
-| `Mod+Ctrl+F` | Maximise to edges |
-| `Mod+Comma` | Consume window into the column |
-| `Mod+Period` | Expel window from the column |
-| `Mod+BracketLeft` / `Mod+BracketRight` | Move a window between columns |
-| `Mod+Ctrl+R` | Reset window height |
-| `Mod+Shift+Minus` / `Mod+Shift+Equal` | Window height, ten per cent either way |
-
-### Columns
-
-| Key | Action |
-|---|---|
-| `Mod+R` | Cycle the column-width preset |
-| `Mod+M` | Maximise column |
-| `Mod+Minus` / `Mod+Equal` | Column width, ten per cent either way |
-| `Mod+C` | Centre the column |
-| `Mod+Ctrl+C` | Centre every visible column |
-
-### Focus
+### Focus and move
 
 | Key | Action |
 |---|---|
 | `Mod+H` / `Mod+L` | Column left / right |
-| `Mod+Left` / `Mod+Right` | Column left / right |
 | `Mod+J` / `Mod+K` | Window down / up inside the column |
+| `Mod+Ctrl+H` / `Mod+Ctrl+L` | Move the column |
+| `Mod+Ctrl+J` / `Mod+Ctrl+K` | Move the window |
+| `Mod+Comma` / `Mod+Period` | Pull a window into the column / push it out |
 | `Mod+Home` / `Mod+End` | First / last column |
-| `Mod+O` | Overview |
-| `Mod+Slash` | Hotkey overlay |
 
-Scroll works too: `Mod` plus a horizontal wheel moves between columns, `Mod`
-plus a vertical wheel moves between workspaces.
+The arrow keys work anywhere the letters do, and `Mod` plus the scroll wheel
+moves as well.
 
-### Moving windows
+### Size and shape
 
 | Key | Action |
 |---|---|
-| `Mod+Ctrl+H` / `Mod+Ctrl+L` | Move column left / right |
-| `Mod+Ctrl+J` / `Mod+Ctrl+K` | Move window down / up |
-| `Mod+Ctrl+Home` / `Mod+Ctrl+End` | Move column to first / last position |
-| `Mod+Ctrl+Up` / `Mod+Ctrl+Down` | Move column to the workspace above / below |
-| `Mod+Ctrl+Page_Up` / `Mod+Ctrl+Page_Down` | Move column to the workspace above / below |
-| `Mod+Ctrl+I` / `Mod+Ctrl+U` | Move column to the workspace above / below |
-| `Mod+Ctrl+1` … `Mod+Ctrl+9` | Move column to workspace *n* |
+| `Mod+R` | Cycle the column-width presets |
+| `Mod+M` | Maximise the column |
+| `Mod+Minus` / `Mod+Equal` | Width, ten per cent either way |
+| `Mod+Shift+Minus` / `Mod+Shift+Equal` | Height, ten per cent either way |
+| `Mod+C` | Centre it |
+| `Mod+W` | Tab the column instead of stacking it |
+| `Mod+Shift+F` | Fullscreen |
 
-### Workspaces and monitors
+### Workspaces and screens
 
 | Key | Action |
 |---|---|
+| `Mod+1` … `Mod+9` | Go to a workspace |
 | `Mod+Up` / `Mod+Down` | Workspace up / down |
-| `Mod+I` / `Mod+U` | Workspace up / down |
-| `Mod+Page_Up` / `Mod+Page_Down` | Workspace up / down |
-| `Mod+1` … `Mod+9` | Go to workspace *n* |
-| `Mod+Shift+I` / `Mod+Shift+U` | Move the workspace itself up / down |
-| `Mod+Shift+Page_Up` / `Mod+Shift+Page_Down` | Move the workspace itself up / down |
-| `Mod+Shift+H`, `Mod+Shift+J`, `Mod+Shift+K`, `Mod+Shift+L` | Focus the monitor in that direction |
-| `Mod+Shift+Left`, `Mod+Shift+Down`, `Mod+Shift+Up`, `Mod+Shift+Right` | Focus the monitor in that direction |
-| `Mod+Shift+Ctrl+H`, `J`, `K`, `L` | Move the column to that monitor |
-| `Mod+Shift+Ctrl+Left`, `Down`, `Up`, `Right` | Move the column to that monitor |
+| `Mod+Ctrl+1` … `Mod+Ctrl+9` | Send the column to a workspace |
+| `Mod+Ctrl+Up` / `Mod+Ctrl+Down` | Send it up / down |
+| `Mod+Shift+H`, `J`, `K`, `L` | Focus another monitor |
+| `Mod+Shift+Ctrl+H`, `J`, `K`, `L` | Send the column there |
 
-### Capture, dictation and session
+### Capture and session
 
 | Key | Action |
 |---|---|
 | `Mod+Shift+S` | Screenshot a region |
-| `Print` / `Ctrl+Print` / `Alt+Print` | Region / whole screen / focused window |
-| `Mod+Print` | Screenshot, then OCR the result to the clipboard |
-| `Mod+Alt+Shift+S` | The same OCR capture, hidden from the overlay |
-| `Mod+Shift+R` | Start or stop a screen recording |
-| `Mod+Shift+V` | Start or stop dictation |
-| `Mod+Alt+L` | Lock the screen |
-| `Ctrl+Alt+U` | Switch user |
-| `Ctrl+Alt+Space` | Cycle the keyboard layout |
-| `Mod+Escape` | Toggle shortcut inhibit, so an application can grab keys |
-| `Mod+N` / `Mod+Shift+N` | Notification centre / notepad |
-| `Mod+Y` | Browse wallpapers |
-| `Super+Alt+S` | Toggle the Orca screen reader. Works while locked |
-| `Ctrl+Shift+Alt+Mod+L` | Open googleballs.com |
-
-Volume, mute, microphone mute, media transport and brightness are on their
-`XF86` hardware keys and keep working while the screen is locked.
-
-There is deliberately no quit bind.
+| `Print` | The same. `Ctrl+Print` the whole screen, `Alt+Print` the window |
+| `Mod+Print` | Read the text off the screen — OCR to the clipboard |
+| `Mod+Shift+R` | Start a screen recording, and again to stop |
+| `Mod+Shift+V` | Dictate |
+| `Mod+Q` | Close the window |
+| `Mod+V` | Float it |
+| `Mod+Alt+L` | Lock |
+| `Mod+N` / `Mod+Shift+N` | Notifications / notepad |
+| `Ctrl+Alt+Space` | Next keyboard layout |
 
 ---
 
-## Session: `Ctrl+G`
+## Session
 
-herdr is one server with many clients, and **every attached client mirrors every
-other one**. A second window is a second view of the same session, not a second
-context. That single fact explains most of the design below.
+Press `Ctrl+G`, let go, then the key. One window holds every project as a
+*space*; each space holds tabs; each tab holds panes. Keys below are written
+without the prefix.
 
-The `dev.flow` plugin that supplies the popups lives in
-`system_files/usr/share/workstation-os-image/dotfiles/dot_config/herdr/plugins/dev-flow`.
-Its worktree behaviour is owned by
-[subsystems/dev-environment.md](subsystems/dev-environment.md).
-
-### Panes
+### Projects
 
 | Key | Action |
 |---|---|
-| `ctrl+h`, `ctrl+j`, `ctrl+k`, `ctrl+l` | Focus pane, and continue into Neovim splits. No prefix |
-| `prefix+left`, `prefix+down`, `prefix+up`, `prefix+right` | Focus pane |
-| `prefix+v` | Split vertical |
-| `prefix+h` | Split horizontal |
-| `prefix+x` | Close pane |
-| `prefix+z` or `prefix+enter` | Zoom the pane |
-| `prefix+tab` / `prefix+shift+tab` | Cycle panes forward / back |
-| `prefix+plus` | Equalise pane widths |
-| `prefix+alt+r` | Resize mode |
-| `prefix+y` | Copy mode |
-| `prefix+u` | URL picker, read from the pane's scrollback |
-| `prefix+shift+e` | Edit the scrollback |
-| `prefix+shift+p` | Rename the pane |
+| `s` | Space picker — projects and branches, whatever needs you first |
+| `shift+w` | New branch worktree, with the tab layout ready |
+| `shift+x` | Close a space, showing anything uncommitted before it does |
+| `shift+o` | Open an existing worktree |
+| `shift+n` | Build the layout: `main`, `nvim`, `term` |
 
 ### Tabs
 
 | Key | Action |
 |---|---|
-| `prefix+c` | New tab, prompting for a name |
-| `ctrl+alt+n` / `ctrl+alt+p` | Next / previous tab. No prefix |
-| `prefix+1` … `prefix+9` | Switch to tab *n* |
-| `prefix+m` | Focus the tab named `main` |
-| `prefix+n` | Focus the tab named `nvim` |
-| `prefix+t`, or `ctrl+alt+t` | Focus the tab named `term` |
-| `prefix+shift+n` | Build the `main` / `nvim` / `term` layout in this space |
-| `prefix+shift+t` | Rename the tab |
-| `prefix+alt+x` | Close the tab |
+| `m`, `n`, `t` | Jump to `main`, `nvim`, `term` |
+| `c` | New tab |
+| `1` … `9` | Tab by number |
+| `alt+x` | Close the tab |
 
-### Spaces and worktrees
+Two of these skip the prefix: `ctrl+alt+n` and `ctrl+alt+p` cycle tabs, and
+`ctrl+alt+t` jumps to `term`.
+
+### Panes
 
 | Key | Action |
 |---|---|
-| `prefix+s` | Space picker: every space, plus on-disk worktrees that have no space yet, sorted so a blocked or finished agent rises |
-| `prefix+shift+c` | New workspace |
-| `prefix+shift+r` | Rename workspace |
-| `prefix+shift+x` | Close the space, or delete a worktree after showing its uncommitted work and asking |
-| `prefix+shift+w` | New worktree: prompt for a branch, validate it, create it, apply the layout |
-| `prefix+shift+o` | Open an existing worktree |
-| `prefix+shift+u` | Adopt every repository's worktrees as spaces |
-| `prefix+alt+g` | Goto, which opens navigate mode |
+| `ctrl+h`, `ctrl+j`, `ctrl+k`, `ctrl+l` | Focus, crossing into the editor. No prefix |
+| `v` / `h` | Split beside / below |
+| `z` | Zoom one pane, and back |
+| `x` | Close the pane |
+| `plus` | Even the widths out |
+| `alt+r` | Resize mode |
+| arrows | Focus, staying inside herdr |
 
-### Agents
-
-| Key | Action |
-|---|---|
-| `prefix+a` | Agent picker, with a live preview of each pane, sorted blocked, then done, then idle, then working |
-| `prefix+alt+o` | Run opencode in a pane |
-
-Inside that picker: `enter` focuses, `ctrl+o` sends the agent a prompt,
-`ctrl+d` and `ctrl+u` scroll the preview, and `ctrl+s` then `a` closes it.
-
-### Session and tools
+### Agents and tools
 
 | Key | Action |
 |---|---|
-| `prefix+?` | Built-in keybinding help |
-| `prefix+g` | lazygit, at the focused pane's repository root |
-| `prefix+b` | Toggle the sidebar |
-| `prefix+r` | Reload the config |
-| `prefix+shift+s` | Settings |
-| `prefix+q` | Detach |
-
-### Navigate mode
-
-Live only while the `prefix+alt+g` overlay is open, and deliberately inverted
-from herdr's own defaults.
-
-| Key | Action |
-|---|---|
-| `j` / `k` | Walk spaces down / up |
-| `up` / `down` | Walk panes up / down |
-| `h` / `l` | Pane left / right |
-| `esc` | Leave |
-
-### Keys the cascade left dead
-
-The scheme is a cascade: four actions are parked on chords nobody presses
-because plugin popups replace them, and freeing those keys is what lets the rest
-of the block shift along. Stock herdr muscle memory therefore hits nothing.
-
-| Stock key | Was | Now reach it with |
-|---|---|---|
-| `prefix+w` | Workspace picker | `prefix+s` |
-| `prefix+shift+d` | Close workspace | `prefix+shift+x` |
-| `prefix+shift+g` | New worktree | `prefix+shift+w` |
-| `prefix+p`, `prefix+e`, `prefix+j`, `prefix+k`, `prefix+l`, `prefix+minus` | Various | Unbound; see the tables above |
+| `a` | Agent picker — read any pane, and send it a prompt with `ctrl+o` |
+| `g` | lazygit here |
+| `u` | Pick a link out of the scrollback |
+| `alt+o` | opencode in a pane |
+| `b` | Hide the sidebar |
+| `?` | Every key, from herdr itself |
 
 ---
 
-## Editor: `Space`
+## Editor
 
-`<leader>` is the space bar. Neovim is LazyVim with the snacks picker and
-blink completion; the tables below separate what this configuration adds from
-the stock bindings worth remembering.
+`Space` is the leader, in normal mode. Hold it for a moment and a menu appears
+showing what can follow, so the tables below are a head start rather than
+something to memorise.
 
-Everything in the first table is Neovim-only. The JetBrains IDEs get LazyVim's
-*stock* set and nothing above it, through
-`system_files/usr/share/workstation-os-image/dotfiles/create_dot_ideavimrc`,
-which [subsystems/dev-environment.md](subsystems/dev-environment.md) explains.
-
-### What this configuration adds
+### Files and search
 
 | Key | Action |
 |---|---|
-| `jk` | Escape, from insert mode |
-| `f` | Buffer search — remapped to `/` |
-| `d`, `D`, and `d` in visual mode | Delete without touching the unnamed register |
-| `p` in visual mode | Paste over a selection; the register survives |
-| `Tab` | Accept a completion. `Enter` inserts a newline instead |
-| `Ctrl+j` / `Ctrl+k` | Move through the completion and command-line lists |
-| `Ctrl+h`, `Ctrl+j`, `Ctrl+k`, `Ctrl+l` | Window, then herdr pane, in one chord |
-| `<leader>sv` / `<leader>sx` | Split vertical / close split |
-| `<leader>S` | Global grep, whatever the working directory |
-| `<leader>ss` | Sticky root grep, seeded with the last search |
-| `<leader>fs` | Grep the visual selection, literally |
-| `<leader>fi` | Which files reference this one |
-| `<leader>fy` / `<leader>fY` | Yank the buffer path, relative or absolute |
-| `<leader>sr` / `<leader>sR` | Search and replace, this file or the whole root. In visual mode the scope is unreliable: our spec and LazyVim's race, and either may win |
-| `<leader>sy` | LSP symbols, moved off `<leader>ss`. Buffer-local, created shortly after a language server attaches, so it does not exist on the host where no language extra loads |
-| `<leader>gs` | Stage or unstage the current file |
-| `<leader>gd` | Diffview |
-| `<leader>gb` | Branch review against `main`, toggling |
-| `<leader>gH` / `<leader>gx` | File history / close the diff view |
-| `<leader>n` | Volatile scratch buffer that scrubs the registers on close |
-| `<leader>H` | Close every buffer and open the dashboard |
-| `<leader>br` | Reload the buffer from disk |
-| `<leader>uu` | Undo tree |
-| `<leader>DD` | lazydocker |
-| `<leader>uH` / `<leader>uR` | Hardtime toggle / report |
-| `<leader>uv` / `<leader>uV` | Precognition toggle / peek |
-| `<leader>sb` / `<leader>sB` | Plain `/` and `?`, replacing the stock buffer-line pickers |
+| `Space` `Space` | Find a file |
+| `Space` `fr` | Recent files |
+| `Space` `e` | File tree |
+| `Space` `,` | Open buffers |
+| `Space` `/` | Search the project |
+| `Space` `ss` | Search, seeded with the last thing you looked for |
+| `Space` `sw` | Search the word under the cursor |
+| `Space` `fi` | What uses this file |
+| `Space` `sr` | Search and replace |
+| `f` | Search inside this buffer |
 
-In the Diffview panel `<leader>gs` stages the entry under the cursor and `e`
-opens the real file, revealing it in the explorer. In the file explorer, `gs`
-stages the file under the cursor and `<leader>fy` copies its path.
-
-Inside any picker, `Ctrl+d` and `Ctrl+u` scroll the preview and `Ctrl+x` clears
-the query. In the explorer specifically, `f` jumps to the input and `Ctrl+o`
-reveals the file in the desktop file manager.
-
-### Stock LazyVim worth knowing
+### Code
 
 | Key | Action |
 |---|---|
-| `<leader><space>` | Find files |
-| `<leader>fr` / `<leader>e` / `<leader>,` | Recent files / explorer / buffer picker |
-| `<leader>/` | Grep the root directory |
-| `<leader>sw` | Grep the word under the cursor, or the visual selection |
-| `<leader>sk` | Keymap picker, searchable |
-| `s` / `S` | Flash jump / flash treesitter |
-| `Shift+h` / `Shift+l` | Previous / next buffer |
-| `<leader>bd` | Delete the buffer |
-| `gd`, `gr`, `gI`, `gy` | Definition, references, implementation, type |
-| `K` / `gK` | Hover documentation / signature |
-| `<leader>ca` / `<leader>cr` | Code action / rename symbol |
-| `<leader>cf` | Format — manual here, because format-on-save is off |
-| `<leader>cs` | Symbol outline |
-| `]d` / `[d` | Next / previous diagnostic |
-| `<leader>xx` | Diagnostics list |
+| `gd` / `gr` | Definition / references |
+| `K` | Documentation |
+| `Space` `ca` | Code action |
+| `Space` `cr` | Rename symbol |
+| `Space` `cf` | Format. Always deliberate here, never on save |
+| `Space` `cs` | Outline of this file |
+| `]d` / `[d` | Next / previous problem |
+| `Space` `xx` | Every problem |
+
+### Editing
+
+| Key | Action |
+|---|---|
+| `jk` | Escape |
+| `s` | Jump to any word on screen |
 | `gcc` / `gc` | Comment the line / the selection |
-| `gsa`, `gsd`, `gsr` | Add, delete, replace a surrounding pair |
-| `Ctrl+a` / `Ctrl+x` | Increment / decrement numbers, dates and booleans |
-| `Alt+j` / `Alt+k` | Move the line or selection |
-| `<leader>gg` | lazygit |
-| `<leader>ghs` / `<leader>ghr` / `<leader>ghp` | Stage / reset / preview a hunk |
-| `]h` / `[h` | Next / previous hunk |
-| `Ctrl+Slash` | Terminal |
-| `<leader>tr` / `<leader>tt` | Run the nearest test / the file |
-| `<leader>db` / `<leader>dc` | Toggle breakpoint / continue |
-| `<leader>D` | Database UI, but see the collision note below |
+| `gsa`, `gsd`, `gsr` | Add, delete, change surrounding quotes or brackets |
+| `Ctrl+A` / `Ctrl+X` | Increment / decrement, including dates and booleans |
+| `Alt+J` / `Alt+K` | Move the line or selection |
+| `Tab` | Accept the completion |
+| `d` | Delete without replacing what you last copied |
 
-### hardtime blocks the arrow keys
+### Git and tools
 
-`Up`, `Down`, `Left` and `Right` do nothing in normal, visual and insert mode.
-That is a hard block, not a hint, and it is not governed by the plugin's
-`restriction_mode`. `h`, `j`, `k` and `l` are never swallowed: the fourth press
-of one inside a second prints a suggestion, and a recognised pattern such as
-`k^` prints one immediately, on the pair, with no repetition needed.
+| Key | Action |
+|---|---|
+| `Space` `gg` | lazygit |
+| `Space` `gs` | Stage / unstage this file |
+| `Space` `gd` | Diff view |
+| `Space` `gb` | Branch review |
+| `]h` / `[h` | Next / previous change |
+| `Space` `ghs` / `Space` `ghr` | Stage / undo a hunk |
+| `Space` `uu` | Undo history |
+| `Space` `fy` | Copy this file's path |
 
-Arrows still work in undotree, the dashboard, help, mason, trouble and aerial,
-and `Ctrl` plus an arrow still resizes a window. Two exemptions people assume
-and do not have: only Diffview's **panels** are exempt, not the diff panes,
-which carry the source file's own filetype; and a picker prompt is not exempt at
-all — `Up` and `Down` survive there only because the picker binds them itself,
-so `Left` and `Right` cannot move the cursor inside a query. `<leader>uH` turns
-the whole thing off.
-
-### One chord crosses Neovim and herdr
-
-`Ctrl+h`, `Ctrl+j`, `Ctrl+k` and `Ctrl+l` are bound on both sides, and both
-halves are required.
-
-herdr asks whether the focused pane is running Neovim or fzf. If it is, the key
-is forwarded into the pane; if it is not, herdr moves pane focus itself. Neovim,
-receiving the forwarded key, moves between its own windows — and only when the
-window did not change, meaning the cursor was already at the edge of the layout,
-does it ask herdr to move to the next pane. The Neovim half is
-`system_files/usr/share/workstation-os-image/dotfiles/dot_config/nvim/lua/plugins/create_navigation.lua`.
-
-That is why herdr's own pane focus sits on `prefix` plus the arrow keys: bare
-`ctrl+h` and friends were claimed for this.
+> The arrow keys do nothing in Neovim. That is deliberate, so the habit becomes
+> `h`, `j`, `k`, `l` — but it also means you cannot arrow along a picker's
+> search box. `Space` `uH` turns it off for the session.
 
 ---
 
-## Terminal and TUI Applications
+## Terminal and Apps
 
 ### foot
-
-foot ships entirely stock. The entrypoint is
-`system_files/usr/share/workstation-os-image/dotfiles/dot_config/foot/foot.ini.tmpl`,
-which pulls in the colour seed and the personal `workstation.ini`; no
-`[key-bindings]` section exists in any of the four files.
 
 | Key | Action |
 |---|---|
 | `Control+Shift+c` / `Control+Shift+v` | Copy / paste |
-| `Shift+Insert` | Paste the primary selection |
 | `Control+Shift+r` | Search the scrollback |
-| `Control+Shift+o` | URL mode, which jump-labels every link |
-| `Control+Shift+u` | Unicode input by codepoint |
-| `Control+Shift+n` | New terminal |
-| `Shift+Page_Up` / `Shift+Page_Down` | Scroll a page |
-| `Control+plus` / `Control+minus` / `Control+0` | Font larger / smaller / reset |
+| `Control+Shift+o` | Label every link on screen, then press its letter |
+| `Control+plus` / `Control+minus` / `Control+0` | Font size |
 | `Control+Shift+z` / `Control+Shift+x` | Jump to the previous / next shell prompt |
 
-In search mode, `Control+r` and `Control+s` step between matches and `Return`
-commits the match to the *primary* selection; use `Control+Shift+c` for the
-regular clipboard.
+### Shell
+
+| Key | Action |
+|---|---|
+| `Ctrl+R` | Search your history |
+| `Ctrl+T` | Insert a file path |
+| `Alt+C` | Jump to a directory |
+| `Shift+Tab` | Fuzzy complete |
+| `pro` | Pick a project and go there |
+| `dev nvim` | Neovim with the project's real toolchain |
 
 ### lazygit
 
-Four bindings are overridden in
-`system_files/usr/share/workstation-os-image/dotfiles/dot_config/lazygit/create_config.yml`;
-everything else is stock.
-
 | Key | Action |
 |---|---|
-| `?` | Keybinding menu, which is always the fastest answer |
+| `?` | Every key |
 | `1` … `5` | Status, files, branches, commits, stash |
-| `+` / `-` | Larger / smaller screen mode |
-| `space` | Stage or unstage; `a` stages everything |
-| `enter` | Stage individual lines |
-| `c` / `A` / `C` | Commit / amend / commit in the git editor |
-| `d` / `D` | Discard / reset |
-| `s` / `S` | Stash / stash options |
+| `space` | Stage / unstage. `a` for everything |
+| `enter` | Stage single lines |
+| `c` / `A` | Commit / amend |
 | `P` / `p` | Push / pull |
-| `z` / `Z` | Undo / redo |
-| `m` | Merge and rebase options |
-| `_` | Check out the previous branch |
-| `/` | Filter the current view |
-| `:` | Run a shell command |
-| `w` | Commit without the pre-commit hook, in the files panel. In the branches panel it creates a worktree |
+| `z` | Undo |
+| `+` / `-` | Bigger / smaller layout |
 
-`-` is the shrink half of the screen-mode pair, mirroring `+`. Taking it cost
-the file tree's collapse-all and pushed checkout-previous-branch onto `_`.
-Expand-all, on `=`, never collided; it was released by choice so the pair stays
-symmetrical. Per-directory collapse still works with `enter`, and `` ` `` still
-toggles the tree view.
-
-### lazydocker
+### lazydocker and btop
 
 | Key | Action |
 |---|---|
-| `x` | Context menu for the focused panel |
+| `x` | lazydocker: what can I do here |
 | `1` … `6` | Projects, services, containers, images, volumes, networks |
-| `[` / `]` | Previous / next tab within the main panel |
-| `E` | Exec a shell in the container |
-| `a` / `m` | Attach / view logs |
-| `s`, `r`, `p`, `d` | Stop, restart, pause, remove |
-| `u` / `D` | Compose up / down the project |
-| `b` | Bulk commands, where the prune actions live |
-| `w` | Open in the browser |
-
-### btop
-
-| Key | Action |
-|---|---|
-| `h` or `?` | Help; `Esc` or `m` opens the menu |
-| `p` / `Shift+p` | Cycle presets: btop's own all-boxes preset, then the three configured here |
-| `1`, `2`, `3`, `4` | Toggle the CPU, memory, network and process boxes |
-| `f` or `/` | Filter processes; prefix with `!` for a regex |
-| `e` / `E` | Tree view / expand every node |
-| `t` / `k` | Terminate / kill the selected process |
-| `Shift+n` | Renice |
-| `Enter` / `F` | Process detail / follow the process |
-| `c` / `r` | Per-core view / reverse the sort |
-
-`vim_keys` is off, so in btop `h` is help and `k` is kill. Neither is motion.
+| `E` / `m` | Shell into a container / read its logs |
+| `b` | Bulk commands, including prune |
+| `f` | btop: filter processes |
+| `t` / `k` | btop: terminate / kill |
+| `h` | btop help — note it is not a motion key there |
 
 ---
 
-## Shell
+## When You Are Lost
 
-No key bindings are written by hand. Every chord below comes from fzf's own
-fish integration, and `cd` is zoxide.
+Five keys that answer the question from inside the program. These are always
+right, which no cheatsheet can promise.
 
-| Key | Action |
+| Key | Shows |
 |---|---|
-| `Ctrl+r` | Fuzzy history search |
-| `Ctrl+t` | Pick a file and insert its path |
-| `Alt+c` | Pick a directory and change into it |
-| `Shift+Tab` | Fuzzy completion |
-
-The functions and aliases that act as commands are inventoried in
-[subsystems/dev-environment.md](subsystems/dev-environment.md) and
-[subsystems/ai-clis.md](subsystems/ai-clis.md); the ones worth memorising are
-`pro` to pick a project, `dev` and `dev nvim` to work inside a project's Dev
-Container, and `nv` when you want whichever of the two applies.
-
----
-
-## What Your Fingers Get Wrong
-
-Muscle memory fails silently here, because a retired chord almost always does
-nothing rather than complaining. These are the ones worth drilling.
-
-| You press | It used to | It now |
-|---|---|---|
-| `Ctrl+b` | Open the herdr prefix | Nothing. The prefix is `Ctrl+G` |
-| `prefix+h`, `prefix+j`, `prefix+k`, `prefix+l` | Focus a pane | `prefix+h` splits; the rest are unbound. Pane focus is on `prefix` plus arrows |
-| `prefix+minus` | Split horizontal | Nothing. Splitting horizontally is `prefix+h` |
-| `prefix+n` / `prefix+p` | Cycle tabs | Focus the `nvim` tab / nothing. Cycling is `ctrl+alt+n` and `ctrl+alt+p` |
-| `ga` / `gd` in a shell | Create / remove a worktree | Nothing; both functions were removed. Use `prefix+shift+w` and `prefix+shift+x`, or plain `git worktree add` outside herdr |
-| `f` in Neovim | Find a character forward | Buffer search. The character motions are `t`, `F`, `T`, `;` and `,` |
-| `d` in Neovim | Delete into the unnamed register | Delete into the black hole. Name a register to cut: `"add` |
-| `<leader>ss` | LSP symbols | Sticky root grep. Symbols moved to `<leader>sy` |
-| An arrow key in Neovim | Move the cursor | Nothing. hardtime blocks all four |
-| `_` in lazygit | Shrink the screen mode | Check out the previous branch. Shrinking is `-` |
-| `-` / `=` in the lazygit file tree | Collapse / expand everything | Nothing; both were released |
-
-Four chords mean different things in different layers, which is the price of
-five keyspaces sharing one keyboard:
-
-| Chord | Meaning by layer |
-|---|---|
-| `<leader>gs` | Stage the file in Neovim; open the commit window in the JetBrains IDEs |
-| `f` | Buffer search in Neovim; flash find in the JetBrains IDEs |
-| `h`, `j`, `k`, `l` | Motion in Neovim; monitors under `Mod+Shift`; help and kill in btop |
-| `<leader>D` | Database UI, and which-key labels it a "docker" group, so it waits for a second `D` before firing DBUI |
+| `Mod+Slash` | Every desktop shortcut |
+| `Ctrl+G` then `?` | Every session shortcut |
+| `Space` | Wait a beat and the editor lists what can follow |
+| `Space` `sk` | Search every editor mapping |
+| `?` | lazygit and lazydocker. `x` for lazydocker's context menu |
 
 ---
 
 ## Where to go next
 
 Keybind ownership, the DMS reclaims, niri's include order and the hotkey
-overlay's three-tier ordering are owned by
-[subsystems/desktop-session.md](subsystems/desktop-session.md). The editor,
-the `dev` wrapper, worktree propagation and herdr's role belong to
+overlay's ordering belong to
+[subsystems/desktop-session.md](subsystems/desktop-session.md), which is also
+where the launcher binds that reach this image's own scripts are explained. The
+editor, the `dev` wrapper, worktree propagation and herdr's role are in
 [subsystems/dev-environment.md](subsystems/dev-environment.md). To add or
 reclaim a bind rather than look one up, the recipe is in
-[cookbooks.md](cookbooks.md), and the rule for deciding which layer owns your
-change is in [conventions.md](conventions.md).
+[cookbooks.md](cookbooks.md); to decide which layer owns your change, read
+[conventions.md](conventions.md).
