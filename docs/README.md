@@ -93,6 +93,17 @@ Then read the guide for whichever part of the machine you are working on.
 
 ---
 
+## Reference
+
+One page is a lookup sheet rather than a guide. It is not part of the reading
+order: you consult it, you do not work through it.
+
+| Page | For |
+|------|-----|
+| [keybindings.md](keybindings.md) | Every key the workstation binds, across all five layers — the compositor, herdr, Neovim, the TUI applications and the shell — plus the chords whose meaning has changed and the four that mean different things in different layers. |
+
+---
+
 ## "I want to..." — quick map
 
 | Goal | Start here |
@@ -107,6 +118,7 @@ Then read the guide for whichever part of the machine you are working on.
 | Find out why my merge published no new image | [build-and-ci.md](build-and-ci.md) |
 | Verify a published image, or rotate the signing key | [supply-chain.md](supply-chain.md) |
 | Add a package, a repository or a Flatpak | [subsystems/packages.md](subsystems/packages.md) → [cookbooks.md](cookbooks.md) |
+| Look up a key I have forgotten | [keybindings.md](keybindings.md) |
 | Add or reclaim a keybind | [subsystems/desktop-session.md](subsystems/desktop-session.md) → [cookbooks.md](cookbooks.md) |
 | Set up my editor, or add a language to it | [subsystems/dev-environment.md](subsystems/dev-environment.md) |
 | Work on the AI CLIs and their configuration | [subsystems/ai-clis.md](subsystems/ai-clis.md) |

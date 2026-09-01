@@ -197,10 +197,12 @@ directory records exactly which files and against which upstream commit. See
 
 The full set lives in
 `system_files/usr/share/workstation-os-image/niri/includes/binds.kdl`, plus the
-reclaims in the `local.kdl` seed. Window, column, workspace and monitor
-management, media keys and scroll bindings are conventional niri and are not
-repeated here; what follows is the launcher and utility half, the binds that
-reach this image's own scripts and tools.
+reclaims in the `local.kdl` seed, and is listed for lookup in
+[../keybindings.md](../keybindings.md). Window, column, workspace and monitor
+management, media keys and scroll bindings are conventional niri, so what
+follows is only the launcher and utility half — the binds that reach this
+image's own scripts, each with the reason it exists. That reason is what this
+page owns; the key list is not.
 
 | Key | Runs | Notes |
 | --- | --- | --- |
