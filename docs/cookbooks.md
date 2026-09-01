@@ -208,7 +208,7 @@ machine — an editor config, a tool's rc file, a theme.
    ```text
    copy|.config/lazygit/config.yml|dot_config/lazygit/create_config.yml|-
    copy|.local/bin/workstation-dev|private_dot_local/bin/create_executable_workstation-dev|-
-   copy|.ideavimrc|create_dot_ideavimrc|-
+   copy|.config/btop/btop.conf|dot_config/btop/create_btop.conf|-
    ```
 
    `create_` is what makes the seed create-only, so an existing user edit wins

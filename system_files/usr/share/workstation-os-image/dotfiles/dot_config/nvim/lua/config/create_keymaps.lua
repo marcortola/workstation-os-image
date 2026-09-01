@@ -1,12 +1,12 @@
 -- Keymaps are automatically loaded on the VeryLazy event
 -- Default LazyVim keymaps: https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/config/keymaps.lua
 --
--- This file was deliberately empty so that every binding also existed in the
--- JetBrains IDEs through ~/.ideavimrc. That rule is retired: most of what is
--- worth binding drives Snacks pickers, Diffview and the herdr pane navigation,
--- none of which has a JetBrains equivalent, so the constraint only ever
--- excluded the useful half. ~/.ideavimrc still gives the IDEs LazyVim's stock
--- bindings; above that the two editors are no longer expected to agree.
+-- This file was once deliberately empty so that every binding also existed in
+-- the JetBrains IDEs through ~/.ideavimrc. That rule is retired twice over:
+-- most of what is worth binding drives Snacks pickers, Diffview and the herdr
+-- pane navigation, none of which has a JetBrains equivalent, and the IDEs no
+-- longer emulate Vim at all -- they keep their own keymap as the alternative to
+-- this flow. Bind whatever is useful here; nothing has to agree with them.
 --
 -- Stock LazyVim keys worth remembering before adding anything here:
 --   move line/selection      <A-j> / <A-k>

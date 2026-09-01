@@ -1,6 +1,6 @@
 -- Vim-motion training aids. Both are learning scaffolding, not editor features:
--- remove this file once the habits stick. Neither has an IdeaVim counterpart, so
--- they only apply to real Neovim sessions.
+-- remove this file once the habits stick. They apply to Neovim only; the
+-- JetBrains IDEs are Vim-agnostic and have nothing equivalent.
 return {
   -- Coaches better motions. Two independent mechanisms, deliberately set to
   -- different strengths:

@@ -2,8 +2,8 @@
 
 How code actually gets written on this workstation: no language runtimes on the
 host, project-scoped Dev Containers, a Neovim that runs *inside* those
-containers, one set of Vim bindings across every editor, and worktrees that
-arrive populated instead of empty. Read this before you try to `dnf install`
+containers, two editors that deliberately do not share bindings, and worktrees
+that arrive populated instead of empty. Read this before you try to `dnf install`
 a compiler.
 
 **The host is an editor and a container runtime; everything that compiles,
@@ -303,71 +303,57 @@ which compile-checks every Lua seed with the image's own Neovim
 
 ---
 
-## Vim Bindings in Every Editor
+## Two Editors, Two Keymaps
 
-Neovim and the JetBrains IDEs share LazyVim's *stock* bindings, so the common
-half of a habit transfers. They are no longer expected to agree beyond that.
+Neovim and the JetBrains IDEs are deliberately separate. Neovim runs LazyVim
+with the bindings [../keybindings.md](../keybindings.md) documents; the IDEs run
+their own keymap and emulate nothing. That is the point of keeping them both:
+the IDEs are the alternative to the herdr-plus-Neovim flow, not a second skin
+over it.
 
-Parity used to be enforced by subtraction — `lua/config/create_keymaps.lua` was
-empty on purpose, on the argument that a binding existing in only one editor is
-a habit that has to be unlearned. That rule was retired when the Neovim config
-grew a keymap layer: most of what is worth binding drives Snacks pickers,
-Diffview and the herdr pane navigation, none of which has a JetBrains
-equivalent, so the constraint only ever excluded the useful half. The trade is
-explicit — `<leader>fi`, `<leader>gs`, `<leader>n` and the rest are Neovim-only,
-and reaching for them in PhpStorm does nothing.
+They used to share a keymap. **IdeaVim** drove the IDEs from a `~/.ideavimrc`
+seed so that a habit learned in either editor transferred, and
+`_shared/keymaps/custom.xml` was emptied to get out of its way. The sharing was
+never free — 26 `sethandler` directives to arbitrate every contested `Ctrl` key,
+four Marketplace plugins, and a rule that LazyVim won every disagreement, which
+meant reaching for a displaced IDE action through a `<leader>` chord. It was
+removed: the IDEs now keep the keymap that suits them, and Neovim keeps the one
+that suits it.
 
-The IDEs still get LazyVim's stock set through **IdeaVim**, driven by `~/.ideavimrc` — a
-chezmoi seed at
-`system_files/usr/share/workstation-os-image/dotfiles/create_dot_ideavimrc`,
-declared in `tooling/data/dotfiles.manifest`. It sits at `~/.ideavimrc` rather
-than under XDG because IdeaVim reads the first rc it finds and creates
-`~/.ideavimrc` itself when absent, which would shadow an XDG one. Where LazyVim
-and JetBrains disagree, **LazyVim wins** and the displaced IDE action is
-re-exposed on its LazyVim `<leader>` key.
+What that restored, in `_shared/keymaps/custom.xml`:
 
-Four of the shared Marketplace plugins in
-`tooling/data/jetbrains-settings/_shared/plugins.list` carry this:
+| Key | Action |
+| --- | --- |
+| `ctrl t`, `alt f12` | Terminal tool window |
+| `ctrl alt r` | Rename |
+| `shift ctrl b` | Git branches |
+| `shift alt s` | Reveal in project view |
+| `shift ctrl insert` | Paste history |
+| `shift alt left` / `shift alt right` | Back / Forward |
+| `shift ctrl u` | Toggle CamelCase |
 
-| Plugin ID | Why |
-|---|---|
-| `IdeaVIM` | The emulator itself |
-| `eu.theblob42.idea.whichkey` | The `<leader>` menus, so the same discovery affordance exists in both editors |
-| `org.yelog.ideavim.flash` | flash.nvim parity for `s` / `S` / `r` / `f` / `t` / `;` / `,` |
-| `com.magidc.ideavim.dial` | `<C-a>` / `<C-x>` over dates, booleans and semver — dial registers only ex-commands, so the keys are wired explicitly in the rc |
+`shift ctrl u` needs `de.netnexus.camelcaseplugin`, which is back in
+`_shared/plugins.list` — with no Vim emulation it is the IDEs' only case
+mechanism, where previously vim-abolish's `cr*` coercions covered it.
+`tooling/jetbrains/validate` gates that the binding and the plugin entry agree,
+in both directions.
 
-Every contested `Ctrl` key is assigned explicitly with `sethandler` — 26
-directives, splitting each key between Vim, the IDE, or one owner per mode
-(`sethandler <C-A> n-x:vim i:ide` gives dial the increment in normal and visual
-but leaves Select All in insert). The reason is not taste:
+> An `<action>` element **replaces** the parent keymap's whole shortcut list
+> rather than adding to it. That is why `GotoTypeDeclaration` has no entry: a
+> mouse-only override was silently deleting its default `control+shift+B`, and
+> `$default` already supplies both that and `ctrl+shift+button1`. `Back` and
+> `Forward` restate their mouse halves for the same reason.
 
-```vim
-"    keymapFlags.xml ships an empty descriptor list, so without this block the
-"    IDE pops an "undefined handler" dialog per key on first launch and silently
-"    defaults them to Vim.
-```
-
-Declaring them in the rc also makes them read-only in Settings | Editor | Vim,
-which is what a repo-owned config wants. Each line that hands a key to Vim
-carries the displaced IDE action in a trailing comment — `<C-F>` becomes Vim's
-page-down and IDE Find moves to `<leader>sb`, `<C-R>` becomes redo and IDE
-Replace moves to `<leader>sr`, and so on.
-
-Case conversion is **vim-abolish** in both editors (`crs`, `crc`, `crm`, `cru`,
-`cr-`, `cr.`, `crt`), which is why the Marketplace plugin
-`de.netnexus.camelcaseplugin` is deliberately *not* in the shared list:
-`plugins.list` records that abolish's `cr*` coercions replace it, and a second
-case mechanism would exist on the JetBrains side only. The rc applies the same
-argument to IdeaVim's emulated plugins under its own "deliberately NOT enabled"
-list: `CamelCaseMotion` (`g:camelcasemotion_key` eats `<leader>w`),
-`ReplaceWithRegister` (it owns `gr`, which LazyVim uses for LSP references),
-sneak, NERDTree, yankring and multiple-cursors.
+Case conversion in Neovim is still **vim-abolish** (`crs`, `crc`, `crm`, `cru`,
+`cr-`, `cr.`, `crt`). It was originally chosen over text-case.nvim because it
+was the only case plugin IdeaVim emulated; that reason is gone, but the plugin
+works and swapping it would cost the muscle memory for nothing.
 
 `hardtime.nvim` and `precognition.nvim` are seeded in
 `lua/plugins/create_training.lua` as **transition scaffolding**, not editor
 features — hardtime hints at shorter motions and hard-blocks the arrow keys,
-precognition draws motion targets as virtual text. Neither has an IdeaVim
-counterpart. Delete that seed and its deployed copy once the habits stick.
+precognition draws motion targets as virtual text. They train the Neovim half
+only. Delete that seed and its deployed copy once the habits stick.
 
 JetBrains settings capture, promotion and application are
 [../capturing-changes.md](../capturing-changes.md)'s subject, not this page's.
@@ -550,9 +536,6 @@ model does not change when you switch tools. The seed paths are inventoried in
   working store.
 - **The Neovim checksum check is conditional.** If `shasum.txt` cannot be
   fetched the tarball is installed unverified — a soft failure that is silent.
-- **The two editors diverge above LazyVim's stock bindings.** Everything in
-  `lua/config/create_keymaps.lua` and the plugin `keys =` entries is Neovim-only,
-  as is every `<localleader>` binding, which IdeaVim does not implement at all.
 - **`hardtime.nvim` and `precognition.nvim` are scheduled for deletion.** Their
   own seed says to remove the file once the habits stick — a condition nobody
   re-checks. Leaving them in indefinitely turns scaffolding into config.

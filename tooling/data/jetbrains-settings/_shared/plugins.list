@@ -5,10 +5,7 @@
 org.sylfra.idea.plugins.linessorter
 mobi.hsz.idea.gitignore
 ru.adelf.idea.dotenv
-# Vim. IdeaVIM reads ~/.ideavimrc (a chezmoi seed, see tooling/data/dotfiles.manifest);
-# the other three are required by mappings in that file. de.netnexus.camelcaseplugin
-# was dropped here: vim-abolish's cr* coercions replace it in both editors.
-IdeaVIM
-eu.theblob42.idea.whichkey
-org.yelog.ideavim.flash
-com.magidc.ideavim.dial
+# Case coercion, bound to shift+ctrl+U in _shared/keymaps/custom.xml. The IDEs
+# have no Vim emulation, so this is the only case mechanism they have;
+# tooling/jetbrains/validate gates that the binding and this entry agree.
+de.netnexus.camelcaseplugin

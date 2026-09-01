@@ -96,12 +96,6 @@ copy|.config/nvim/stylua.toml|dot_config/nvim/create_stylua.toml|-
 copy|.config/nvim/markdownlint.jsonc|dot_config/nvim/create_markdownlint.jsonc|-
 copy|.config/nvim/markdownlint-off.jsonc|dot_config/nvim/create_markdownlint-off.jsonc|-
 tree|.config/nvim/lua|dot_config/nvim/lua|*
-# IdeaVim gives the JetBrains IDEs the same Vim/LazyVim bindings as nvim. Lives
-# at ~/.ideavimrc, not under XDG: IdeaVim resolves the first existing rc and
-# creates ~/.ideavimrc itself, which would shadow an XDG one. It cannot live in
-# tooling/data/jetbrains-settings/ — that tree is an allowlist enforced by
-# tooling/jetbrains/validate.
-copy|.ideavimrc|create_dot_ideavimrc|-
 copy|.var/app/io.typora.Typora/config/Typora/themes/ia_typora.css|dot_var/app/io.typora.Typora/config/Typora/themes/create_ia_typora.css|-
 copy|.var/app/io.typora.Typora/config/Typora/themes/ia_typora_night.css|dot_var/app/io.typora.Typora/config/Typora/themes/create_ia_typora_night.css|-
 # jetbrains-app|version-globbed live product dir|product subdir|-
