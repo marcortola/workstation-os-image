@@ -83,7 +83,7 @@ below are the convergence half.
 |---|---|---|
 | `workstation-chezmoi-init.service` | `graphical-session-pre.target` | Runs `/usr/libexec/workstation-chezmoi-apply --init`, which applies the image's chezmoi seeds to a new account from `/usr/share/workstation-os-image/dotfiles`. This is what creates `~/.config/homebrew/Brewfile`. Skipped once `~/.config/workstation-os-image/chezmoi/chezmoi.toml` exists. |
 | `workstation-dms-settings.service` | `graphical-session.target` | Runs `workstation-apply-dms-settings --initialize`, seeding the tracked DMS preference overlay from `/usr/share/workstation-os-image/dms-settings.json`. One-shot per account, forever. |
-| `workstation-bootstrap.service` | `graphical-session.target` | Trusts the Brewfile's tap-qualified formulae, runs `brew bundle install` over the Brewfile (`brew`, `cask` and `flatpak` entries alike), then installs JetBrains Toolbox under `~/.local/opt` from the JetBrains release API, verified against the checksum that API serves. |
+| `workstation-bootstrap.service` | `graphical-session.target` | Trusts the Brewfile's tap-qualified formulae, then runs `brew bundle install` over the Brewfile (`brew`, `cask` and `flatpak` entries alike). |
 | `workstation-claude-mcp-seed.service` | `graphical-session.target` | Adds the default user-scope Claude Code MCP servers, leaving any the account already defines untouched. |
 | `workstation-microsoft-fonts.service` | `default.target` | Installs the user font set into `~/.local/share/fonts`: Caskaydia Mono (Nerd Fonts), iA Writer Mono, Font Awesome, and the Microsoft core fonts under `Microsoft/`. Passes `--accept-microsoft-eula` on your behalf, which the script otherwise refuses to run without. |
 | `workstation-flatpak-wayland.service` | `default.target` | Sets the global Flatpak override that makes Electron and Chromium Flatpaks native Wayland clients, re-asserted every login. |
@@ -126,9 +126,7 @@ make one. From `system_files/usr/libexec/workstation-bootstrap-user`:
 
 ```text
 # The repository checkout is no longer cloned here: /usr/bin/wjust clones it on
-# demand the first time a recipe runs. That keeps this bootstrap free of any
-# GitHub dependency, so a transient clone failure can no longer block the
-# essential brew and Toolbox provisioning below.
+# demand the first time a recipe runs.
 ```
 
 **`wjust`** is the image-provided launcher that fills the gap. It ships at
@@ -195,8 +193,8 @@ machine rather than in CI, belongs to
 
 Dictation needs an OpenAI API key. It is one of the two credentials this
 workstation keeps outside Git — the other is the intelephense licence
-`wjust ide-setup` stores. Store this one with the helper chezmoi deploys into
-your own `~/.local/bin`:
+`wjust intelephense-licence` stores. Store this one with the helper chezmoi
+deploys into your own `~/.local/bin`:
 
 ```bash
 workstation-openai-key
@@ -222,7 +220,7 @@ somebody eventually.
 | Command | Why it is not automatic |
 |---|---|
 | `wjust brew-apply` | A newly added `brew`, `cask` or `flatpak` line in the Brewfile is self-trusting but not self-installing on a machine that has already bootstrapped. In the recipe's own words, "tap trust and daily upgrades are already automatic" — installing what is *new* is not. See [subsystems/packages.md](subsystems/packages.md). |
-| `wjust ide-setup` | Stores the intelephense premium key that `dev nvim` uses, installs the shared JetBrains plugins (a bare run is a dry run; pass `--force` to install), then offers to apply the shared JetBrains settings. Machine-local by design, because it writes a licence key and primes a GUI cloud push. See [subsystems/dev-environment.md](subsystems/dev-environment.md) and [capturing-changes.md](capturing-changes.md). |
+| `wjust intelephense-licence` | Stores the intelephense premium key that `dev nvim` injects into the container. Machine-local by design, because it writes a licence key. See [subsystems/dev-environment.md](subsystems/dev-environment.md). |
 | `wjust ai-tools-install` | Installs the AI CLI tools through their own official installers rather than vendoring them, so nothing in the image pins their versions. See [subsystems/ai-clis.md](subsystems/ai-clis.md). |
 
 Run these once after the first login has settled, `brew-apply` first: the AI

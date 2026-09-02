@@ -177,22 +177,22 @@
       },
       {
         "key": "Ctrl+G m",
-        "desc": "The main tab, where claude runs",
+        "desc": "main, where claude runs",
         "subcat": "Tabs and panes"
       },
       {
         "key": "Ctrl+G n",
-        "desc": "The nvim tab — not next-tab",
+        "desc": "nvim — not next-tab",
         "subcat": "Tabs and panes"
       },
       {
         "key": "Ctrl+G t",
-        "desc": "The term tab",
+        "desc": "term",
         "subcat": "Tabs and panes"
       },
       {
         "key": "Ctrl+Alt+T",
-        "desc": "The term tab, no prefix",
+        "desc": "term, no prefix",
         "subcat": "Tabs and panes"
       },
       {
@@ -488,7 +488,7 @@
       },
       {
         "key": "m/n/t",
-        "desc": "Jump to main, nvim, term",
+        "desc": "Jump to main, nvim, term — tabs, or panes in the split layout",
         "subcat": "Tabs"
       },
       {

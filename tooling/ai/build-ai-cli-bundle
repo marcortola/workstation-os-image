@@ -73,7 +73,7 @@ while IFS='|' read -r kind live_path source_path _; do
             done < <(find "$seed_dir" "${maxdepth[@]}" -type f \
                 -name 'create_*' -print0 | sort -z)
             ;;
-        template | jetbrains-app) : ;;
+        template) : ;;
         *) echo "bundle does not handle manifest kind: $kind" >&2; exit 2 ;;
     esac
 done < "$manifest"

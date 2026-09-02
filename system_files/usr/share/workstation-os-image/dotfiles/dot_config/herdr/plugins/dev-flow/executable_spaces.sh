@@ -7,6 +7,7 @@ herdr_cli() {
 
 plugin_dir=$(cd "$(dirname "$0")" && pwd)
 # shellcheck source=agent-finished.sh
+# shellcheck source=agent-finished.sh
 . "$plugin_dir/agent-finished.sh"
 
 # A hand-linked project carries no worktree metadata, so git resolves its repo from the pane.

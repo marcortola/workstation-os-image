@@ -176,6 +176,15 @@ type = "plugin_action"
 command = "dev.flow.layout-toggle"
 description = "toggle the dev layout: three tabs, or one split tab"
 
+# The alternative layout, sibling of split_vertical on prefix+v because it is
+# the side-by-side one. prefix+shift+n above is still the default and is what
+# takes this apart again.
+[[keys.command]]
+key = "prefix+shift+v"
+type = "plugin_action"
+command = "dev.flow.layout-split"
+description = "apply split layout: main | nvim over term"
+
 [[keys.command]]
 key = "prefix+shift+u"
 type = "plugin_action"

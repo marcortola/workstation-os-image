@@ -2,9 +2,8 @@
 
 How code actually gets written on this workstation: no language runtimes on the
 host, project-scoped Dev Containers, a Neovim that runs *inside* those
-containers, two editors that deliberately do not share bindings, and worktrees
-that arrive populated instead of empty. Read this before you try to `dnf install`
-a compiler.
+containers, and worktrees that arrive populated instead of empty. Read this
+before you try to `dnf install` a compiler.
 
 **The host is an editor and a container runtime; everything that compiles,
 resolves imports or runs a test lives inside the project's Dev Container.**
@@ -235,9 +234,9 @@ fingerprints `/etc/os-release`, `ldd --version` and `uname -m`, compares it to
 XDG directories, because those artefacts are libc-bound. To force a clean
 reprovision yourself, delete the store directory.
 
-> A container created *without* these mounts — by JetBrains Gateway, or by an
-> older `dev` — is happily reused by `devcontainer up` with the mounts still
-> absent. `dev nvim` probes for `/nvimconf-src/init.lua`, `/nvimdata` and
+> A container created *without* these mounts — by the raw `devcontainer` CLI, or
+> by an older `dev` — is happily reused by `devcontainer up` with the mounts
+> still absent. `dev nvim` probes for `/nvimconf-src/init.lua`, `/nvimdata` and
 > `/nvim-plugins` and recreates the container once (`--remove-existing-container`)
 > when any is missing. That is the one case where `dev nvim` throws your
 > container away.
@@ -280,7 +279,7 @@ running in the container:
 | `lang.typescript` | `vtsls`, LazyVim's current default (`vim.g.lazyvim_ts_lsp = "vtsls"`); this is the JS/TS/React path |
 | `linting.eslint` | `eslint`, imported alongside `lang.typescript` by the same detector row |
 | `lang.astro` | the `astro` language server, plus the `@astrojs/ts-plugin` it path-probes for — which is the reason the import itself is the scoping point |
-| `lang.php` | `intelephense` by the pin above; upstream would otherwise start `phpactor`. This is the PhpStorm/Symfony replacement path |
+| `lang.php` | `intelephense` by the pin above; upstream would otherwise start `phpactor`. This is the PHP and Symfony path |
 
 Mason installs follow the same scoping, with one documented exception in
 `lua/plugins/create_mason.lua`: the universal SQL extra's `sqlfluff` is a Python
@@ -292,8 +291,7 @@ Intelephense premium is machine-local and never seeded into the image. Store the
 key once with `just intelephense-licence`; `dev nvim` reads
 `~/.config/intelephense/licence.key` and injects it as
 `INTELEPHENSE_LICENCE_KEY`, which `lua/plugins/create_lang-php.lua` passes as the
-server's `licenceKey` (nil means free tier). `just ide-setup` runs the same step
-as part of the wider post-deploy IDE setup.
+server's `licenceKey` (nil means free tier).
 
 ### Formatting and prerequisites
 
@@ -341,60 +339,21 @@ which compile-checks every Lua seed with the image's own Neovim
 
 ---
 
-## Two Editors, Two Keymaps
+## The Editor and Its Keymap
 
-Neovim and the JetBrains IDEs are deliberately separate. Neovim runs LazyVim
-with the bindings [../keybindings.md](../keybindings.md) documents; the IDEs run
-their own keymap and emulate nothing. That is the point of keeping them both:
-the IDEs are the alternative to the herdr-plus-Neovim flow, not a second skin
-over it.
+Neovim is the only editor on this workstation. It runs LazyVim with the bindings
+[../keybindings.md](../keybindings.md) documents, from a herdr pane and — for
+anything needing a language server — inside the project's Dev Container.
 
-They used to share a keymap. **IdeaVim** drove the IDEs from a `~/.ideavimrc`
-seed so that a habit learned in either editor transferred, and
-`_shared/keymaps/custom.xml` was emptied to get out of its way. The sharing was
-never free — 26 `sethandler` directives to arbitrate every contested `Ctrl` key,
-four Marketplace plugins, and a rule that LazyVim won every disagreement, which
-meant reaching for a displaced IDE action through a `<leader>` chord. It was
-removed: the IDEs now keep the keymap that suits them, and Neovim keeps the one
-that suits it.
-
-What that restored, in `_shared/keymaps/custom.xml`:
-
-| Key | Action |
-| --- | --- |
-| `ctrl t`, `alt f12` | Terminal tool window |
-| `ctrl alt r` | Rename |
-| `shift ctrl b` | Git branches |
-| `shift alt s` | Reveal in project view |
-| `shift ctrl insert` | Paste history |
-| `shift alt left` / `shift alt right` | Back / Forward |
-| `shift ctrl u` | Toggle CamelCase |
-
-`shift ctrl u` needs `de.netnexus.camelcaseplugin`, which is back in
-`_shared/plugins.list` — with no Vim emulation it is the IDEs' only case
-mechanism, where previously vim-abolish's `cr*` coercions covered it.
-`tooling/jetbrains/validate` gates that the binding and the plugin entry agree,
-in both directions.
-
-> An `<action>` element **replaces** the parent keymap's whole shortcut list
-> rather than adding to it. That is why `GotoTypeDeclaration` has no entry: a
-> mouse-only override was silently deleting its default `control+shift+B`, and
-> `$default` already supplies both that and `ctrl+shift+button1`. `Back` and
-> `Forward` restate their mouse halves for the same reason.
-
-Case conversion in Neovim is still **vim-abolish** (`crs`, `crc`, `crm`, `cru`,
-`cr-`, `cr.`, `crt`). It was originally chosen over text-case.nvim because it
-was the only case plugin IdeaVim emulated; that reason is gone, but the plugin
-works and swapping it would cost the muscle memory for nothing.
+Case conversion is **vim-abolish** (`crs`, `crc`, `crm`, `cru`, `cr-`, `cr.`,
+`crt`). text-case.nvim would do the same job; the plugin works and swapping it
+would cost the muscle memory for nothing.
 
 `hardtime.nvim` and `precognition.nvim` are seeded in
 `lua/plugins/create_training.lua` as **transition scaffolding**, not editor
 features — hardtime hints at shorter motions and hard-blocks the arrow keys,
-precognition draws motion targets as virtual text. They train the Neovim half
-only. Delete that seed and its deployed copy once the habits stick.
-
-JetBrains settings capture, promotion and application are
-[../capturing-changes.md](../capturing-changes.md)'s subject, not this page's.
+precognition draws motion targets as virtual text. Delete that seed and its
+deployed copy once the habits stick.
 
 ---
 
@@ -427,9 +386,9 @@ gets the same list. This repository ships one at its root; its patterns are:
 CLAUDE.local.md
 ```
 
-### The four creation paths
+### The three creation paths
 
-All four reach the same inventory, and `tooling/validate/sources` asserts the
+All three reach the same inventory, and `tooling/validate/sources` asserts the
 wiring that keeps them in sync.
 
 | Path | How it reaches `.worktreeinclude` |
@@ -437,20 +396,57 @@ wiring that keeps them in sync.
 | **herdr** (`herdr worktree create`) | Shells out to `git worktree add`, so the `post-checkout` hook fires |
 | **`dev.flow` `worktree-setup.sh`** | A second, machine-local net on the `worktree.created` event: the union of every `.worktreeinclude` in `~/projects`, copied only where git already ignores the file and the target does not have it |
 | **Claude Code** (`--worktree`, subagent isolation) | Reads `.worktreeinclude` natively |
-| **JetBrains "New Worktree"** | The IDE shells out to git, so the same `post-checkout` hook applies |
 
 The hook is
 `system_files/usr/share/workstation-os-image/dotfiles/dot_config/git/template/hooks/create_executable_post-checkout`.
 It fires only on branch checkouts (`[ "${3:-}" = "1" ] || exit 0`, so a file
-checkout is ignored) and immediately delegates. `init.templateDir` in
+checkout is ignored), chains Git LFS, then delegates. `init.templateDir` in
 `system_files/usr/share/workstation-os-image/dotfiles/dot_config/git/create_config`
 seeds it into every *new* clone.
 
+The first line of the hook is an ownership sentinel carrying a version number.
+That version is the upgrade lever: `tooling/worktree/init` replaces any installed
+hook whose version is older than the seed's, which is the only way an edit to the
+hook reaches a repository that already carries one. Bump it whenever the body
+changes; `tooling/validate/sources` asserts the sentinel exists but cannot tell
+you that you forgot to increment it.
+
+#### Git LFS lives in this hook
+
+`git lfs install` writes its own `post-checkout` into the same slot and will not
+merge with an incumbent — it offers `--force` to clobber or `--manual` to print
+instructions, never a chain. Since `init.templateDir` makes ours the incumbent in
+every clone made here, ours is what carries LFS: the hook runs
+`git lfs post-checkout "$@"` when `git-lfs` is on `PATH`, and the
+`[filter "lfs"]` block in the git config seed supplies the content half that
+`git lfs install` would otherwise have written. `git lfs install` is therefore
+never run on this machine. The image ships `git-lfs` in `dev.list`, and
+`tooling/validate/sources` gates all three files together.
+
+The `[filter "lfs"]` half is a chezmoi `create_` seed, so it lands on a new
+account only; an account that already has `~/.config/git/config` needs the block
+added by hand. That is true of every line in that seed, `templateDir` included.
+And because the host now resolves LFS content, an LFS-tracked file is real bytes
+in the working tree — a Dev Container mounting that tree has neither the filter
+nor the binary, so committing an LFS file from inside one would store content
+instead of a pointer. No repository here tracks anything in LFS today.
+
+Unlike git-lfs's stock hook, ours never exits non-zero. `githooks(5)` is explicit
+that `post-checkout` "cannot affect the outcome of git switch or git checkout,
+other than that the hook's exit status becomes the exit status of these two
+commands" — git has already finished the checkout by then. A hook that exits
+non-zero therefore does not undo anything; it only makes callers *believe* the
+checkout failed, and walk away from a complete one. That is exactly how a
+half-created worktree happens, so the managed hook swallows a failing
+`git lfs post-checkout` rather than passing it on.
+
 For a repository whose hooks path has been hijacked — Husky and lefthook both do
-this — the fallback is the **Sync worktree files** External Tool, shipped in
-`tooling/data/jetbrains-settings/_shared/tools/`. It runs `git worktreeinclude
-apply` in `$ProjectFileDir$` from Tools → External Tools, and appears in the main
-menu, the project view and search-everywhere.
+this — the hook never fires and the fallback is manual: run
+`workstation-worktree-sync` inside the new checkout, which is the same helper the
+hook would have called. A repository that carries a *foreign* `post-checkout`
+file rather than a redirected hooks path is the other shape of the same problem:
+`tooling/worktree/init` reports it and refuses to clobber it, so that repository
+keeps only the second net until the foreign hook is dealt with by hand.
 
 ### The copy itself
 
@@ -463,7 +459,7 @@ outside a work tree, a no-op in the *main* checkout — detected by
 also fires on every ordinary branch switch — a no-op when the tool or the
 `.worktreeinclude` is absent, and it never exits non-zero, because it must never
 abort the worktree or checkout operation that invoked it. It resolves the
-Homebrew binary by explicit path candidates, since a GUI-launched IDE runs hooks
+Homebrew binary by explicit path candidates, since a GUI-launched tool runs hooks
 with a minimal environment. `git worktreeinclude` itself never overwrites an
 existing file and never touches a tracked one, so re-running the sync in a
 worktree you have already edited is safe.
@@ -480,9 +476,18 @@ just worktree-init --all      # every repo under $WORKSTATION_PROJECTS_ROOT
 picker scans.
 
 It is idempotent and non-destructive: it never overwrites an existing
-`.worktreeinclude`, and never replaces a hook it did not write. An existing
-managed hook with local edits, or any unmanaged `post-checkout`, is reported and
-skipped rather than clobbered.
+`.worktreeinclude`, and never replaces a hook it did not write. Any unmanaged
+`post-checkout`, and a managed hook of the *current* version whose bytes differ
+(something composed onto it), is reported and skipped rather than clobbered.
+
+It does replace an older version of its own hook, reporting
+`hook: upgraded (v0 -> v3)`. A hook with no sentinel at all that still calls
+`workstation-worktree-sync` is the shape this script installed before the
+sentinel existed, and reads as version 0. Without that, every repository cloned
+before a hook change fell through to the "a different post-checkout hook is
+already installed" skip and kept its hook forever — which is what actually
+happened: 27 of the 30 repositories on this machine held the pre-sentinel hook,
+so `--all` updated none of them.
 
 Dependencies (`node_modules`, `vendor`, `.venv`) are deliberately **not** copied.
 They are large, often platform-specific, and belong in a per-repo install step.
@@ -526,36 +531,11 @@ Three rules, each with a failure behind it:
   pane never reaches the sidebar". Outside a pane the state hook exits 0
   silently, so nothing warns you.
 
-The per-branch worktree loop lives in the `dev.flow` plugin, reachable by key
-from any pane. Checkouts land beside the repository at
-`<repo>__worktrees/<branch-slug>`:
+### The two layouts
 
-| Key | Effect |
-|---|---|
-| `prefix+shift+w` | Popup: prompt for a branch, validate it with `git check-ref-format`, create the worktree and apply the dev layout |
-| `prefix+shift+x` | Popup: show the checkout and any uncommitted work, confirm, then remove it. The branch is never deleted |
-| `prefix+s` | Space picker: live workspaces plus on-disk worktrees that have no workspace yet, grouped by repository and sorted so a blocked or finished agent rises to the top |
-| `prefix+shift+u` | Open every linked worktree of every repository as a workspace. Also runs at server start |
-
-The worktree workspace is labelled with the branch slug alone. The repository is
-not lost, because `agent_panel_sort = "spaces"` groups rows under their space
-and `[ui.sidebar.spaces]` carries `branch` and `git_status` on the second row —
-which is why the previously pinned `sidebar_width = 36` is gone and herdr's
-default 26 is enough. The sidebar also starts collapsed, which takes two keys,
-not one: `sidebar_collapsed_mode = "hidden"` only chooses how a collapsed sidebar
-draws, and `sidebar_start_collapsed = true` is what decides it begins that way.
-`Ctrl+G` `b` brings it back. Removal never touches the branch, deliberately: herdr does
-not delete branches and neither does the popup.
-
-The `ga` and `gd` fish functions this replaced are gone. Outside a herdr pane,
-use `git worktree add` directly; the `post-checkout` hook still fires, so
-`.worktreeinclude` propagation is unaffected.
-
-### Two layouts on one key
-
-`prefix+shift+n` is the only layout key, and which layout it applies is read off
-the workspace rather than remembered — herdr keeps no plugin state, and a
-workspace restored from an earlier session would arrive without it:
+There are two, and `prefix+shift+n` is the only key: which one it applies is read
+off the workspace rather than remembered, because herdr keeps no plugin state and
+a workspace restored from an earlier session would arrive without it.
 
 | The workspace holds | The key applies |
 |---|---|
@@ -566,18 +546,52 @@ workspace restored from an earlier session would arrive without it:
 Each question is asked of the whole workspace, not of the agent's tab. A pane of
 either name exists under no other layout, so it is a sound mark on its own — and
 asking inside the agent's tab made the answer depend on finding the agent first,
-which a split workspace whose agent pane had exited could not do.
+which a split workspace whose agent pane had exited could not do. So the first
+press on a bare workspace builds, and every press after it alternates.
 
-So the first press on a bare workspace builds, and every press after it
-alternates. The default layout is three tabs: `main` running the agent, plus
-`nvim` and `term`. The split layout is one `dev` tab with the agent pinned to a
-third of the width on the left and the editor stacked over the terminal in the
-rest. The default layout builds with `tab create`, the split one with
-`pane split`, and both cross between the two with `pane move` — never with
-`layout.apply`, which replaces the tab it is handed, ignoring an existing
-`pane_id` rather than adopting it, and so would kill the agent on every
-application. Moving panes is what lets a switch keep the conversation and
-Neovim's unsaved buffers.
+The default is three tabs, `main` running the agent plus `nvim` and `term`. The
+alternative is a single `dev` tab holding all three:
+
+```
++----------+---------------------------+
+|          |           nvim            |
+|   main   +---------------------------+
+|   33%    |      term (a sliver)      |
++----------+---------------------------+
+```
+
+`main` keeps its third of the width whatever you are working in; the right-hand
+column is the editor's at rest and the terminal takes it on `prefix+t`. The three
+ratios are named constants at the top of
+`system_files/usr/share/workstation-os-image/dotfiles/dot_config/herdr/plugins/dev-flow/layout-common.sh`,
+which also holds everything both layouts share — the editor and agent commands,
+the idle-pane probe, and the socket calls the CLI does not expose.
+
+**Neither layout is built with `layout.apply`, and that is deliberate.** It is
+the socket method that looks made for the job, and it replaces the tab it is
+handed: a request naming an existing `tab_id` and an existing `pane_id` comes
+back with a new tab holding new panes, the old ones closed and the `pane_id`
+ignored rather than adopted. Building a layout that way would kill the agent
+every time it was applied. `pane split` and `pane move` are the calls that carry
+a process across, so both layouts are built from those. Switching therefore moves
+the live panes in and out of the `dev` tab rather than recreating them: the agent
+keeps its conversation, Neovim keeps its unsaved buffers, and a tab closes itself
+once its last pane leaves.
+
+`prefix+m`, `prefix+n` and `prefix+t` answer in both layouts. `focus-tab.sh`
+looks for a tab of that label first and falls back to a pane of that label
+anywhere in the workspace, which is why the split tab is called `dev` — a tab
+named `main` would be found first and the key would never reach the pane inside
+it. The fallback used to search only the focused tab, which made these three keys
+conditional: pressed from a scratch tab they did nothing at all, and silently. Focusing
+`nvim` or `term` also hands them the column, and focusing `main` does not: the
+resize is restricted to a `down` split, and the vertical split is the one that
+pins `main` to its third.
+
+#### One key, and why it never duplicates
+
+The default layout builds its tabs with `tab create` and the split one its panes
+with `pane split`; `pane move` is what crosses between them.
 
 The two scripts stay separately runnable, because two callers need the default
 layout and not a toggle: `worktree-create.sh` for a checkout it has just made,
@@ -615,6 +629,29 @@ twice:
 Nothing here ever closes a tab. Duplicates left over from before the fix shrink
 as the layout reuses them but never disappear on their own; close them with
 `prefix+alt+x`.
+
+The per-branch worktree loop lives in the `dev.flow` plugin, reachable by key
+from any pane. Checkouts land beside the repository at
+`<repo>__worktrees/<branch-slug>`:
+
+| Key | Effect |
+|---|---|
+| `prefix+shift+w` | Popup: prompt for a branch, validate it with `git check-ref-format`, create the worktree and apply the dev layout |
+| `prefix+shift+x` | Popup: show the checkout and any uncommitted work, confirm, then remove it. The branch is never deleted |
+| `prefix+s` | Space picker: live workspaces plus on-disk worktrees that have no workspace yet, grouped by repository and sorted so a blocked or finished agent rises to the top |
+| `prefix+shift+u` | Open every linked worktree of every repository as a workspace. Also runs at server start |
+
+The worktree workspace is labelled with the branch slug alone. The repository is
+not lost, because `agent_panel_sort = "spaces"` groups rows under their space
+and `[ui.sidebar.spaces]` carries `branch` and `git_status` on the second row —
+which is why the previously pinned `sidebar_width = 36` is gone and herdr's
+default 26 is enough. The sidebar also starts collapsed, which takes two keys,
+not one: `sidebar_collapsed_mode = "hidden"` only chooses how a collapsed sidebar
+draws, and `sidebar_start_collapsed = true` is what decides it begins that way.
+`Ctrl+G` `b` brings it back. Removal never touches the branch, deliberately: herdr does
+not delete branches and neither does the popup.
+
+The `ga` and `gd` fish functions this replaced are gone.
 
 For heavier parallel work — several agents on several branches at once — the
 unit is one herdr workspace plus one worktree per branch, and the agent drives

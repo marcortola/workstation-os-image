@@ -46,16 +46,16 @@ Twelve entries, none of which ever reaches an image layer.
 | `ai/` | The AI-CLI machinery: `install-ai-tools`, `uninstall-ai-tools`, `reset-ai-cli`, `test-reset`, and `build-ai-cli-bundle`, which regenerates the self-contained `ai-cli-setup/` installer. |
 | `audit/` | The machine-state audits behind `just audit`. `workstation` is the aggregator the recipe invokes; it runs `deployment`, `units`, `etc-drift`, `updates`, `packages` and `dotfiles`, and `dotfiles` in turn runs `personal-config`, `dms-settings` and `niri-binds`. |
 | `data/` | Repo-owned declarative source the scripts read. Glossed below. |
+| `dev/` | `intelephense-licence`, which stores the machine-local intelephense premium PHP licence key that `dev nvim` injects into the container. |
 | `dms/` | DMS preference lifecycle: `capture` (interactive review), `defaults` (resolve the upstream schema), `validate-overlay`, and `test`. |
 | `dotfiles/` | `sync` regenerates the create-only chezmoi seeds from live files per the manifest; `validate-manifest` checks the manifest itself; `preflight-migration` proves a chezmoi state migration is safe *before* you reboot into the new image. |
 | `fixtures/` | Test data. `dms-settings-spec.js` is a stand-in DMS schema modelling only the keys the capture and validation paths exercise, so the CI `dms-settings-tests` job can run the DMS lifecycle on a runner with no DMS installed. |
-| `jetbrains/` | `apply-settings`, `apply-plugins`, `diff`, `promote-shared`, `validate`, `ide-setup`, `intelephense-licence`. |
 | `keybindings/` | `build-cheatsheet.py`, which generates the `Mod+Slash` cheatsheet from `docs/keybindings.md` and the niri binds. Backs `just cheatsheet`, runs inside `just sync`, and gates itself with `--check`. |
-| `lib/` | Shared helpers the scripts source rather than duplicate: `dotfiles.sh` (seed-path and manifest primitives) and `jetbrains-xml-flatten.py`, which flattens JetBrains XML into sorted canonical key lines so attribute order and whitespace do not register as divergence while real key/value changes do. |
+| `lib/` | The shared helper the scripts source rather than duplicate: `dotfiles.sh`, the seed-path and manifest primitives. |
 | `scrub/` | The filters that strip secrets and tool-injection surface out of the mixed AI-CLI seeds: `claude-settings` and `codex-config`. |
 | `upstream/` | `zirconium-diff`: fetches Zirconium, filters to the profiles this image is comparable to, and reports which of our files each upstream change maps onto. Backs `just upstream-diff` and `just upstream-accept`. |
 | `validate/` | The gates behind `just validate`: `all` (the aggregator), `repo`, `sources`, `image-build`, `rpm-keys`, `source-images`, `lint-nvim-seeds.lua`. |
-| `worktree/` | `init` installs the post-checkout hook and a starter `.worktreeinclude` into a repo; `test-init` covers it. |
+| `worktree/` | `init` installs the post-checkout hook — upgrading an older version of its own, never a third party's — and a starter `.worktreeinclude` into a repo; `test-init` covers it. |
 
 ### `tooling/data/`
 
@@ -64,7 +64,6 @@ The declarative half: files the scripts in the other directories read.
 | Entry | What it declares |
 | --- | --- |
 | `dotfiles.manifest` | The single inventory of captured personal config: one line per entry, each naming a capture kind, the live path relative to `$HOME`, the chezmoi source path and a file pattern. |
-| `jetbrains-settings/` | The canonical IDE configuration: `_shared/` for product-neutral settings, plus `PhpStorm/` and `WebStorm/` for each product's remainder. |
 | `ai-tools/` | `opencode-mcp-fragment.json`, the only tracked piece of the fusion-generated `opencode.json`. |
 | `dms-settings-denylist` | DMS keys excluded from generic interactive capture because they are runtime, device-specific, sensitive, path-bound, or need nested review. |
 | `cheatsheet-layout` | Which category each group of reference binds lands in on the `Mod+Slash` cheatsheet. Exists because DMS packs categories by height rather than JSON order, so the digest only stays above the fold while every category here is smaller than it -- which the generator asserts. |
@@ -91,7 +90,7 @@ Fifteen tracked files sit at the top level. Every one of them is load-bearing.
 | `cosign.pub` | The public half of the image signing key. See [supply-chain.md](supply-chain.md). |
 | `.containerignore` | **Defines the build context.** See the note below. |
 | `.gitleaks.toml` | The sole scanner allowlist: gitleaks' default ruleset plus one exemption for a public build checksum the `generic-api-key` rule misreads. See [supply-chain.md](supply-chain.md). |
-| `.gitattributes` | Marks `tooling/data/jetbrains-settings/`, `tooling/ai/ai-cli-setup/` and the chezmoi seeds as vendored or generated so linguist does not advertise the repo as XML/PHP, tags the extensionless shipped scripts as Shell, and normalises line endings to LF so a checkout on another platform cannot smuggle CRLF into the image. |
+| `.gitattributes` | Marks `tooling/ai/ai-cli-setup/` and the chezmoi seeds as vendored or generated so linguist does not advertise the repo as XML/PHP, tags the extensionless shipped scripts as Shell, and normalises line endings to LF so a checkout on another platform cannot smuggle CRLF into the image. |
 | `.gitignore` | Working-tree noise, the droppings AI tool installers leave in the CWD, and — non-negotiably — `cosign.key` and `*.key`. |
 | `.hadolint.yaml` | Two documented suppressions: `DL3041` (this image deliberately tracks current Fedora rather than pinning versions) and `SC2046` (the `$(rpm -E %fedora)` substitution always expands to one integer token). |
 | `.worktreeinclude` | The inventory of untracked files to propagate into new git worktrees. Every creation path reads this one file; see [subsystems/dev-environment.md](subsystems/dev-environment.md). |
@@ -155,7 +154,6 @@ where it cannot be edited.
 | The image itself | RPMs, daemons, sockets, privileged helpers, systemd presets, factory defaults | Replaced transactionally by bootc. The previous deployment stays bootable. There are no `rpm-ostree` package layers anywhere in the design, and `tooling/audit/deployment` reports one if it appears. |
 | chezmoi seeds | Portable Fish, Git, btop, herdr, Neovim and other application defaults, plus the personal `local.kdl` and `workstation.ini` override files themselves | `create_` entries: written only when the file is absent, so an edit you make later survives every subsequent update. |
 | DMS overlay | Explicitly captured, portable GUI preferences | Seeds a new account exactly once, via `workstation-dms-settings.service`. After that the UI owns the values and later edits win unless you explicitly restore. |
-| JetBrains config | One canonical `_shared/` set plus a per-product remainder | Applied into the IDEs on demand and never auto-synced. A file lives in exactly one of the two places. |
 | Persistent `$HOME` | Secrets, projects, shell histories, device state, application databases | Never in the image and never in Git. |
 
 ### The chezmoi statement

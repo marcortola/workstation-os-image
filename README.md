@@ -69,7 +69,7 @@ systemctl reboot
 ```
 
 After the first graphical login, user services restore the Brewfile and
-Flatpaks, install JetBrains Toolbox and the fonts, and seed the DMS preference
+Flatpaks, install the fonts, and seed the DMS preference
 overlay once. The repository is not cloned eagerly — `wjust` clones it on demand
 the first time you run a recipe, from any directory:
 
@@ -113,7 +113,6 @@ image. `just --list` is the full index — the ones used daily:
 | `just build` | Build and lint the bootc image locally with Podman |
 | `just update-status` | Report whether the last automatic update succeeded, and which module failed |
 | `just dms-capture` | Review portable DankMaterialShell deviations and capture selected values |
-| `just jetbrains-diff` | Report where installed JetBrains IDEs diverge from the shared canonical |
 | `just brew-apply` | Install Brewfile entries not yet on this machine |
 | `just upstream-diff` | Review what changed in Zirconium since the watermark |
 

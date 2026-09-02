@@ -71,12 +71,10 @@ is. Drift reports hold to the same standard: enumerate the divergent items,
 never the audit's summary counts.
 
 Audit, diff, validate and dry runs are always safe to run. Confirm with the
-human before any command that writes live account or cloud state:
-`just jetbrains-apply --force` (itself refused unless
-`--i-understand-overwrites-cloud` accompanies it), `just ai-reset --replace`,
-and `just dms-apply`. Never fix a failing gate by weakening the gate; if an
-assertion under `tooling/validate/` or an allowlist in `tooling/scrub/` is
-genuinely wrong, say so and stop.
+human before any command that writes live account state:
+`just ai-reset --replace` and `just dms-apply`. Never fix a failing gate by
+weakening the gate; if an assertion under `tooling/validate/` or an allowlist in
+`tooling/scrub/` is genuinely wrong, say so and stop.
 
 Keep scratch files out of the checkout: `just validate` runs `gitleaks dir .`,
 which does not respect `.gitignore`, so anything left in the tree is inside the
@@ -99,6 +97,6 @@ review. See [subsystems/upstream-zirconium.md](subsystems/upstream-zirconium.md)
 [conventions.md](conventions.md) answers "where does this change belong?" in
 full, including why each mechanism exists; read it before adding a file.
 [capturing-changes.md](capturing-changes.md) covers the audit-capture-sync-validate
-loop, the manifest, and the JetBrains and DMS workflows, and
+loop, the manifest and the DMS workflow, and
 [validation-and-gates.md](validation-and-gates.md) explains which gate proves
 what and where CI's reach stops.

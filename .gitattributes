@@ -4,7 +4,6 @@
 #
 # Marking the cause rather than forcing a language: these directories are
 # genuinely vendored or generated, which is true independent of the language bar.
-tooling/data/jetbrains-settings/** linguist-vendored
 tooling/ai/ai-cli-setup/**        linguist-generated
 system_files/usr/share/workstation-os-image/dotfiles/** linguist-vendored
 

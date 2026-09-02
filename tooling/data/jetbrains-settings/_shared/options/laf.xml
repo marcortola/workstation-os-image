@@ -1,8 +1,0 @@
-<application>
-  <component name="LafManager">
-    <laf themeId="ExperimentalLight" />
-    <lafs-to-previous-schemes>
-      <laf-to-scheme laf="ExperimentalLight" scheme="Photon - Light" />
-    </lafs-to-previous-schemes>
-  </component>
-</application>

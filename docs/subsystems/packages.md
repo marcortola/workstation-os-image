@@ -50,7 +50,7 @@ is installed with
 |---|---|
 | `copr.list` | The DankMaterialShell stack: `dms`, `dms-cli`, `dms-greeter`, `quickshell`, `dgop`, `danksearch`, `matugen` |
 | `desktop.list` | Compositor, session and shell: niri, XWayland, greetd, foot, the keyring stack, Nautilus and gvfs, DMS's undeclared runtime dependencies, power profiles, and the CLI tools the binds and our own scripts call |
-| `dev.list` | Toolchain and CLI: `binutils` and `gcc` (Homebrew needs a linker and a compiler for source builds), `mariadb`, `postgresql`, `mkcert`, the screen-recording pair `slurp` and `wf-recorder`, and four that look like base duplicates but have named consumers here — `cpio` and `unzip` for `workstation-install-microsoft-fonts`, `cabextract` for the `refresh-msttcore-fonts.sh` helper it runs, `shadow-utils` for `workstation-configure-user-groups` |
+| `dev.list` | Toolchain and CLI: `binutils` and `gcc` (Homebrew needs a linker and a compiler for source builds), `mariadb`, `postgresql`, `mkcert`, the screen-recording pair `slurp` and `wf-recorder`, `git-lfs` (chained by the managed `post-checkout` hook — see [dev-environment.md](dev-environment.md)), and four that look like base duplicates but have named consumers here — `cpio` and `unzip` for `workstation-install-microsoft-fonts`, `cabextract` for the `refresh-msttcore-fonts.sh` helper it runs, `shadow-utils` for `workstation-configure-user-groups` |
 | `docker.list` | Rootful Docker: `docker-ce`, `docker-ce-cli`, the buildx and compose plugins, `containerd.io` |
 | `fonts.list` | Default and emoji fonts plus `glibc-all-langpacks` |
 | `input-method.list` | The fcitx5 stack, which base-main installs only for its kinoite variant |
@@ -119,7 +119,7 @@ references them; they ship because they are in the payload.
 | `system_files/usr/lib/sysctl.d/99-workstation-zram.conf` | `vm.swappiness = 180` |
 
 Nothing else under `/usr/lib/sysctl.d` sets the inotify limits, so without that
-first file the kernel defaults stand — and they are what a JetBrains IDE
+first file the kernel defaults stand — and they are what a language server
 indexing a repository and a node dev server watching the same tree consume
 between them. Exhausting a watch limit does not raise an error the user sees;
 the editor simply stops noticing that files changed.
@@ -413,10 +413,16 @@ yes. It is deliberately not wired into the nightly update path: it deletes data.
   `cask` lines; the first-login path in `workstation-bootstrap-user` matches only
   `brew` lines, so a tap-qualified cask is trusted in the prefix's store (which
   `uupd` reads) but not in the user's own.
+- A package scriptlet can write `/etc`, and `bootc container lint` will not say
+  so. `git-lfs`'s `%post` runs `git lfs install --system`, which creates
+  `/etc/gitconfig` where the base ships none — permanent machine-local state,
+  since `/etc` is a three-way merge. `20-packages.sh` undoes it and
+  `99-check-build.sh` asserts the file is absent. Check for this whenever a new
+  package carries a scriptlet.
 - Every group list is installed in its own transaction, but no gate asserts a
   list is non-empty or that every name in it landed. `20-packages.sh` skips an
   empty list with `[ "${#pkgs[@]}" -gt 0 ] || continue`, and `99-check-build.sh`
-  re-checks a fixed 39-name subset with `rpm -q`; anything outside that subset
+  re-checks a fixed 40-name subset with `rpm -q`; anything outside that subset
   can stop being installed without the build noticing.
 - The Flatpak *remotes* are set up once by the base's
   `flatpak-add-fedora-repos.service`, which is gated on

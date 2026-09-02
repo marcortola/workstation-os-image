@@ -43,8 +43,16 @@ require_file docs/README.md
 # invariant: a linked checkout is not a repository inside the container unless it
 # records a relative path, the flag that fixes it is inert rather than loud when
 # it does not, and an agent that does not know that will delete the flag to make
-# a broken container start.
-(( $(wc -l < AGENTS.md) <= 295 ))
+# a broken container start. Raised again to 300 for the second dev layout:
+# `layout.apply` is the API anyone adding a third would reach for first, and it
+# replaces the tab it is handed, so applying a layout with it restarts the
+# agent -- a rule that has to be read before the code, not after. Raised to 305
+# when the two layouts went onto one key: the rule that matters is that every
+# step converges rather than builds, because four separate roots each added a
+# tab and every one of them read as a plausible way to write it. `pane move`
+# answering a refusal with a SUCCESS reply is the trap under all of them, and an
+# agent that does not know it will read the tab id back out of that reply.
+(( $(wc -l < AGENTS.md) <= 305 ))
 
 # README.md is a landing pad into docs/ and nothing else. Capped because it grows
 # back otherwise: it was 855 lines covering fourteen concerns before the handbook
@@ -190,15 +198,33 @@ jq -e '.autoMode.environment == null' \
     tooling/ai/ai-cli-setup/config/claude/settings.json >/dev/null
 
 # Worktree untracked-file propagation: every creation path (herdr, Claude Code,
-# the post-checkout hook, the JetBrains External Tool) reaches the same
-# committed .worktreeinclude through `git worktree add`, so assert the wiring
-# that keeps them in sync.
+# the post-checkout hook) reaches the same committed .worktreeinclude through
+# `git worktree add`, so assert the wiring that keeps them in sync.
 grep -q 'workstation-worktree-sync' \
     system_files/usr/share/workstation-os-image/dotfiles/dot_config/git/template/hooks/create_executable_post-checkout
 grep -q 'satococoa/tap/git-worktreeinclude' \
     system_files/usr/share/workstation-os-image/dotfiles/dot_config/homebrew/create_Brewfile
 grep -q 'templateDir' system_files/usr/share/workstation-os-image/dotfiles/dot_config/git/create_config
 [[ -x tooling/worktree/init ]]
+
+# The version in the hook's ownership sentinel is what lets `just worktree-init`
+# replace an older copy of the hook in a repository that already has one. Without
+# it every edit below this line is dead code in every existing repository.
+grep -qE '^# workstation-worktree-init: managed post-checkout hook v[0-9]+$' \
+    system_files/usr/share/workstation-os-image/dotfiles/dot_config/git/template/hooks/create_executable_post-checkout
+
+# One mechanism, three files. `git lfs install` writes its own post-checkout into
+# the same slot and refuses to merge with an incumbent, and init.templateDir makes
+# ours the incumbent in every new clone -- so the managed hook is the only thing
+# carrying Git LFS here. The chain, the filter config the chain resolves content
+# through, and the binary both of them call must ship together or LFS is silently
+# half-configured.
+grep -q 'git lfs post-checkout' \
+    system_files/usr/share/workstation-os-image/dotfiles/dot_config/git/template/hooks/create_executable_post-checkout
+grep -q '^\[filter "lfs"\]' \
+    system_files/usr/share/workstation-os-image/dotfiles/dot_config/git/create_config
+grep -qE '^git-lfs([[:space:]]|$)' build_files/packages/dev.list
+
 tooling/worktree/test-init
 
 # The `dev` wrapper's --mount strings have to satisfy the devcontainer CLI's own

@@ -59,13 +59,9 @@ clean up.
    Code merged to main via PR #<N>.
 
    This session stays alive — review or keep working here.
-   When you are done, remove the worktree from the main checkout:
-     - herdr: switch to the main repo's workspace with the workspace picker
-         (prefix+w; the prefix is ctrl+b by default, and prefix+1..9 moves
-         between tabs inside a workspace), then run the worktree-remove
-         recipe
-     - JetBrains / no herdr: close the project, then
-         `git worktree remove <path> && git branch -D <branch>`
+   When you are done, remove the worktree from the main checkout: switch to the
+   main repo's workspace with the workspace picker (prefix+w; prefix+1..9 moves
+   between tabs inside a workspace), then run the worktree-remove recipe.
    ```
 
 ## Error handling

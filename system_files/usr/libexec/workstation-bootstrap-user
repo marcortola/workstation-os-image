@@ -3,13 +3,12 @@ set -euo pipefail
 
 state_home="${XDG_STATE_HOME:-$HOME/.local/state}"
 brew=/home/linuxbrew/.linuxbrew/bin/brew
-jq=/home/linuxbrew/.linuxbrew/bin/jq
 brewfile="${XDG_CONFIG_HOME:-$HOME/.config}/homebrew/Brewfile"
 marker="$state_home/workstation-os-image/bootstrap-complete"
 
 # The marker records the hash of THIS script, not merely that it once ran.
 # A plain existence check made every later edit here dead code on any account
-# that had already bootstrapped -- a new tool, a changed Toolbox path, a fixed
+# that had already bootstrapped -- a new tool, a changed path, a fixed
 # derivation, none of it would land, and the unit would report success by not
 # running. Hashing the script itself cannot be forgotten the way a hand-bumped
 # version counter can (bazzite is on USER_SETUP_VER=51).
@@ -18,23 +17,20 @@ marker="$state_home/workstation-os-image/bootstrap-complete"
 # workstation-apply-dms-settings is one-shot forever on purpose: DMS settings
 # are UI-owned after their seed, so re-running would stomp the user's edits.
 #
-# Checked before the first mkdir and well before the ~70 MB Toolbox fetch
-# below, so a no-op re-run costs a sha256sum.
+# Checked before the first mkdir and before any network work below, so a no-op
+# re-run costs a sha256sum.
 script_hash="$(tr -d "[:space:]" <"$0" | sha256sum | cut -d " " -f 1)"
 if [[ -f $marker && "$(cat "$marker")" == "$script_hash" ]]; then
     echo "Workstation user bootstrap already current."
     exit 0
 fi
 
-mkdir -p "$(dirname "$marker")" "$HOME/.local/bin" "$HOME/.local/opt"
-
-workdir="$(mktemp -d)"
-trap 'rm -rf -- "$workdir"' EXIT
+mkdir -p "$(dirname "$marker")" "$HOME/.local/bin"
 
 # The repository checkout is no longer cloned here: /usr/bin/wjust clones it on
 # demand the first time a recipe runs. That keeps this bootstrap free of any
 # GitHub dependency, so a transient clone failure can no longer block the
-# essential brew and Toolbox provisioning below.
+# essential brew provisioning below.
 
 # The ublue brew layer ships /usr/share/homebrew.tar.zst and
 # enables brew-setup.service, which unpacks it on first boot. Never install
@@ -61,32 +57,6 @@ for name in "${trust_names[@]}"; do
     "$brew" trust --formula "$name"
 done
 "$brew" bundle install --file "$brewfile"
-
-# JetBrains does not publish a Linux Homebrew cask. Install Toolbox entirely
-# below the home directory from its official release API, verifying the
-# download-CDN tarball against the checksum served by the release API host.
-toolbox_release="$(curl -fsSL \
-    'https://data.services.jetbrains.com/products/releases?code=TBA&latest=true&type=release')"
-toolbox_url="$("$jq" -er '.TBA[0].downloads.linux.link' <<< "$toolbox_release")"
-toolbox_checksum_url="$("$jq" -er '.TBA[0].downloads.linux.checksumLink' \
-    <<< "$toolbox_release")"
-
-toolbox_archive="${toolbox_url##*/}"
-curl -fL --retry 3 "$toolbox_url" -o "$workdir/$toolbox_archive"
-curl -fL --retry 3 "$toolbox_checksum_url" -o "$workdir/$toolbox_archive.sha256"
-(cd "$workdir" && sha256sum -c "$toolbox_archive.sha256")
-tar -xzf "$workdir/$toolbox_archive" -C "$HOME/.local/opt"
-# sort -V, not sort: lexicographically 3.6.1 sorts above 3.10.0, so a plain
-# sort silently pins the older Toolbox forever once a two-digit minor ships.
-toolbox_bin="$(find "$HOME/.local/opt" -path '*/bin/jetbrains-toolbox' \
-    -type f | sort -V | tail -n 1)"
-[[ -n $toolbox_bin ]]
-
-# This script now re-runs whenever its own hash changes, not once per account,
-# so every extracted tree would otherwise accumulate at ~221 MB each.
-find "$HOME/.local/opt" -maxdepth 1 -name 'jetbrains-toolbox-*' -type d \
-    -not -path "${toolbox_bin%/bin/jetbrains-toolbox}" -exec rm -rf {} +
-ln -sfn "$toolbox_bin" "$HOME/.local/bin/jetbrains-toolbox"
 
 printf '%s\n' "$script_hash" > "$marker"
 echo "Workstation user bootstrap complete."

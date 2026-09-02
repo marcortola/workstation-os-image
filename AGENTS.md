@@ -35,9 +35,6 @@ second inventory. `CLAUDE.md` imports this file for Claude Code.
   `dotfiles/` and the image-owned niri system config under `niri/` (see NOTICE).
 - `~/.config/homebrew/Brewfile` declares user tools and Flatpaks.
 - `tooling/data/image-provided-brew-formulae` lists Homebrew shadows the image owns.
-- `tooling/data/jetbrains-settings/_shared/` is the canonical "feel the same" JetBrains
-  config; each `tooling/data/jetbrains-settings/<Product>/` holds only that IDE's
-  product-specific remainder.
 - `tooling/data/zirconium-watermark` is the last upstream Zirconium commit
   reviewed against this image. `just upstream-diff` reports what changed since;
   `/port-zirconium` is the review, and `just upstream-accept` advances the
@@ -56,10 +53,6 @@ second inventory. `CLAUDE.md` imports this file for Claude Code.
   application databases, backups, device-specific runtime state.
 - For a GUI change, find its deterministic config and add a reviewed file or a
   narrow export/restore mechanism. Never copy an application directory wholesale.
-- JetBrains: put product-neutral settings (keymaps, colours, fonts, neutral
-  editor/UI) once in `_shared/`, and product-specific ones (code styles,
-  templates, inspections, product toolbars) in the per-product dir. A file lives
-  in exactly one place.
 
 ## Invariants
 
@@ -144,19 +137,6 @@ prefer them over reinventing the shape:
   `tooling/audit/niri-binds` fails on a shadowed bind, since `niri validate`
   does not.
 
-### JetBrains
-
-- JetBrains config is repo-owned and applied explicitly. chezmoi never deploys
-  it and nothing auto-syncs it.
-- Never capture JetBrains license `*.key` files, `dataSources*`, `ssl/`,
-  `settingsSync/`, or per-product runtime state.
-- Declare shared plugins as Marketplace IDs in
-  `tooling/data/jetbrains-settings/_shared/plugins.list`; JARs are fetched at apply
-  time, never vendored. Only portable, non-language-locked plugins belong there;
-  product-specific ones go in the per-product list.
-- Colour schemes and every `plugins.list` are vendored artifacts preserved by
-  `just sync` and `just jetbrains-promote`.
-
 ### Packages
 
 - Docker stays rootful and usable without `sudo` through dynamic local user
@@ -206,6 +186,16 @@ prefer them over reinventing the shape:
   on dead chords free the keys the rest moves into -- so run `herdr config
   check` after any edit; it reports a collision as `kept keys.X, disabled
   keys.Y` rather than failing.
+- Both dev layouts avoid `layout.apply`, which replaces the tab it is handed
+  and restarts the agent in it: `layout.sh` (three tabs, the default) builds
+  with `tab create`, `layout-split.sh` (one tab) with `pane split`, and
+  `pane move` crosses between them. They share `layout-common.sh`, undo each
+  other, and answer one key, `prefix+shift+n`, through `layout-toggle.sh`.
+  Every step converges rather than builds: reuse a tab that already carries
+  the label, find the agent by label and never by position, and never build a
+  replacement for a pane `pane move` refused -- a refusal is a SUCCESS reply
+  carrying `changed:false`. The split tab is named `dev`: `focus-tab.sh`
+  resolves `main`/`nvim`/`term` as tabs first.
 - herdr times nothing: `agent list` carries `state_change_seq`, a counter, and
   no clock. Every recency answer comes from one stamp per checkout, written by
   the `pane.agent_status_changed` hook and read through
@@ -215,6 +205,13 @@ prefer them over reinventing the shape:
   expired by TTL rather than swept.
 - The ship popup is the mechanical half of `/worktree-push`: it refuses a dirty
   tree rather than writing a commit, and never deletes a branch.
+- Both popups that can delete a checkout -- ship and close-workspace -- end in
+  the shared `dev-flow/checkout-remove.sh`, which owns the linked-worktree
+  probe, the dirty display and the confirmation. A clean tree is removed
+  without `--force` so git can still refuse; a dirty one takes a second answer,
+  about losing the work rather than about removing a directory. Never give
+  either popup its own copy of that tail again, and never teach it to delete a
+  branch: that needs the merge check, which is `/worktree-remove`'s.
 
 ### Worktrees
 
@@ -227,8 +224,8 @@ prefer them over reinventing the shape:
 - Keep the union conservative: root-level globs and explicit nested paths,
   never a gitignore engine, only what git already ignores, never overwriting.
   Refuse a third list. When the two disagree, `.worktreeinclude` is right.
-- Checkouts live at `<repo>__worktrees/<branch-slug>`, created by the
-  `prefix+shift+w` popup. No fish helper; outside herdr use plain git.
+- Checkouts live at `<repo>__worktrees/<branch-slug>`: the `prefix+shift+w`
+  popup and the create recipes both pin it with `--path`, never herdr's default.
 - A checkout must record the main repo by a RELATIVE path or git is dead inside
   the container: `dev` passes `--mount-git-worktree-common-dir` to every `up` AND
   `exec` (both derive the workspace path from it), and the CLI honours it only
@@ -236,6 +233,18 @@ prefer them over reinventing the shape:
   `worktree.useRelativePaths` in the git config seed, since the popup never
   spells `git worktree add`; convert an old one with `git worktree repair
   --relative-paths`.
+- The post-checkout hook is one slot with two claimants: `git lfs install` writes
+  its own there and will not merge, and `init.templateDir` makes ours the
+  incumbent, so ours carries LFS -- it chains `git lfs post-checkout`, the git
+  seed holds `[filter "lfs"]`, `dev.list` ships `git-lfs`, all three gated. Never
+  run `git lfs install` here.
+- A post-checkout exit status BECOMES `git worktree add`'s, after git wrote the
+  checkout. The hook never exits non-zero, and no caller reads that status as "no
+  checkout": the create popup probes the path and adopts what git made, never
+  rolls back.
+- The hook sentinel carries a version; `init` upgrades an older one. Bump it with
+  the body or the edit reaches no repo that has a hook -- 27 of 30 were frozen
+  that way. A foreign hook is never clobbered; clear it by hand.
 
 ## Safety
 
@@ -244,7 +253,7 @@ prefer them over reinventing the shape:
   pass; gitleaks misses tool-specific key shapes, so those hand-written gates
   are the real secret boundary. If a gate is genuinely wrong, say so and stop.
 - Confirm before any command that writes the live account or cloud state:
-  `just jetbrains-apply --force`, `just ai-reset --replace`, `just dms-apply`.
+  `just ai-reset --replace`, `just dms-apply`.
   Audit, diff, validate and dry runs are always safe.
 - On finding a secret in a live file or a diff, stop. Do not echo the value and
   do not commit it; report the path only.

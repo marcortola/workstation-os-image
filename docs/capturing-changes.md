@@ -3,8 +3,8 @@
 A workstation change starts life in a live file under `$HOME`, or in a GUI that
 writes one. This page is the loop that turns it into a reviewed commit: classify
 it, audit for what drifted, capture it into the repository's declarative source,
-review the diff, validate. It covers the dotfile manifest, the JetBrains
-settings machinery and the DMS preference overlay.
+review the diff, validate. It covers the dotfile manifest and the DMS preference
+overlay.
 
 **Nothing on this machine is durable until the repository can recreate it.**
 
@@ -93,7 +93,6 @@ secrets and machine state get in.
 | `scaffold` | Image-owned config the base no longer supplies | Nothing — capturing it would overwrite what the image ships with whatever the runtime last wrote |
 | `directory` | Every matching file at one level (column 4 is the glob) | Installs each match |
 | `tree` | The same, recursively | Installs each match |
-| `jetbrains-app` | A version-globbed IDE config directory | Captures the product remainder into `tooling/data/jetbrains-settings/`, outside the chezmoi tree |
 
 For `scrub`, column 4 is a filter name, not a glob. The filter runs on capture
 *and* in `tooling/audit/personal-config`, so the audit compares filtered live
@@ -126,76 +125,9 @@ manifest carries a `copy` entry for `.config/DankMaterialShell/clsettings.json`
 and no entry at all for `settings.json`, which goes through the overlay below
 instead. Neovim state and cache. Configuration backup files.
 
-None of these has a mechanical gate — unlike the JetBrains tree, which has a
-denylist in `tooling/lib/dotfiles.sh` — so the manifest's one-entry-per-file
+None of these has a mechanical gate, so the manifest's one-entry-per-file
 discipline and your review of `git diff` are the whole enforcement. Adding a
 `tree` entry over a directory you have not read is how this rule gets broken.
-
----
-
-## JetBrains Settings
-
-JetBrains configuration is repository-owned and applied explicitly. chezmoi never
-deploys it, nothing auto-syncs it, and it lives outside the chezmoi seed tree
-entirely.
-
-The model is one canonical set plus per-product remainders.
-`tooling/data/jetbrains-settings/_shared/` holds what should feel identical in
-every IDE: `keymaps/custom.xml`, `templates/` (live templates), the editor,
-editor-font, terminal-font, laf, ui.lnf, vcs, ignore, colours and keymap-flags
-options, and `options/linux/keymap.xml`. Each `tooling/data/jetbrains-settings/<Product>/`
-holds only that IDE's own remainder: `codestyles/custom.xml`, `fileTemplates/`,
-`options/code.style.schemes.xml` and `options/php.xml`. The two allowlists
-in `tooling/lib/dotfiles.sh` are disjoint by construction, and
-`tooling/jetbrains/validate` uses that to enforce it — **a file lives in exactly
-one place**, and a shared file dropped into a product directory fails with
-`Shared or non-allow-listed file in product dir (promote to _shared/?)`.
-
-Version pinning is avoided by resolution, not by configuration: each
-`jetbrains-app` manifest entry names a version-wildcarded live path
-(`.config/JetBrains/PhpStorm*`), and `workstation_jetbrains_newest_dir` expands
-it, sorts the matches with `sort -V` and takes the last. An IDE upgrade needs no
-repository change.
-
-| Recipe | Effect |
-|---|---|
-| `just jetbrains-diff` | Read-only. Structural XML comparison of each installed IDE against `_shared/`. Not wired into `just validate` |
-| `just jetbrains-promote` | `tooling/jetbrains/promote-shared`: refresh the allow-listed entries in `_shared/` from the canonical IDE — the first `jetbrains-app` entry in the manifest unless you name one |
-| `just jetbrains-apply` | `tooling/jetbrains/apply-settings` then `tooling/jetbrains/apply-plugins`. Dry run without `--force` |
-| `just jetbrains-plugins` | The plugin half alone. Dry run without `--force` |
-| `just ide-setup` | Post-deploy one-shot: intelephense key, plugins, then an interactive offer to apply the settings that defaults to no |
-
-The usual sequence is: edit in the canonical IDE, `just jetbrains-promote`,
-review `git diff`, then fan the result out. Promote refreshes only allow-listed
-entries, so the vendored files in `_shared/` — the two Photon colour schemes,
-`tools/External Tools.xml` and `plugins.list` — survive it. They are authored
-here, not captured from an IDE.
-
-> `just jetbrains-apply --force` on its own is **refused**. `apply-settings`
-> prints `Refusing --force without --i-understand-overwrites-cloud.` and exits 2,
-> because the GUI push step it primes overwrites the settings your other machines
-> synced to the JetBrains cloud. The full form is
-> `just jetbrains-apply --force --i-understand-overwrites-cloud`.
-
-Apply also refuses a product whose IDE is running (an external write is ignored
-while it runs), backs the live files up under
-`$XDG_STATE_HOME/workstation-os-image/jetbrains-apply-backup/` (`~/.local/state`
-by default), moves
-`settingsSync/` aside, removes `options/settingsSync.xml`, and then prints the
-manual "Push Settings to Account" steps — the forced cloud push itself is
-GUI-only.
-
-Plugins are declared as Marketplace IDs in `plugins.list` files and installed
-headlessly through the IDE's own `installPlugins` launcher command. The JARs are
-fetched at apply time and never vendored, so the repository carries an ID list,
-not binaries. `_shared/plugins.list` installs into every IDE; a per-product
-`plugins.list` adds to just that one.
-
-Never captured: `*.key` licence files, `dataSources*`, `ssl/`, `settingsSync/`,
-`security.xml`, `recentProjects.xml`, `trusted-paths.xml`, `workspace`, `tasks`
-and the rest of the denylist in `tooling/lib/dotfiles.sh`.
-`tooling/jetbrains/validate` fails `just validate` on any of them, as a backstop
-to the allowlist rather than a substitute for it.
 
 ---
 
@@ -289,15 +221,11 @@ informational, and never let it stand in for the tracked divergence above it.
 
 ## Commands That Write Live State
 
-Everything else on this page is read-only, writes only inside the checkout, or —
-for `just jetbrains-plugins --force` and `just ide-setup --force` — only adds
-plugins to an installed IDE. Three commands destroy live state, and each needs a
-human's go-ahead first.
+Everything else on this page is read-only or writes only inside the checkout.
+Two commands destroy live state, and each needs a human's go-ahead first.
 
 `just dms-apply` re-applies every tracked value over your live DMS settings, with
 no backup.
-`just jetbrains-apply --force --i-understand-overwrites-cloud` overwrites live IDE
-configuration and primes a cloud push that overwrites every other machine.
 `just ai-reset --force` rewrites the live AI CLI config from the repository
 canonical (after a timestamped backup), and adding `--replace` drops the machine
 state — trust grants, keys — that the default merge would have preserved.

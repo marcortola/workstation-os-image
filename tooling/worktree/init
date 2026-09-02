@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # worktree-init — make git-worktree file propagation work in a repository:
 #   1. install the post-checkout hook into .git/hooks so worktrees created by
-#      the JetBrains IDE (or any raw `git worktree add`) copy their untracked
+#      any `git worktree add` — herdr shells out to it — copy their untracked
 #      files, and
-#   2. drop a starter .worktreeinclude when the repo has none, so all four
-#      creation paths (herdr, Claude Code, the hook, the IDE External Tool)
-#      have an inventory to read.
+#   2. drop a starter .worktreeinclude when the repo has none, so all three
+#      creation paths (herdr, an agent recipe, the hook) have an inventory to
+#      read.
 #
 # init.templateDir already seeds the hook into freshly cloned repos; this is the
 # retrofit for repos that already exist, and the bulk bootstrap for every repo
@@ -17,7 +17,11 @@
 #   tooling/worktree/init --all           # every repo under WORKSTATION_PROJECTS_ROOT
 #
 # Idempotent and non-destructive: it never overwrites an existing
-# .worktreeinclude, and never replaces an unmanaged or locally modified hook.
+# .worktreeinclude, and never replaces an unmanaged or locally modified hook. It
+# does replace an OLDER version of its own hook, which is the only way an edit to
+# the hook ever reaches a repository that already carries one. The one hook it
+# replaces without a version to compare against -- the pre-sentinel shape,
+# recognised by its delegate loop verbatim -- is backed up beside itself first.
 set -uo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -25,7 +29,23 @@ repo_root="$(cd "$script_dir/../.." && pwd)"
 hook_seed="$repo_root/system_files/usr/share/workstation-os-image/dotfiles/dot_config/git/template/hooks/create_executable_post-checkout"
 hook_live="${XDG_CONFIG_HOME:-$HOME/.config}/git/template/hooks/post-checkout"
 projects_root="${WORKSTATION_PROJECTS_ROOT:-$HOME/projects}"
-managed_marker="# workstation-worktree-init: managed post-checkout hook v1"
+
+# The hook carries a version in its ownership sentinel, and that version is the
+# only thing that lets an edit to the hook reach a repository that already has
+# one. Without it every existing repository fell through to the "a different
+# hook" skip -- 27 of the 30 repositories on this machine still held the
+# pre-sentinel hook, so `--all` updated none of them and the managed hook was
+# frozen at whatever each clone got from init.templateDir.
+managed_sentinel_re='^# workstation-worktree-init: managed post-checkout hook v(0|[1-9][0-9]*)$'
+
+# The delegate loop is the one line only this hook has. A third party's hook that
+# merely names the helper -- in a comment, or because it calls it too -- does not
+# match it verbatim, and that is what keeps the pre-sentinel adoption below from
+# overwriting somebody else's work.
+# The single quotes are the point: this is the literal text to match in a file,
+# not something to expand here.
+# shellcheck disable=SC2016
+managed_delegate_line='for cand in workstation-worktree-sync "$HOME/.local/bin/workstation-worktree-sync"; do'
 
 if [[ -r $hook_seed ]]; then
     hook_src="$hook_seed"
@@ -36,8 +56,42 @@ else
     exit 1
 fi
 
+# Prints the version in the hook's ownership sentinel, or nothing when there is
+# none. Deliberately strict, with no fallback: the SEED is read through this, and
+# the seed names the delegate too, so a fallback would let a sentinel broken by a
+# stray space or a CRLF read as version 0 -- which makes every installed hook look
+# current and freezes all of them while reporting success.
+sentinel_version() {
+    local file="$1" line
+    [[ -r $file ]] || return 1
+    while IFS= read -r line; do
+        if [[ $line =~ $managed_sentinel_re ]]; then
+            printf '%s\n' "${BASH_REMATCH[1]}"
+            return 0
+        fi
+    done <"$file"
+    return 1
+}
+
+# Prints the managed version of an INSTALLED hook, or nothing when it is not ours.
+# A hook with no sentinel that still carries the delegate loop verbatim is the
+# shape this script installed before the sentinel existed, so it reads as 0 and
+# upgrades. Anything else belongs to a third party and is never touched.
+installed_version() {
+    local file="$1"
+    sentinel_version "$file" && return 0
+    [[ -r $file ]] || return 1
+    grep -Fqx "$managed_delegate_line" "$file" || return 1
+    printf '0\n'
+}
+
+if ! seed_version="$(sentinel_version "$hook_src")"; then
+    echo "worktree-init: the hook source carries no ownership sentinel: $hook_src" >&2
+    exit 1
+fi
+
 install_hook() {
-    local repo="$1" common dest
+    local repo="$1" common dest dest_version
     if ! common="$(git -C "$repo" rev-parse --git-common-dir 2>/dev/null)"; then
         echo "  hook: failed to resolve the common Git directory" >&2
         return 1
@@ -52,11 +106,37 @@ install_hook() {
             echo "  hook: current"
             return 0
         fi
-        if grep -Fqx "$managed_marker" "$dest" 2>/dev/null; then
+        if ! dest_version="$(installed_version "$dest")"; then
+            echo "  hook: skip (a different post-checkout hook is already installed)"
+            return 0
+        fi
+        # Ahead of the seed: an older image, or a rolled-back seed. Never
+        # downgrade, and do not call it a local edit -- that reading would send
+        # someone hunting for a change nobody made.
+        if (( 10#$dest_version > 10#$seed_version )); then
+            echo "  hook: skip (installed hook is newer: v$dest_version > v$seed_version)"
+            return 0
+        fi
+        # Same version, different bytes: something composed onto the hook after
+        # we installed it, and that edit outranks a reinstall of identical
+        # content. Only an older version is replaced.
+        if (( 10#$dest_version == 10#$seed_version )); then
             echo "  hook: skip (managed hook has local changes)"
             return 0
         fi
-        echo "  hook: skip (a different post-checkout hook is already installed)"
+        # A pre-sentinel hook carries no version to compare against, so anything
+        # composed onto it is indistinguishable from the original and would be
+        # lost here. Keep a copy rather than guess. Versioned upgrades need no
+        # backup: same version plus different bytes is caught above.
+        if (( 10#$dest_version == 0 )) && ! cp -p "$dest" "$dest.pre-v$seed_version.bak"; then
+            echo "  hook: failed to back up $dest" >&2
+            return 1
+        fi
+        if ! install -m 0755 "$hook_src" "$dest"; then
+            echo "  hook: failed to install $dest" >&2
+            return 1
+        fi
+        echo "  hook: upgraded (v$dest_version -> v$seed_version)"
         return 0
     fi
     if ! mkdir -p "$common/hooks"; then
@@ -79,9 +159,9 @@ generate_worktreeinclude() {
     if {
         echo "# Untracked files to copy into new git worktrees (gitignore syntax)."
         echo "# Only files git IGNORES and that match here are copied; tracked files"
-        echo "# never are. Read by Claude Code, herdr, the post-checkout hook, and the"
-        echo "# JetBrains 'Sync worktree files' External Tool. Commit to share with the"
-        echo "# team. node_modules/vendor/.venv belong in a per-project install step, not"
+        echo "# never are. Read by Claude Code, herdr and the post-checkout hook."
+        echo "# Commit to share with the team."
+        echo "# node_modules/vendor/.venv belong in a per-project install step, not"
         echo "# here — copying them per worktree is the wrong tool."
         echo
         echo ".env"

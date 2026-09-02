@@ -127,6 +127,8 @@ esac
 # A push goes out as gh's active account, not as the repository's owner, and a
 # mismatch fails with a 403 that says nothing about which account was used.
 if ! git -C "$repo" push -u origin "$branch"; then
+    # The backticks are literal text for the reader, not a substitution.
+    # shellcheck disable=SC2016
     printf '\npush failed. pushes go out as the gh account above; `gh auth switch` changes it.\n'
     exit 1
 fi
@@ -158,19 +160,12 @@ fi
 
 printf '%s\n' "$pr_url"
 
-# Only a linked checkout can be removed, and only herdr knows which space holds
-# it. The branch is never deleted here: /worktree-remove owns that, because it
-# is the one that checks whether the merge actually landed.
-common_dir=$(git -C "$repo" rev-parse --path-format=absolute --git-common-dir)
+# Offer to remove the checkout now that the PR is in. checkout-remove.sh decides
+# whether this workspace even holds a linked worktree, and without --close-plain
+# it leaves a plain one alone: shipping from the main repo must not close it.
+# The branch survives either way -- /worktree-remove owns branch deletion,
+# because it is the one that checks whether the merge actually landed.
 workspace=${HERDR_ACTIVE_WORKSPACE_ID:-${HERDR_WORKSPACE_ID:-}}
-if [ "$common_dir" = "$repo/.git" ] || [ -z "$workspace" ]; then
-    exit 0
-fi
-
-printf '\ndelete this checkout from disk? the branch is kept [y/N] '
-read -r answer </dev/tty || exit 0
-case $answer in
-    y | Y | yes) ;;
-    *) exit 0 ;;
-esac
-herdr_cli worktree remove --workspace "$workspace" --force >/dev/null
+[ -n "$workspace" ] || exit 0
+plugin_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+"$plugin_dir/checkout-remove.sh" "$workspace"

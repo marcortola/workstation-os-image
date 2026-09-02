@@ -82,10 +82,10 @@ Written with the prefix here, unlike the reference below.
 | Key | Action |
 |---|---|
 | `Ctrl+H`, `Ctrl+J`, `Ctrl+K`, `Ctrl+L` | Focus panes, crossing into nvim. No prefix |
-| `Ctrl+G` `m` | The main tab, where claude runs |
-| `Ctrl+G` `n` | The nvim tab — not next-tab |
-| `Ctrl+G` `t` | The term tab |
-| `Ctrl+Alt+T` | The term tab, no prefix |
+| `Ctrl+G` `m` | `main`, where claude runs |
+| `Ctrl+G` `n` | `nvim` — not next-tab |
+| `Ctrl+G` `t` | `term` |
+| `Ctrl+Alt+T` | `term`, no prefix |
 | `Ctrl+Alt+N` / `Ctrl+Alt+P` | Cycle tabs, no prefix |
 | `Ctrl+G` `v` / `h` | Split beside / below |
 | `Ctrl+G` `z` | Zoom one pane, and back |
@@ -264,13 +264,17 @@ tab that is already there.
 
 | Key | Action |
 |---|---|
-| `m`, `n`, `t` | Jump to `main`, `nvim`, `term` |
+| `m`, `n`, `t` | Jump to `main`, `nvim`, `term` — tabs, or panes in the split layout |
 | `c` | New tab |
 | `1` … `9` | Tab by number |
 | `alt+x` | Close the tab |
 
 Two of these skip the prefix: `ctrl+alt+n` and `ctrl+alt+p` cycle tabs, and
 `ctrl+alt+t` jumps to `term`.
+
+In the split layout the same three keys reach panes instead, and `n` and `t`
+also hand the right-hand column to whichever of the two you asked for. `m` only
+focuses: `main` keeps its third of the width whatever you are working in.
 
 ### Panes
 

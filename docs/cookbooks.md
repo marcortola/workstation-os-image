@@ -201,7 +201,6 @@ machine — an editor config, a tool's rc file, a theme.
    | `tree` | a whole subtree, e.g. a skills directory |
    | `scrub` | a mixed file that must pass through a filter under `tooling/scrub/` first |
    | `scaffold` | image-owned, applied by chezmoi, never captured from live |
-   | `jetbrains-app` | a JetBrains product dir, captured outside the seed tree |
 
 3. Name the source path the way chezmoi does. Real lines from the manifest:
 
@@ -547,17 +546,28 @@ just worktree-init --all                 # every repo under ~/projects
 `--all` walks `WORKSTATION_PROJECTS_ROOT` (default `~/projects`) to a depth of
 four, skipping `node_modules`, `vendor` and existing worktree directories. It is
 idempotent: it never overwrites an existing `.worktreeinclude`, and never
-replaces a hook it does not recognise as its own.
+replaces a hook it does not recognise as its own. It *does* replace an older
+version of its own hook — `hook: upgraded (v0 -> v3)` — which is how a change to
+the hook reaches repos that already have one.
+
+A repo carrying a third party's `post-checkout` (git-lfs writes one) is reported
+as `hook: skip (a different post-checkout hook is already installed)` and left
+alone, so it keeps only the second, machine-local net. Deal with the foreign hook
+first, then re-run. For a stale `git lfs install` with nothing actually tracked in
+LFS, that means deleting `.git/hooks/post-checkout` and `.git/hooks/post-merge`
+and unsetting `lfs.repositoryformatversion`; the managed hook chains git-lfs
+itself, so a repo that genuinely uses LFS loses nothing by handing the slot over.
 
 **Verify:**
 
 ```bash
-test -x "$(git rev-parse --git-common-dir)/hooks/post-checkout" && echo hook ok
+hook="$(git rev-parse --git-common-dir)/hooks/post-checkout"
+test -x "$hook" && head -2 "$hook" | tail -1     # the ownership sentinel and its version
 cat .worktreeinclude
 ```
 
-Every creation path — herdr, an agent, a raw `git worktree add`, the JetBrains
-External Tool — reaches the same committed `.worktreeinclude` through the hook.
+Every creation path — herdr, an agent, a raw `git worktree add` — reaches the
+same committed `.worktreeinclude` through the hook.
 Never add a second copy list. See
 [subsystems/dev-environment.md](subsystems/dev-environment.md).
 
@@ -612,13 +622,12 @@ seed under `dot_claude/`, `dot_codex/` or `dot_config/opencode/`, the
 against a stale bundle. Run the steps by hand in that case.
 
 **Why the local run is not optional.** `tooling/validate/all` needs a live
-workstation — a booted deployment, an installed DMS, `$HOME`, foot, the
-JetBrains IDEs — so CI never reaches it. The dotfile manifest check, the
-JetBrains gate, the AI reset tests, the AI bundle check, the fish parse and
-`tooling/audit/workstation` run only where you run them. CI proves the rest:
-which job runs which gate, and which paths decide whether the image is rebuilt
-at all, are in [build-and-ci.md](build-and-ci.md); which assertion covers the
-image versus the machine is in
+workstation — a booted deployment, an installed DMS, `$HOME`, foot — so CI never
+reaches it. The dotfile manifest check, the AI reset tests, the AI bundle check,
+the fish parse and `tooling/audit/workstation` run only where you run them. CI
+proves the rest: which job runs which gate, and which paths decide whether the
+image is rebuilt at all, are in [build-and-ci.md](build-and-ci.md); which
+assertion covers the image versus the machine is in
 [validation-and-gates.md](validation-and-gates.md).
 
 Commits follow Conventional Commits with a scope: `fix(build):`, `feat(audit):`,
@@ -633,6 +642,5 @@ If a recipe here did not fit your change, [conventions.md](conventions.md) is th
 page that decides where a new file goes and explains why each mechanism exists.
 [validation-and-gates.md](validation-and-gates.md) tells you which gate proves
 what, and in particular which assertions cover the image versus the machine.
-For the capture side of the loop in more depth — the manifest, the JetBrains
-machinery and the DMS overlay — read
-[capturing-changes.md](capturing-changes.md).
+For the capture side of the loop in more depth — the manifest and the DMS
+overlay — read [capturing-changes.md](capturing-changes.md).

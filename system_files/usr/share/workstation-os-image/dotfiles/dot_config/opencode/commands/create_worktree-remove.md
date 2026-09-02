@@ -18,9 +18,9 @@ Target branch (optional): **$ARGUMENTS**
 
 1. **Detect the target.** Use the branch above if given; otherwise ask the user which
    worktree to remove. BLOCK if the target is the main worktree: "Cannot remove the
-   main worktree." Unless it was created with an explicit `--path`, the checkout lives
-   at `~/.herdr/worktrees/<repo>/<branch-slug>`, where the slug is the branch name
-   with `/` replaced by `-`.
+   main worktree." The checkout lives beside the repository at
+   `<repo>__worktrees/<branch-slug>`, where the slug is the branch name with `/`
+   replaced by `-`.
 
 2. **Check merge status (squash-merge aware).** `git cherry` is how merge state is
    determined: it lists `+` for commits not in base and `-` for patch-equivalents, so
@@ -66,7 +66,8 @@ Target branch (optional): **$ARGUMENTS**
        '.result.worktrees[] | select(.branch==$b) | .open_workspace_id // empty')
    ```
    If `$ws` is non-empty, run `herdr worktree remove --workspace "$ws"`. If `$ws` is
-   empty, or no herdr server is running (`herdr status`), fall back to
+   empty — the jq filter reads `.open_workspace_id`, so this is any checkout whose
+   workspace is not currently open — fall back to
    `git worktree remove "$worktree_path"`. Both paths run `git worktree remove`
    underneath, so both refuse on a dirty checkout. A refusal means uncommitted changes
    exist — do not add `--force` (it discards them) without re-checking merge/dirty
@@ -92,13 +93,6 @@ Target branch (optional): **$ARGUMENTS**
 
 7. **Verify** with `git worktree list --porcelain` and report the remaining count.
 
-## Worktrees created outside herdr
-
-A worktree created outside herdr — from a JetBrains IDE, or by a plain
-`git worktree add` — has no herdr workspace to look up, so `$ws` comes back empty and
-the git fallback in step 4 handles it. Close the worktree's project in the IDE first
-so it is not left pointing at a deleted directory; the nvim-session cleanup in step 6
-is a harmless no-op for you.
 
 ## When removing the current working directory
 
