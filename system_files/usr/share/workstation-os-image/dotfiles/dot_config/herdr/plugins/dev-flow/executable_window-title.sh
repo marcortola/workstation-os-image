@@ -19,6 +19,14 @@ if [ -z "$title" ]; then
   exit 0
 fi
 
+# The tab bar's right-hand entry runs this script rather than duplicating the
+# derivation above: herdr resolves a `command` entry on the server and reads its
+# last output line, so --print writes the title instead of pushing it.
+if [ "${1:-}" = "--print" ]; then
+  printf '%s\n' "$title"
+  exit 0
+fi
+
 jq -cn --arg title "$title" \
   '{id: "dev.flow:window-title", method: "client.window_title.set", params: {title: $title}}' |
   "$plugin_dir/herdr-request.sh" >/dev/null
