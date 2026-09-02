@@ -164,11 +164,17 @@ description = "ship the branch: push, PR, auto-merge"
 width = "70%"
 height = "60%"
 
+# One key for both dev layouts, because two were one too many: the layout that
+# is applied is read off the workspace, so this alternates between the three
+# tabs and the single split tab, and the first press on a bare workspace builds
+# the three tabs. dev.flow.layout and dev.flow.layout-split stay registered and
+# unbound, for reaching either layout explicitly; the two callers that need the
+# default layout rather than a toggle exec layout.sh by path instead.
 [[keys.command]]
 key = "prefix+shift+n"
 type = "plugin_action"
-command = "dev.flow.layout"
-description = "apply dev layout"
+command = "dev.flow.layout-toggle"
+description = "toggle the dev layout: three tabs, or one split tab"
 
 [[keys.command]]
 key = "prefix+shift+u"

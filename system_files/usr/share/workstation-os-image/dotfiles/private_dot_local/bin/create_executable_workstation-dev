@@ -45,18 +45,31 @@ project=${selection%%$'\t'*}
 # The dev layout is three tabs -- main running the agent, plus nvim and term. The
 # plugin applies it only for a herdr-created worktree (worktree-create.sh) or on
 # demand from prefix+shift+n, so a workspace reached through this picker never
-# gets it. Gate on the tab count rather than on which branch called: layout.sh
-# creates its tabs unconditionally, so a second run stacks another nvim and term.
-# That gate also lays out a single-tab workspace restored from a session that
-# predates this. layout.sh calls herdr, jq, git and dirname by name, and this
-# script does not trust the PATH a niri keybind hands it. A failure here must not
-# cost the caller its exec below, so it never propagates.
+# gets it. Call layout.sh, not layout-toggle.sh: picking a project is a request
+# for that layout, never for the other one.
+#
+# Gate on what the workspace already holds rather than on which branch called.
+# layout.sh converges rather than duplicates now, so this is no longer what
+# stands between a second pick and a second nvim tab -- it is what stops a pick
+# from taking apart the split layout the last press chose, and it still lays out
+# a single-tab workspace restored from a session that predates all of this. One
+# tab is not enough on its own, because the split layout is one tab too, laid
+# out already with three panes in it. A workspace nothing has laid out yet is
+# the one with a single pane as well.
+#
+# layout.sh calls herdr, jq, git and dirname by name, and this script does not
+# trust the PATH a niri keybind hands it. A failure here must not cost the
+# caller its exec below, so it never propagates.
 herdr_apply_layout() {
-    local workspace=$1 tabs
+    local workspace=$1 tabs panes
 
     tabs="$("$herdr_bin" tab list --workspace "$workspace" 2>/dev/null |
         "$jq_bin" -r '[.result.tabs[]?] | length')" || return 0
     [[ $tabs == 1 ]] || return 0
+
+    panes="$("$herdr_bin" pane list --workspace "$workspace" 2>/dev/null |
+        "$jq_bin" -r '[.result.panes[]?] | length')" || return 0
+    [[ $panes == 1 ]] || return 0
 
     HERDR_BIN_PATH="$herdr_bin" \
         PATH="/usr/bin:/home/linuxbrew/.linuxbrew/bin:$PATH" \

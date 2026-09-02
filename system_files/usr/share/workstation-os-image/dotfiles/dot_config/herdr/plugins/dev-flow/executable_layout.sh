@@ -1,67 +1,19 @@
 #!/usr/bin/env bash
+# The default dev layout: three tabs -- main running the agent, plus nvim and
+# term. Applied for a herdr-created worktree, for a project picked from the
+# workstation-dev picker, and as one half of the prefix+shift+n toggle, which is
+# also what takes the split layout (layout-split.sh) apart again.
+#
+# Every step here is written to converge rather than to build: a second run adds
+# nothing, and a workspace that has drifted -- a tab closed, a pane exited, a
+# duplicate left over -- comes back to the same three tabs. Building
+# unconditionally is what stacked another `nvim` and another `term` on each
+# press of the key.
 set -euo pipefail
 
-herdr_cli() {
-  "${HERDR_BIN_PATH:-herdr}" "$@"
-}
-
 plugin_dir=$(cd "$(dirname "$0")" && pwd)
-# shellcheck source=agent-finished.sh
-. "$plugin_dir/agent-finished.sh"
-
-target_workspace() {
-  if [ -n "${1:-}" ]; then
-    printf '%s\n' "$1"
-    return 0
-  fi
-  if [ -n "${HERDR_WORKSPACE_ID:-}" ]; then
-    printf '%s\n' "$HERDR_WORKSPACE_ID"
-    return 0
-  fi
-  # herdr's PluginInvocationContext is flat: `workspace_id`, `workspace_label`,
-  # `tab_id`, and no nested `workspace` object -- unlike an API response, where
-  # `.result.workspace.workspace_id` is right. Reading only the nested path made
-  # this fallback resolve to nothing; it went unnoticed because an action is also
-  # handed HERDR_WORKSPACE_ID, which the branch above takes first. Read both, so
-  # an event hook reaching here still resolves.
-  printf '%s' "${HERDR_PLUGIN_CONTEXT_JSON:-}" |
-    jq -r '.workspace_id // .workspace.workspace_id // empty'
-}
-
-first_tab_of() {
-  herdr_cli tab list --workspace "$1" | jq -r '[.result.tabs[].tab_id] | first // empty'
-}
-
-root_pane_of_tab() {
-  herdr_cli pane list --workspace "$1" | jq -r --arg tab "$2" '[.result.panes[] | select(.tab_id == $tab) | .pane_id] | first // empty'
-}
-
-pane_cwd() {
-  herdr_cli pane get "$1" | jq -r '.result.pane.cwd // empty'
-}
-
-# Whether the pane is idle, asked as "is the shell itself the foreground process
-# group". Matching process names instead is what the upstream probe did through a
-# field herdr 0.8.2 does not return (`argv0`, so `test` hit null and jq aborted
-# and every pane read as busy), and repairing that to `name` only traded one
-# failure for a flakier one: fish runs `direnv hook fish` while it starts, and a
-# probe landing in that window saw a non-shell name and skipped the agent in
-# roughly half of cold picks. The transient is a child of the shell's own process
-# group, so this comparison rides through it, and it needs no list of shell or
-# helper names to stay correct.
-pane_is_free() {
-  herdr_cli pane process-info --pane "$1" |
-    jq -e '.result.process_info | .foreground_process_group_id == .shell_pid' >/dev/null 2>&1
-}
-
-create_tab_running() {
-  local workspace=$1 label=$2 cwd=$3 command=${4:-} pane
-  pane=$(herdr_cli tab create --workspace "$workspace" --label "$label" --cwd "$cwd" --no-focus |
-    jq -r '.result.root_pane.pane_id // empty')
-  if [ -n "$command" ] && [ -n "$pane" ]; then
-    herdr_cli pane run "$pane" "$command" >/dev/null
-  fi
-}
+# shellcheck source=layout-common.sh
+. "$plugin_dir/layout-common.sh"
 
 workspace=$(target_workspace "${1:-}")
 if [ -z "$workspace" ]; then
@@ -69,59 +21,97 @@ if [ -z "$workspace" ]; then
   exit 1
 fi
 
-# `dev nvim` runs Neovim inside the project's Dev Container so LSP and parsers
-# see the project's real dependencies; it exits 1 with a message when the tree
-# has no .devcontainer, so pick the editor command per project rather than
-# leaving that tab showing an error.
-editor_command() {
-  # Two `local` assignments, not one: bash expands every word before the
-  # builtin runs, so `local dir=$1 probe=$dir` reads the caller's unset `dir`
-  # and `set -u` aborts the function.
-  local dir=$1
-  local probe=$dir
-  local root
-  root=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null || true)
-  while :; do
-    if [ -f "$probe/.devcontainer/devcontainer.json" ] || [ -f "$probe/.devcontainer.json" ]; then
-      printf 'dev nvim\n'
-      return 0
-    fi
-    # -ef, not =: /home is a symlink to /var/home, so the caller's path and the
-    # physical one git reports never compare equal as strings and the walk would
-    # run past the repository into ~ and /.
-    [ "$probe" -ef "${root:-/}" ] && break
-    [ "$probe" = / ] && break
-    probe=$(dirname "$probe")
-  done
-  printf 'nvim\n'
+read -r main_tab main_pane cwd <<<"$(layout_anchor "$workspace" "${2:-}")"
+if [ -z "$main_pane" ]; then
+  echo "no agent pane in workspace $workspace" >&2
+  exit 1
+fi
+
+# Give a pane of the split layout a tab of its own again. `pane move` carries the
+# process across, so this undoes the split without restarting Neovim over its
+# unsaved buffers. The pane label does not come with it: it exists so
+# focus-tab.sh can find the pane inside the split tab, and here the tab label
+# answers instead.
+#
+# A tab already carrying the label is moved into rather than a second one built.
+# herdr accepts duplicate tab labels and every lookup takes the first match, so a
+# second `nvim` tab does not merely clutter the bar: it captures prefix+n and the
+# next split, and the editor actually in use is never found again.
+tab_out() {
+  local pane=$1 label=$2 existing
+  tab_unzoom "$pane"
+  existing=$(layout_tab_for_label "$workspace" "$label")
+  if [ -n "$existing" ]; then
+    tab_unzoom "$(first_pane_of_tab "$workspace" "$existing")"
+    pane_move_into_tab "$pane" "$existing" down 0.5 || return 1
+  else
+    pane_move_new_tab "$pane" "$label" >/dev/null || return 1
+  fi
+  pane_rename "$pane" ""
 }
 
-main_tab=$(first_tab_of "$workspace")
-main_pane=$(root_pane_of_tab "$workspace" "$main_tab")
-cwd=${2:-$(pane_cwd "$main_pane")}
-
-# Resume the conversation only while it is still the same stretch of work: a
-# checkout whose last agent finish is inside AGENT_EXPIRED_SECONDS reopens with
-# `claude --continue`, an expired one starts clean. Without a stamp there is
-# nothing to continue and `--continue` would fail the pane into a bare shell,
-# so no stamp means a clean start too.
-claude_command() {
-  local age
-  age=$(agent_finished_age "$(agent_checkout_key "$1")") || {
-    printf 'claude\n'
-    return 0
-  }
-  if [ "$age" -lt "$AGENT_EXPIRED_SECONDS" ]; then
-    printf 'claude --continue\n'
+# The tab for one of the two side roles, reused when it is already there and
+# built only when it is not. An existing tab is handed its command again only if
+# its pane went idle -- the rule the split layout applies to a pane it adopts --
+# and a tab just created is started from this branch rather than probed, because
+# a brand-new pane's shell is too young to answer the process probe reliably.
+ensure_tab_running() {
+  local label=$1 command=${2:-} tab pane
+  tab=$(layout_tab_for_label "$workspace" "$label")
+  if [ -n "$tab" ]; then
+    pane=$(first_pane_of_tab "$workspace" "$tab")
+    if [ -z "$pane" ] || ! pane_is_free "$pane"; then
+      return 0
+    fi
   else
-    printf 'claude\n'
+    pane=$(herdr_cli tab create --workspace "$workspace" --label "$label" --cwd "$cwd" --no-focus |
+      jq -r '.result.root_pane.pane_id // empty')
+  fi
+  if [ -n "$command" ] && [ -n "$pane" ]; then
+    herdr_cli pane run "$pane" "$command" >/dev/null
   fi
 }
 
+# Coming from the split layout the editor and the terminal are panes rather than
+# tabs of their own, and they are moved out instead of being built a second
+# time. Either of the two can be missing -- a shell exited, a pane was closed --
+# and the run carries on to the builders below rather than stopping there, so a
+# half-taken-apart split ends up whole.
+#
+# They are looked for across the workspace, not inside the agent's tab. A pane
+# of either name exists under no other layout, and it is not always in that tab:
+# a split workspace whose agent pane had exited is rebuilt around a NEW agent
+# tab above, leaving the editor and the terminal in the tab they were already
+# in. Scoping the search to the agent's tab left them there and built
+# replacements beside them.
+split_nvim=$(workspace_pane_by_label "$workspace" nvim)
+split_term=$(workspace_pane_by_label "$workspace" term)
+
+if [ -n "$split_nvim" ] || [ -n "$split_term" ]; then
+  # A pane that will not move is still here, still running the editor or the
+  # shell. Carrying on would build a replacement beside it, which is the
+  # duplication this whole file exists to avoid, so stop at the first refusal
+  # and leave the split as it stands rather than half-taking it apart.
+  if [ -n "$split_nvim" ]; then
+    if ! tab_out "$split_nvim" nvim; then
+      echo "could not move the editor out of the split; layout left as it was" >&2
+      exit 1
+    fi
+  fi
+  if [ -n "$split_term" ]; then
+    if ! tab_out "$split_term" term; then
+      echo "could not move the terminal out of the split; layout left as it was" >&2
+      exit 1
+    fi
+  fi
+  pane_rename "$main_pane" ""
+fi
+
 herdr_cli tab rename "$main_tab" main >/dev/null
+
 if pane_is_free "$main_pane"; then
   herdr_cli pane run "$main_pane" "$(claude_command "$cwd")" >/dev/null
 fi
 
-create_tab_running "$workspace" nvim "$cwd" "$(editor_command "$cwd")"
-create_tab_running "$workspace" term "$cwd"
+ensure_tab_running nvim "$(editor_command "$cwd")"
+ensure_tab_running term

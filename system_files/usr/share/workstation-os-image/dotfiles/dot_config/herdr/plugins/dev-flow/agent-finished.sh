@@ -11,8 +11,10 @@
 # space is closed and the checkout outlives it, which is exactly the case the
 # expiry window exists for.
 #
-# Sourced, not run. Callers: agent-freshness.sh writes, spaces.sh and layout.sh
-# read. Do not add a second recency source; extend this one.
+# Sourced, not run. Callers: agent-freshness.sh writes; spaces.sh reads, and so
+# does layout-common.sh's claude_command, which is how both layouts decide
+# whether to resume the conversation. Do not add a second recency source;
+# extend this one.
 
 AGENT_FINISHED_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/workstation/agent-finished"
 

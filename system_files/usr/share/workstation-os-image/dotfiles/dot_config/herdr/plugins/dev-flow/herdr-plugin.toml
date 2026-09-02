@@ -3,6 +3,12 @@
 # `platforms` upstream reads ["macos"]; herdr links such a plugin without
 # complaint but refuses every action at invoke time with
 # `platform_unsupported ... (linux)`, so the field must name this platform.
+#
+# Editing this file does nothing on its own: herdr caches it in
+# ~/.config/herdr/plugins.json, and `herdr server reload-config` reloads only
+# config.toml, reporting success while the registry still holds the previous
+# actions. A key bound to an unregistered action is silently dead. Re-link the
+# plugin over the socket after an edit -- see dev-environment.md.
 id = "dev.flow"
 name = "Dev flow"
 version = "0.1.0"
@@ -10,11 +16,29 @@ min_herdr_version = "0.8.2"
 description = "Worktree bootstrap and dev pane layout"
 platforms = ["linux", "macos"]
 
+# The three layout actions. `layout-toggle` is the one on a key; the other two
+# are registered for reaching either layout explicitly over the socket, and
+# nothing invokes them today. The two callers that need the default layout
+# rather than a toggle -- worktree-create.sh for a checkout it has just made,
+# and workstation-dev for a project picked from Mod+Shift+P -- exec layout.sh by
+# path and do not go through the registry at all.
+[[actions]]
+id = "layout-toggle"
+title = "Toggle the dev layout"
+contexts = ["workspace"]
+command = ["./layout-toggle.sh"]
+
 [[actions]]
 id = "layout"
 title = "Apply dev layout"
 contexts = ["workspace"]
 command = ["./layout.sh"]
+
+[[actions]]
+id = "layout-split"
+title = "Apply split layout"
+contexts = ["workspace"]
+command = ["./layout-split.sh"]
 
 [[actions]]
 id = "adopt-worktrees"
