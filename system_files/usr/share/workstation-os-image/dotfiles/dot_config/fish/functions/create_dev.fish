@@ -67,27 +67,61 @@ function dev --description "Run a command in the nearest Dev Container (no args 
     # writes state beside it.
     if type -q lazygit
         set -a mounts --mount \
-            "type=bind,source="(realpath (command -v lazygit))",target=/usr/local/bin/lazygit,readonly"
+            "type=bind,source="(realpath (command -v lazygit))",target=/usr/local/bin/lazygit"
     end
     if test -d "$HOME/.config/lazygit"
         set -a mounts --mount \
-            "type=bind,source=$HOME/.config/lazygit,target=/lazygitconf-src,readonly"
+            "type=bind,source=$HOME/.config/lazygit,target=/lazygitconf-src"
     end
 
-    # Idempotent: builds/starts on first call, fast no-op once running.
-    if not devcontainer up --workspace-folder "$root" $mounts >/dev/null 2>&1
-        echo "dev: failed to start devcontainer — retry verbosely with:" >&2
-        echo "     devcontainer up --workspace-folder $root $mounts" >&2
+    # A linked worktree's `.git` is a FILE pointing at the main repo, so the
+    # checkout alone is not a repository once bind-mounted. This flag mounts the
+    # common `.git` beside it -- but only where the worktree records a relative
+    # path, which is why the git config sets `worktree.useRelativePaths`. On a
+    # normal checkout, and on a worktree with an absolute path, it is inert.
+    # Every `exec` needs it too: the remote workspace folder is derived the
+    # same way, so omitting it there chdirs to a path the container lacks.
+    set -l dcflags --mount-git-worktree-common-dir
+
+    # Idempotent: builds/starts on first call, fast no-op once running. The
+    # output is captured rather than discarded so a failure can report the CLI's
+    # own message: a rejected flag or a broken build is otherwise invisible.
+    set -l uplog (mktemp)
+    if not devcontainer up --workspace-folder "$root" $dcflags $mounts >$uplog 2>&1
+        echo "dev: failed to start devcontainer:" >&2
+        tail -n 20 $uplog >&2
+        echo "dev: retry verbosely with:" >&2
+        echo "     devcontainer up --workspace-folder $root $dcflags $mounts" >&2
+        rm -f $uplog
         return 1
     end
+    rm -f $uplog
 
     if test "$argv[1]" = nvim
         # A container created earlier WITHOUT these mounts (e.g. by JetBrains
         # Gateway or an older `dev`) is reused by `up` with the mounts absent;
         # recreate it once so the config/store are actually present.
-        if not devcontainer exec --workspace-folder "$root" bash -c 'test -f /nvimconf-src/init.lua -a -d /nvimdata -a -d /nvim-plugins'
-            echo "dev nvim: container lacks the nvim mounts; recreating..." >&2
-            devcontainer up --workspace-folder "$root" $mounts --remove-existing-container >/dev/null 2>&1
+        set -l ready 'test -f /nvimconf-src/init.lua -a -d /nvimdata -a -d /nvim-plugins'
+        # A worktree recorded RELATIVELY also needs the common `.git` mounted,
+        # which a container created before that flag lacks. Resolve the pointer
+        # with sed rather than git: a base image without git, or one that trips
+        # over `dubious ownership`, would otherwise fail this check forever and
+        # recreate the container on every launch. An absolute pointer is skipped
+        # because the flag is inert there and recreating would fix nothing.
+        if test -f "$root/.git"; and string match -qr '^gitdir: [^/]' (head -n1 "$root/.git")
+            set ready "$ready && test -e \"\$(sed -n 's/^gitdir: *//p' .git)\""
+        end
+        if not devcontainer exec --workspace-folder "$root" $dcflags bash -c "$ready"
+            echo "dev nvim: container is missing a mount; recreating..." >&2
+            set -l relog (mktemp)
+            if not devcontainer up --workspace-folder "$root" $dcflags $mounts \
+                    --remove-existing-container >$relog 2>&1
+                echo "dev nvim: recreating the container failed:" >&2
+                tail -n 20 $relog >&2
+                rm -f $relog
+                return 1
+            end
+            rm -f $relog
         end
 
         # Provision (idempotent): reset the store if the base image changed
@@ -149,7 +183,7 @@ function dev --description "Run a command in the nearest Dev Container (no args 
                 cp -a /lazygitconf-src /nvimdata/config/lazygit
             fi
         '
-        if not devcontainer exec --workspace-folder "$root" bash -c "$boot"
+        if not devcontainer exec --workspace-folder "$root" $dcflags bash -c "$boot"
             echo "dev nvim: provisioning failed" >&2
             return 1
         end
@@ -197,7 +231,7 @@ function dev --description "Run a command in the nearest Dev Container (no args 
                 --remote-env "GIT_COMMITTER_EMAIL=$git_email"
         end
 
-        devcontainer exec --workspace-folder "$root" \
+        devcontainer exec --workspace-folder "$root" $dcflags \
             $iph_env \
             $git_env \
             --remote-env "NVIM_MASON_LANGS=$mlangs" \
@@ -210,8 +244,8 @@ function dev --description "Run a command in the nearest Dev Container (no args 
             --remote-env TERM=xterm-256color \
             bash -c 'export PATH=/nvimdata/node/bin:/nvimdata/bin:$PATH; cd "$1" || exit; shift; exec /nvimdata/nvim/bin/nvim "$@"' -- "$rel" $argv[2..-1]
     else if test (count $argv) -eq 0
-        devcontainer exec --workspace-folder "$root" bash -c 'cd "$1" || exit; exec bash' -- "$rel"
+        devcontainer exec --workspace-folder "$root" $dcflags bash -c 'cd "$1" || exit; exec bash' -- "$rel"
     else
-        devcontainer exec --workspace-folder "$root" bash -c 'cd "$1" || exit; shift; exec "$@"' -- "$rel" $argv
+        devcontainer exec --workspace-folder "$root" $dcflags bash -c 'cd "$1" || exit; shift; exec "$@"' -- "$rel" $argv
     end
 end

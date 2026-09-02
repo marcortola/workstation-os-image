@@ -59,3 +59,9 @@
 
 [column]
     ui = auto
+
+[worktree]
+    # Linked worktrees record the main repo with a relative path, so a checkout
+    # stays a repository when it is bind-mounted into a Dev Container alongside
+    # the common .git (see `dev`, which passes --mount-git-worktree-common-dir).
+    useRelativePaths = true

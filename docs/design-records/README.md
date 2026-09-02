@@ -46,6 +46,7 @@ before starting long work.
 |---|---|
 | [docs-split.md](docs-split.md) | Why the 855-line root README became this handbook: the three audiences one file was failing, the sub-decisions whose cheaper alternative was rejected, and the twenty factual defects corrected while the text moved. |
 | [agent-recency.md](agent-recency.md) | Why "when did this agent finish?" needed a clock of our own, where the stamp lives, and the four cheaper routes that lost — a seen-watermark, polling, a subscriber daemon, and expiring open spaces. |
+| [worktree-dev-containers.md](worktree-dev-containers.md) | Why a linked worktree was not a repository inside its Dev Container, why the fix is a git config setting rather than a flag on each `git worktree add`, and the four cheaper routes that lost — project-owned `mounts`, a vendored lazygit, flagging the recipes, and hand-rolling the extra bind mount. |
 | [herdr-layouts.md](herdr-layouts.md) | Why the dev workspace has two layouts rather than one, why neither is built with `layout.apply` — the call that replaces the tab and restarts the agent — and the four arrangements that lost, including the two-tab shape a pane's single-tab membership rules out. |
 | [upgrade-download-size.md](upgrade-download-size.md) | Why every `bootc upgrade` re-downloaded 1.4 GB, the four changes that cut it to ~0.8 GB, and the five routes that were measured and lost — rechunking, splitting the packages `RUN`, chasing the layer cache, prefetching, and rescheduling `uupd`. |
 
