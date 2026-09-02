@@ -55,6 +55,7 @@ scaffold|.config/herdr/plugins/dev-flow/focus-tab.sh|dot_config/herdr/plugins/de
 scaffold|.config/herdr/plugins/dev-flow/herdr-request.sh|dot_config/herdr/plugins/dev-flow/executable_herdr-request.sh|-
 scaffold|.config/herdr/plugins/dev-flow/layout-common.sh|dot_config/herdr/plugins/dev-flow/layout-common.sh|-
 scaffold|.config/herdr/plugins/dev-flow/layout-split.sh|dot_config/herdr/plugins/dev-flow/executable_layout-split.sh|-
+scaffold|.config/herdr/plugins/dev-flow/layout-toggle.sh|dot_config/herdr/plugins/dev-flow/executable_layout-toggle.sh|-
 scaffold|.config/herdr/plugins/dev-flow/layout.sh|dot_config/herdr/plugins/dev-flow/executable_layout.sh|-
 scaffold|.config/herdr/plugins/dev-flow/lazygit.sh|dot_config/herdr/plugins/dev-flow/executable_lazygit.sh|-
 scaffold|.config/herdr/plugins/dev-flow/navigate.sh|dot_config/herdr/plugins/dev-flow/executable_navigate.sh|-

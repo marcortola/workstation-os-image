@@ -56,9 +56,9 @@ Three things follow from that shape.
 is always the share of its first child, so all three describe the same thing and
 the file says so rather than leaving each reader to work it out.
 
-**Switching moves panes, it does not rebuild them.** `prefix+shift+v` adopts the
-`nvim` and `term` panes out of their tabs when they exist; `prefix+shift+n` moves
-them back out with `pane move --new-tab`. A tab closes itself once its last pane
+**Switching moves panes, it does not rebuild them.** Applying the split adopts
+the `nvim` and `term` panes out of their tabs when they exist; going back moves
+them out again with `pane move --new-tab`. A tab closes itself once its last pane
 leaves. The measured result: the editor's process group id is unchanged across a
 round trip, so unsaved buffers survive, and so does the agent's conversation.
 
@@ -100,10 +100,9 @@ which is the state the second layout exists to remove.
 
 ## Shipping
 
-The layout is `layout-split.sh`, the action is `dev.flow.layout-split`, and the
-key is `prefix+shift+v` — the sibling of `prefix+v` `split_vertical`, because it
-is the side-by-side one. `[keys]` is a cascade, so `herdr config check` ran after
-the edit and reported `config: ok`.
+The layout is `layout-split.sh` and the action is `dev.flow.layout-split`. It
+shipped on its own key, `prefix+shift+v`, the sibling of `prefix+v`
+`split_vertical`. That did not survive contact: see **One key** below.
 
 Two things had to learn about the second layout. `focus-tab.sh` now falls back
 from a tab of the requested label to a pane of it, which is why the split tab is
@@ -115,10 +114,60 @@ have taken it apart.
 
 ---
 
+## One key
+
+Two keys were one too many. A layout is a place you are, not a command you issue,
+so there is one key — `prefix+shift+n`, through `layout-toggle.sh` — and it reads
+which layout the workspace is in and applies the other. A *pane* called `nvim` or
+`term` is the split layout's mark and exists under no other; a *tab* of that name
+is the default layout's; neither means nothing is laid out yet, so the first
+press builds the default and every press after it alternates. Each question is
+asked of the whole workspace: asking inside the agent's tab made the answer
+depend on finding the agent first, which a split workspace whose agent pane had
+exited could not do.
+
+The two scripts stay separately runnable, because `worktree-create.sh` and
+`workstation-dev` want the default layout and not a toggle, and both `exec`
+`layout.sh` by path.
+
+**The keys were the smaller half.** Pressing the layout key twice stacked a
+second `nvim` and `term` tab, and four independent roots each did it:
+
+- The builders ran unconditionally. They reuse a tab that already carries the
+  label instead.
+- The agent's tab was whichever tab came first. With the agent pane exited that
+  was the editor's tab — renamed `main`, given a second Neovim, left with no
+  agent. Both layouts find it by label now, and build a new one when the
+  workspace has genuinely lost it.
+- **`pane move` answers a refusal with a `SUCCESS` reply.** `changed` is `false`
+  and `reason` is `same_tab` or `zoomed_tab`, while `pane` — required on every
+  answer — still reports the *unchanged* tab. Reading the tab id back out of that
+  reply made a zoomed tab rename the tab everything was still in. Read
+  `created_tab`, which is null unless a tab was really made, check `changed`, drop
+  the zoom before moving, and never build a replacement for a pane that would not
+  move. This is the trap under the other three and the one to remember.
+- herdr accepts two tabs called `nvim` and every lookup takes the first, so one
+  duplicate was permanent: the orphan shadowed the tab being worked in. The tie
+  breaks on which tab is running something, and a tab the user split further
+  loses the label when its pane is adopted away.
+
+Nothing here closes a tab. Duplicates from before the fix shrink as the layouts
+reuse them, but they never disappear on their own.
+
+**Editing `herdr-plugin.toml` does nothing until the plugin is re-linked.** herdr
+caches the manifest in `plugins.json` and `server reload-config` covers
+`config.toml` only — it reports `"status":"applied"` while the registry still
+holds the previous actions, so a key bound to an action herdr has not registered
+is silently dead. Checked on this machine while making this change,
+`plugins.json` listed only `adopt-worktrees` and `layout`, so the running server
+had `prefix+shift+v` bound to an action it did not know about.
+
+---
+
 ## Where to go next
 
 [../subsystems/dev-environment.md](../subsystems/dev-environment.md) owns the
 current behaviour of both layouts, and [../keybindings.md](../keybindings.md)
 owns the keys. [agent-recency.md](agent-recency.md) covers the stamp
-`layout.sh` and `layout-split.sh` read to decide whether the agent resumes the
-conversation or starts clean.
+`claude_command` reads — in `layout-common.sh`, for both layouts — to decide
+whether the agent resumes the conversation or starts clean.

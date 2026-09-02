@@ -7,7 +7,11 @@ herdr_cli() {
 
 trap 'exit 0' INT TERM
 
-pane=${HERDR_ACTIVE_PANE_ID:-}
+# HERDR_ACTIVE_PANE_ID is upstream residue: herdr 0.8.2 injects HERDR_PANE_ID
+# and never sets that name, so reading it alone made prefix+u a popup that
+# closed on itself with no list and nothing logged. navigate.sh carries the same
+# pair and survived only because of its fallback.
+pane=${HERDR_ACTIVE_PANE_ID:-${HERDR_PANE_ID:-}}
 if [ -z "$pane" ]; then
   exit 0
 fi

@@ -74,7 +74,7 @@ Written with the prefix here, unlike the reference below.
 | `Ctrl+G` `shift+u` | Adopt every repository's worktrees as spaces |
 | `Ctrl+G` `shift+x` | Close a space, showing uncommitted work first |
 | `Ctrl+G` `shift+m` | Ship the branch: push, PR, auto-merge |
-| `Ctrl+G` `shift+n` | Build the layout: main, nvim, term |
+| `Ctrl+G` `shift+n` | Toggle the layout: three tabs, or one split tab |
 | `Ctrl+G` `g` | lazygit at this pane's repository |
 
 #### Tabs and panes
@@ -241,8 +241,7 @@ without the prefix.
 | `shift+o` | Open an existing worktree |
 | `shift+u` | Adopt every repository's worktrees as spaces, in one pass |
 | `shift+m` | Ship the branch: push, open the PR, merge it when checks pass |
-| `shift+n` | Build the layout: `main`, `nvim`, `term` |
-| `shift+v` | The other layout: `main` beside `nvim` over `term` |
+| `shift+n` | Toggle the layout: three tabs (`main`, `nvim`, `term`), or one split tab |
 
 The space picker refreshes itself while it is open, so progress arrives without
 reopening it. A `*` beside the state means that space finished within the last
@@ -255,11 +254,11 @@ old one. Inside the picker, `ctrl+r` rescans for worktrees created elsewhere and
 than writing a commit and never deletes a branch; `/worktree-push` is the half
 that needs judgement.
 
-There are two layouts and `shift+n` is the default one. `shift+v` builds the
-other: a single tab holding all three, with `main` pinned to a third of the
-width on the left and `nvim` stacked over `term` in the rest. `shift+n` takes it
-apart again. Neither direction restarts anything — the panes are moved, so the
-agent keeps its conversation and the editor keeps its unsaved buffers.
+`shift+n` reads which layout is applied and gives you the other one, so the
+first press on a bare workspace builds the three tabs and every press after it
+alternates. Neither direction recreates anything — the panes are moved, so the
+agent keeps its conversation and Neovim its unsaved buffers — and neither adds a
+tab that is already there.
 
 ### Tabs
 

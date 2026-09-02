@@ -162,7 +162,7 @@
       },
       {
         "key": "Ctrl+G shift+n",
-        "desc": "Build the layout: main, nvim, term",
+        "desc": "Toggle the layout: three tabs, or one split tab",
         "subcat": "Projects and worktrees"
       },
       {
@@ -483,12 +483,7 @@
       },
       {
         "key": "shift+n",
-        "desc": "Build the layout: main, nvim, term",
-        "subcat": "Projects"
-      },
-      {
-        "key": "shift+v",
-        "desc": "The other layout: main beside nvim over term",
+        "desc": "Toggle the layout: three tabs (main, nvim, term), or one split tab",
         "subcat": "Projects"
       },
       {

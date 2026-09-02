@@ -75,7 +75,11 @@ Three consumers, one clock:
 |---|---|---|
 | Space picker | Is this space newly finished? | `AGENT_FRESH_SECONDS`, 10 min, rendered as `*` |
 | Space picker | Has this checkout gone stale? | `AGENT_EXPIRED_SECONDS`, 12 h, row hidden |
-| `layout.sh` | Resume the conversation or start clean? | `AGENT_EXPIRED_SECONDS` |
+| `claude_command`, in `layout-common.sh` | Resume the conversation or start clean? | `AGENT_EXPIRED_SECONDS` |
+
+The third row is one consumer with two callers: `layout.sh` and
+`layout-split.sh` both start the agent through `claude_command`, which is why it
+lives in the file they share rather than in either of them.
 
 The stamp is keyed by **checkout path**, not by workspace id. A workspace id
 dies when the space is closed, and the case the twelve-hour window exists for is

@@ -8,8 +8,8 @@
 #   |  33%   |  term (a sliver) |
 #   +--------+------------------+
 #
-# The default layout is still layout.sh's three tabs; this one is applied on
-# demand from prefix+shift+v, and prefix+shift+n takes it apart again. Neither
+# The default layout is still layout.sh's three tabs; this one is the other half
+# of the prefix+shift+n toggle, and layout.sh takes it apart again. Neither
 # direction recreates anything: panes are moved, so the agent keeps its
 # conversation and Neovim keeps its unsaved buffers. See layout-common.sh for
 # why `layout.apply` is not used to build either layout.
@@ -25,28 +25,59 @@ if [ -z "$workspace" ]; then
   exit 1
 fi
 
-# Whichever tab is first holds the agent: `main` coming from the default layout,
-# `dev` coming from this one applied already.
-dev_tab=$(first_tab_of "$workspace")
-main_pane=$(main_pane_of_tab "$workspace" "$dev_tab")
-cwd=${2:-$(pane_cwd "$main_pane")}
+# The agent's tab is what this is built around: `main` coming from the default
+# layout, `dev` coming from this one applied already, and a fresh one when the
+# workspace has lost it. Taking whichever tab came first is what used to build
+# the split around Neovim and leave the workspace with no agent.
+read -r dev_tab main_pane cwd <<<"$(layout_anchor "$workspace" "${2:-}")"
+if [ -z "$main_pane" ]; then
+  echo "no agent pane in workspace $workspace" >&2
+  exit 1
+fi
 
 # Take the pane out of the tab the default layout gave it, rather than opening a
 # second editor beside the one already running. The tab closes itself once its
 # last pane leaves. A tab the user has split further keeps its remaining panes
 # and its label; only the first pane moves.
+#
+# A refused move -- a zoomed tab, or a pane already here -- comes back as a
+# success response carrying `changed: false`. Reporting that as an adoption left
+# the pane in its old tab while everything downstream labelled, resized and
+# focused it as though it had arrived.
+#
+# The two failures are told apart on purpose. 1 is "there is nothing to adopt",
+# and the caller builds the pane. 2 is "there is something and it would not
+# move", and building would put a second editor beside the one still running,
+# so the caller stops instead.
 adopt_tab_pane() {
-  local label=$1 target=$2 direction=$3 ratio=$4 source_tab pane
-  source_tab=$(tab_by_label "$workspace" "$label")
-  if [ -z "$source_tab" ] || [ "$source_tab" = "$dev_tab" ]; then
+  local label=$1 target=$2 direction=$3 ratio=$4 source_tab pane located
+  # A pane already carrying the name is this layout's own mark, left behind in
+  # the tab it was in when the workspace lost its agent pane and this run was
+  # given a new one. It is the editor that is actually running, so it comes
+  # before the default layout's tab of the same name.
+  located=$(labelled_pane_of "$workspace" "$label")
+  if [ -n "$located" ]; then
+    source_tab=${located%% *}
+    pane=${located#* }
+  else
+    source_tab=$(layout_tab_for_label "$workspace" "$label")
+    pane=
+    if [ -n "$source_tab" ]; then
+      pane=$(first_pane_of_tab "$workspace" "$source_tab")
+    fi
+  fi
+  if [ -z "$pane" ] || [ "$source_tab" = "$dev_tab" ]; then
     return 1
   fi
-  pane=$(first_pane_of_tab "$workspace" "$source_tab")
-  if [ -z "$pane" ]; then
-    return 1
+  tab_unzoom "$pane"
+  if ! pane_move_into_tab "$pane" "$dev_tab" "$direction" "$ratio" "$target"; then
+    return 2
   fi
-  herdr_cli pane move "$pane" --tab "$dev_tab" --target-pane "$target" \
-    --split "$direction" --ratio "$ratio" >/dev/null
+  # The source tab survives when the user had split it further. It is not the
+  # editor's tab any more, so it does not keep the editor's name.
+  if [ -n "$(first_pane_of_tab "$workspace" "$source_tab")" ]; then
+    tab_clear_label "$source_tab"
+  fi
   printf '%s\n' "$pane"
 }
 
@@ -62,15 +93,29 @@ nvim_pane=$(pane_by_label "$workspace" "$dev_tab" nvim)
 term_pane=$(pane_by_label "$workspace" "$dev_tab" term)
 nvim_created=0
 
+tab_unzoom "$main_pane"
+
 if [ -z "$nvim_pane" ]; then
-  if ! nvim_pane=$(adopt_tab_pane nvim "$main_pane" right "$LAYOUT_MAIN_RATIO"); then
+  adopted=0
+  nvim_pane=$(adopt_tab_pane nvim "$main_pane" right "$LAYOUT_MAIN_RATIO") || adopted=$?
+  if [ "$adopted" = 2 ]; then
+    echo "could not move the editor into the split; layout left as it was" >&2
+    exit 1
+  fi
+  if [ -z "$nvim_pane" ]; then
     nvim_pane=$(new_pane "$main_pane" right "$LAYOUT_MAIN_RATIO")
     nvim_created=1
   fi
 fi
 
 if [ -z "$term_pane" ]; then
-  if ! term_pane=$(adopt_tab_pane term "$nvim_pane" down "$LAYOUT_EDITOR_RATIO"); then
+  adopted=0
+  term_pane=$(adopt_tab_pane term "$nvim_pane" down "$LAYOUT_EDITOR_RATIO") || adopted=$?
+  if [ "$adopted" = 2 ]; then
+    echo "could not move the terminal into the split; layout left as it was" >&2
+    exit 1
+  fi
+  if [ -z "$term_pane" ]; then
     term_pane=$(new_pane "$nvim_pane" down "$LAYOUT_EDITOR_RATIO")
   fi
 fi

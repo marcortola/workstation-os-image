@@ -46,8 +46,13 @@ require_file docs/README.md
 # a broken container start. Raised again to 300 for the second dev layout:
 # `layout.apply` is the API anyone adding a third would reach for first, and it
 # replaces the tab it is handed, so applying a layout with it restarts the
-# agent -- a rule that has to be read before the code, not after.
-(( $(wc -l < AGENTS.md) <= 300 ))
+# agent -- a rule that has to be read before the code, not after. Raised to 305
+# when the two layouts went onto one key: the rule that matters is that every
+# step converges rather than builds, because four separate roots each added a
+# tab and every one of them read as a plausible way to write it. `pane move`
+# answering a refusal with a SUCCESS reply is the trap under all of them, and an
+# agent that does not know it will read the tab id back out of that reply.
+(( $(wc -l < AGENTS.md) <= 305 ))
 
 # README.md is a landing pad into docs/ and nothing else. Capped because it grows
 # back otherwise: it was 855 lines covering fourteen concerns before the handbook

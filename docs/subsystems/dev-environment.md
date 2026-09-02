@@ -128,14 +128,13 @@ which the `dev.flow` popup labels with the branch slug.
 
 Either path then applies the default dev layout — `main` running the agent, plus
 `nvim` and `term`. The `dev.flow` plugin applies it only for a herdr-created
-worktree or on demand from `prefix+shift+n`, and a workspace opened from the
-picker got neither. The gate is what the workspace already holds rather than
-which branch reached it: `layout.sh` creates its tabs unconditionally, so a
-second run would stack another `nvim` and `term`, while a workspace restored from
-an older session is laid out on the next pick. One tab is not enough on its own,
-because the split layout described below is one tab too, so the gate is one tab
-**and** one pane — the shape of a workspace nothing has laid out yet. Without the
-second half, picking a project again would take a chosen split layout apart.
+worktree or from `prefix+shift+n`, and a workspace opened from the picker got
+neither. The picker calls `layout.sh` rather than `layout-toggle.sh`, because
+picking a project asks for that layout and never for the other one, and it gates
+on what the workspace already holds rather than on which branch reached it: a
+workspace with one tab AND one pane is one nothing has laid out, so a
+single-tab workspace restored from an older session is laid out on the next
+pick, while the split layout — one tab, three panes — is left as it was chosen.
 `layout.sh` calls `herdr`, `jq`, `git` and `dirname` by name, so the picker hands
 it a `PATH` rather than trusting the keybind's, and a failure never propagates,
 because the picker still owes the caller its `exec`.
@@ -534,9 +533,24 @@ Three rules, each with a failure behind it:
 
 ### The two layouts
 
-There are two, and either can be applied on top of the other. `prefix+shift+n`
-builds the default: three tabs, `main` running the agent plus `nvim` and `term`.
-`prefix+shift+v` builds the alternative, a single `dev` tab holding all three:
+There are two, and `prefix+shift+n` is the only key: which one it applies is read
+off the workspace rather than remembered, because herdr keeps no plugin state and
+a workspace restored from an earlier session would arrive without it.
+
+| The workspace holds | The key applies |
+|---|---|
+| A *pane* called `nvim` or `term` — the split layout | `layout.sh`, the three tabs |
+| A *tab* called `nvim` or `term` — the default layout | `layout-split.sh`, the one split tab |
+| Neither — nothing has laid it out | `layout.sh`, the three tabs |
+
+Each question is asked of the whole workspace, not of the agent's tab. A pane of
+either name exists under no other layout, so it is a sound mark on its own — and
+asking inside the agent's tab made the answer depend on finding the agent first,
+which a split workspace whose agent pane had exited could not do. So the first
+press on a bare workspace builds, and every press after it alternates.
+
+The default is three tabs, `main` running the agent plus `nvim` and `term`. The
+alternative is a single `dev` tab holding all three:
 
 ```
 +----------+---------------------------+
@@ -565,12 +579,56 @@ keeps its conversation, Neovim keeps its unsaved buffers, and a tab closes itsel
 once its last pane leaves.
 
 `prefix+m`, `prefix+n` and `prefix+t` answer in both layouts. `focus-tab.sh`
-looks for a tab of that label first and falls back to a pane of that label in the
-focused tab, which is why the split tab is called `dev` — a tab named `main`
-would be found first and the key would never reach the pane inside it. Focusing
+looks for a tab of that label first and falls back to a pane of that label
+anywhere in the workspace, which is why the split tab is called `dev` — a tab
+named `main` would be found first and the key would never reach the pane inside
+it. The fallback used to search only the focused tab, which made these three keys
+conditional: pressed from a scratch tab they did nothing at all, and silently. Focusing
 `nvim` or `term` also hands them the column, and focusing `main` does not: the
 resize is restricted to a `down` split, and the vertical split is the one that
 pins `main` to its third.
+
+#### One key, and why it never duplicates
+
+The default layout builds its tabs with `tab create` and the split one its panes
+with `pane split`; `pane move` is what crosses between them.
+
+The two scripts stay separately runnable, because two callers need the default
+layout and not a toggle: `worktree-create.sh` for a checkout it has just made,
+and `workstation-dev` for a project picked from `Mod+Shift+P`. Both `exec` the
+script by path. `dev.flow.layout` and `dev.flow.layout-split` also stay
+registered as keyless actions, which nothing invokes today — that is for
+reaching either layout explicitly over the socket, and deleting them would break
+neither caller.
+
+Every step of both layouts converges rather than builds, and that is the
+invariant to preserve when touching them. Four separate roots each used to add a
+tab, and the symptom was always the same tab bar with `nvim` and `term` on it
+twice:
+
+- The builders ran unconditionally, so a second press stacked a second pair.
+- The agent's tab was taken as whichever tab came first. With the agent pane
+  exited, that was the editor's tab: it was renamed `main`, given a second
+  Neovim beside it, and left with no agent at all. Both layouts now find it by
+  label — the tab called `main`, or the pane called `main` inside the tab called
+  `dev` — and build a new one when the workspace has genuinely lost it.
+- `pane move` answers a refusal with a *success* response carrying
+  `changed: false` and a `reason` of `same_tab` or `zoomed_tab`, while `pane` —
+  required on every answer — still reports the unchanged tab. Reading the tab id
+  from there made a zoomed tab rename the tab everything was still sitting in.
+  The layouts now drop a tab's zoom before moving, read `created_tab` (null
+  unless a tab was really made), check `changed`, and stop rather than building a
+  replacement for a pane that would not move.
+- herdr accepts two tabs called `nvim`, and every lookup takes the first match,
+  so one duplicate was permanent: the orphan shadowed the tab being worked in.
+  `layout_tab_for_label` breaks the tie on which tab is running something, the
+  builders reuse rather than add, and a tab the user split further has its label
+  cleared when the layout moves its pane out, because it is not the editor's tab
+  any more.
+
+Nothing here ever closes a tab. Duplicates left over from before the fix shrink
+as the layout reuses them but never disappear on their own; close them with
+`prefix+alt+x`.
 
 The per-branch worktree loop lives in the `dev.flow` plugin, reachable by key
 from any pane. Checkouts land beside the repository at
@@ -620,6 +678,21 @@ model does not change when you switch tools. The seed paths are inventoried in
   know Neovim from any other busy pane. When a herdr upgrade changes behaviour
   here, the symptom is silence, so check the plugin's `jq` filters against a real
   `herdr pane process-info` before looking anywhere else.
+
+- **A `herdr-plugin.toml` edit does not take effect on `reload-config`.** herdr
+  caches the manifest in `~/.config/herdr/plugins.json`, and
+  `herdr server reload-config` reloads `config.toml` only — it reported
+  `"status":"applied"` while the registry still listed the actions from before
+  the edit. A key bound to an action herdr has not registered does nothing. Relink
+  the plugin to refresh it:
+
+  ```sh
+  echo '{"id":"1","method":"plugin.link","params":{"path":"'"$HOME"'/.config/herdr/plugins/dev-flow"}}' |
+      ~/.config/herdr/plugins/dev-flow/herdr-request.sh
+  ```
+
+  Then check the registry actually holds the action:
+  `jq -r '.[0].actions[].id' ~/.config/herdr/plugins.json`.
 
 - **Never run `:Lazy clean` on the host.** The host session has no project
   language in scope, so every language extra's plugins look unused there — but
