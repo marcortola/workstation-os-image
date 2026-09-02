@@ -27,24 +27,6 @@ dms-apply:
     WORKSTATION_DMS_SETTINGS_OVERLAY="$PWD/system_files/usr/share/workstation-os-image/dms-settings.json" \
         ./system_files/usr/bin/workstation-apply-dms-settings --force
 
-# Report where installed JetBrains IDEs diverge from the shared canonical.
-jetbrains-diff:
-    ./tooling/jetbrains/diff
-
-# Refresh the shared JetBrains canonical (_shared/) from the canonical IDE.
-jetbrains-promote product="":
-    ./tooling/jetbrains/promote-shared {{ product }}
-
-# Write the shared JetBrains config and install shared plugins into the IDEs
-# (dry run without --force).
-jetbrains-apply *args:
-    ./tooling/jetbrains/apply-settings {{ args }}
-    ./tooling/jetbrains/apply-plugins {{ args }}
-
-# Install the shared JetBrains plugins into the IDEs (dry run without --force).
-jetbrains-plugins *args:
-    ./tooling/jetbrains/apply-plugins {{ args }}
-
 # Install the AI CLI tools (caveman, rtk, opencode-fusion, playwright-cli) via their official installers; run once after deploy like brew-apply.
 ai-tools-install:
     ./tooling/ai/install-ai-tools
@@ -94,19 +76,7 @@ worktree-init *args:
 
 # Store the intelephense premium PHP licence key for `dev nvim` (machine-local, never committed). Pass --force to overwrite.
 intelephense-licence *args:
-    ./tooling/jetbrains/intelephense-licence {{ args }}
-
-# Set up this machine's IDE config (run once after deploy): store the intelephense
-# premium PHP key for `dev nvim`, install the shared JetBrains plugins (dry run
-# without --force), then optionally apply the shared JetBrains settings (asks
-# interactively, defaults to no, skipped when non-interactive). `*args` scope the
-# plugin step (--force installs, --product NAME). The settings step overwrites
-# local IDE config and primes a GUI cloud push, hence the prompt; `jetbrains-apply`
-# is the non-interactive path. JetBrains is the fallback; steps no-op without an IDE.
-ide-setup *args:
-    ./tooling/jetbrains/intelephense-licence
-    ./tooling/jetbrains/apply-plugins {{ args }}
-    ./tooling/jetbrains/ide-setup
+    ./tooling/dev/intelephense-licence {{ args }}
 
 # Build and lint the complete bootc image locally.
 build:

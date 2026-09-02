@@ -201,7 +201,6 @@ machine — an editor config, a tool's rc file, a theme.
    | `tree` | a whole subtree, e.g. a skills directory |
    | `scrub` | a mixed file that must pass through a filter under `tooling/scrub/` first |
    | `scaffold` | image-owned, applied by chezmoi, never captured from live |
-   | `jetbrains-app` | a JetBrains product dir, captured outside the seed tree |
 
 3. Name the source path the way chezmoi does. Real lines from the manifest:
 
@@ -612,13 +611,12 @@ seed under `dot_claude/`, `dot_codex/` or `dot_config/opencode/`, the
 against a stale bundle. Run the steps by hand in that case.
 
 **Why the local run is not optional.** `tooling/validate/all` needs a live
-workstation — a booted deployment, an installed DMS, `$HOME`, foot, the
-JetBrains IDEs — so CI never reaches it. The dotfile manifest check, the
-JetBrains gate, the AI reset tests, the AI bundle check, the fish parse and
-`tooling/audit/workstation` run only where you run them. CI proves the rest:
-which job runs which gate, and which paths decide whether the image is rebuilt
-at all, are in [build-and-ci.md](build-and-ci.md); which assertion covers the
-image versus the machine is in
+workstation — a booted deployment, an installed DMS, `$HOME`, foot — so CI never
+reaches it. The dotfile manifest check, the AI reset tests, the AI bundle check,
+the fish parse and `tooling/audit/workstation` run only where you run them. CI
+proves the rest: which job runs which gate, and which paths decide whether the
+image is rebuilt at all, are in [build-and-ci.md](build-and-ci.md); which
+assertion covers the image versus the machine is in
 [validation-and-gates.md](validation-and-gates.md).
 
 Commits follow Conventional Commits with a scope: `fix(build):`, `feat(audit):`,
@@ -633,6 +631,5 @@ If a recipe here did not fit your change, [conventions.md](conventions.md) is th
 page that decides where a new file goes and explains why each mechanism exists.
 [validation-and-gates.md](validation-and-gates.md) tells you which gate proves
 what, and in particular which assertions cover the image versus the machine.
-For the capture side of the loop in more depth — the manifest, the JetBrains
-machinery and the DMS overlay — read
-[capturing-changes.md](capturing-changes.md).
+For the capture side of the loop in more depth — the manifest and the DMS
+overlay — read [capturing-changes.md](capturing-changes.md).

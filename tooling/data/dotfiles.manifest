@@ -104,14 +104,3 @@ copy|.config/nvim/markdownlint-off.jsonc|dot_config/nvim/create_markdownlint-off
 tree|.config/nvim/lua|dot_config/nvim/lua|*
 copy|.var/app/io.typora.Typora/config/Typora/themes/ia_typora.css|dot_var/app/io.typora.Typora/config/Typora/themes/create_ia_typora.css|-
 copy|.var/app/io.typora.Typora/config/Typora/themes/ia_typora_night.css|dot_var/app/io.typora.Typora/config/Typora/themes/create_ia_typora_night.css|-
-# jetbrains-app|version-globbed live product dir|product subdir|-
-# Captures each IDE's product-specific remainder into tooling/data/jetbrains-settings/
-# <Product>/ (version-normalised, outside the chezmoi seed tree, never deployed).
-# The shared "feel the same" subset is maintained once in _shared/ via
-# 'just jetbrains-promote' and written into the IDEs by 'just jetbrains-apply'.
-# The first listed product is the canonical source for _shared/. See AGENTS.md.
-jetbrains-app|.config/JetBrains/PhpStorm*|PhpStorm|-
-jetbrains-app|.config/JetBrains/WebStorm*|WebStorm|-
-jetbrains-app|.config/JetBrains/DataGrip*|DataGrip|-
-jetbrains-app|.config/JetBrains/IntelliJIdea*|IntelliJIdea|-
-jetbrains-app|.config/JetBrains/PyCharm*|PyCharm|-

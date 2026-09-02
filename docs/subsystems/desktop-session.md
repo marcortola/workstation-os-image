@@ -451,10 +451,10 @@ imports its own environment into the systemd user manager and the D-Bus
 activation environment, overwriting whatever `environment.d` set. So Homebrew's
 bin directory is prepended in a drop-in on `niri.service` itself
 (`system_files/usr/lib/systemd/user/niri.service.d/10-homebrew-path.conf`) —
-which is why JetBrains
-Toolbox and the IDEs it launches can find `node`. systemd replaces `PATH`
-wholesale, so that drop-in restates niri's default session PATH alongside the
-brew entries, and `%h` expands to the user home so no username is hardcoded.
+which is why a GUI application niri spawns can find a brew tool such as `node`.
+systemd replaces `PATH` wholesale, so that drop-in restates niri's default
+session PATH alongside the brew entries, and `%h` expands to the user home so no
+username is hardcoded.
 
 ---
 

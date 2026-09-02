@@ -140,7 +140,7 @@ brew timers explicitly, and the gate is what proves those calls still land.
 
 | Gate | Asserts | Where | Absent |
 |---|---|---|---|
-| `all` | umbrella. Runs the five repo gates below, shell and Lua and fish syntax, hadolint, actionlint, gitleaks, the cheatsheet gate, the DMS/JetBrains/AI/manifest gates, a git-seed resolution test, `tooling/audit/workstation`, `foot --check-config`, and a `chezmoi managed` target list | local only (`just validate`) | the live half of the suite runs nowhere |
+| `all` | umbrella. Runs the five repo gates below, shell and Lua and fish syntax, hadolint, actionlint, gitleaks, the cheatsheet gate, the DMS/AI/manifest gates, a git-seed resolution test, `tooling/audit/workstation`, `foot --check-config`, and a `chezmoi managed` target list | local only (`just validate`) | the live half of the suite runs nowhere |
 | `repo` | scan roots exist; no reference to the removed `/usr/share/zirconium` tree; every absolute `/usr/share/workstation-os-image/...` path named anywhere in the repo is actually shipped; at least 87 dotfile seeds; the seed tree dry-applies to an empty `HOME`; both niri chains and the greeter config parse | CI `repo-gates` and local | a half-finished rename ships four dangling references and a seed tree that no longer applies |
 | `sources` | `CLAUDE.md` is exactly `@AGENTS.md`; `AGENTS.md` stays under its 279-line cap and `README.md` under its 170-line cap; at least 15 pages exist under `docs/` and at least one agent command under `.claude/commands/`; every `just`/`wjust` recipe and every `system_files/`, `build_files/`, `tooling/` or `docs/` path cited in `AGENTS.md`, `README.md`, every `docs/**/*.md` and `.claude/commands/*.md` exists; every relative link in those same files resolves, a same-file anchor matches a real heading, and a cross-file anchor is rejected outright; the AI seeds carry no key, plugin identifier or absolute home path; the worktree wiring is intact; every tracked JSON, TOML and YAML parses; shipped scripts use one of two shebangs | CI `repo-gates` and local | policy prose rots into dangling pointers, and the tool-specific secret shapes gitleaks misses go uncaught |
 | `image-build` | the base and brew inputs are digest-pinned and the base is one full reference; the `ctx` stage and the COPY lines are present; `bootc container lint --fatal-warnings` is invoked; `cosign.pub` matches the shipped signing pubkey byte for byte; the Containerfile ARG defaults match `image.env`; no `COPY build_files/`; packages install before volatile config; no build step mutates the chezmoi source; the keyd and FiraCode checksums are pinned; every vendored repo sets `gpgcheck=1`, a `file://` key, an https source and `includepkgs`; the workflow's cache flags are intact; `.containerignore` still allowlists the three build inputs | CI `repo-gates` and local | a floating pin, an unfenced third-party repo, or a half-finished key rotation that keeps CI green while locking machines out of their own updates |
@@ -228,12 +228,9 @@ audit-workstation and a live `chezmoi managed`, which need the machine to be
 booted into this image, so it can only ever run locally.
 ```
 
-`tooling/validate/sources` states the complement:
-
-```text
-Anything needing the live machine (DMS overlay, JetBrains, foot, chezmoi
-against $HOME, audit/workstation) deliberately stays in validate/all.
-```
+`tooling/validate/sources` states the complement in its own header: anything
+needing the live machine — the DMS overlay, `foot`, `chezmoi` against `$HOME`,
+`tooling/audit/workstation` — deliberately stays in `tooling/validate/all`.
 
 The workflow step itself names the third case — gates that need only `just`, and
 were unreachable in CI purely because they happened to live in `all`:
@@ -279,8 +276,7 @@ the fixture honest instead of letting it drift into a second schema.
 
 | File | Provides |
 |---|---|
-| `tooling/lib/dotfiles.sh` | the mapping between a `create_`-prefixed chezmoi seed and its live file, and the JetBrains allowlists, denylist and product resolver ([capturing-changes.md](capturing-changes.md) owns what those select). Sourced by ten scripts including `tooling/audit/personal-config`, `tooling/dotfiles/validate-manifest` and `tooling/jetbrains/validate`, so one allowlist backs capture, apply, audit and validation alike, and a gate cannot disagree with the tool it is gating |
-| `tooling/lib/jetbrains-xml-flatten.py` | flattens a JetBrains XML settings file into sorted canonical key lines, one deterministic line per element, so attribute order and whitespace do not register as divergence under plain `diff`. Used by `tooling/jetbrains/diff` (`just jetbrains-diff`) |
+| `tooling/lib/dotfiles.sh` | the mapping between a `create_`-prefixed chezmoi seed and its live file. Sourced by five scripts including `tooling/dotfiles/sync`, `tooling/dotfiles/validate-manifest` and `tooling/audit/personal-config`, so one resolver backs capture, audit and validation alike, and a gate cannot disagree with the tool it is gating |
 | `tooling/fixtures/dms-settings-spec.js` | the stand-in DMS schema described above |
 
 ---

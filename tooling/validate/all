@@ -81,7 +81,6 @@ fish --no-execute \
 python3 tooling/keybindings/build-cheatsheet.py --check
 
 tooling/dotfiles/validate-manifest
-tooling/jetbrains/validate
 tooling/ai/test-reset
 tooling/ai/build-ai-cli-bundle --check
 

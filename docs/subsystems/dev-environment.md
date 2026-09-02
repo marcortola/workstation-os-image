@@ -2,9 +2,8 @@
 
 How code actually gets written on this workstation: no language runtimes on the
 host, project-scoped Dev Containers, a Neovim that runs *inside* those
-containers, two editors that deliberately do not share bindings, and worktrees
-that arrive populated instead of empty. Read this before you try to `dnf install`
-a compiler.
+containers, and worktrees that arrive populated instead of empty. Read this
+before you try to `dnf install` a compiler.
 
 **The host is an editor and a container runtime; everything that compiles,
 resolves imports or runs a test lives inside the project's Dev Container.**
@@ -236,9 +235,9 @@ fingerprints `/etc/os-release`, `ldd --version` and `uname -m`, compares it to
 XDG directories, because those artefacts are libc-bound. To force a clean
 reprovision yourself, delete the store directory.
 
-> A container created *without* these mounts — by JetBrains Gateway, or by an
-> older `dev` — is happily reused by `devcontainer up` with the mounts still
-> absent. `dev nvim` probes for `/nvimconf-src/init.lua`, `/nvimdata` and
+> A container created *without* these mounts — by the raw `devcontainer` CLI, or
+> by an older `dev` — is happily reused by `devcontainer up` with the mounts
+> still absent. `dev nvim` probes for `/nvimconf-src/init.lua`, `/nvimdata` and
 > `/nvim-plugins` and recreates the container once (`--remove-existing-container`)
 > when any is missing. That is the one case where `dev nvim` throws your
 > container away.
@@ -281,7 +280,7 @@ running in the container:
 | `lang.typescript` | `vtsls`, LazyVim's current default (`vim.g.lazyvim_ts_lsp = "vtsls"`); this is the JS/TS/React path |
 | `linting.eslint` | `eslint`, imported alongside `lang.typescript` by the same detector row |
 | `lang.astro` | the `astro` language server, plus the `@astrojs/ts-plugin` it path-probes for — which is the reason the import itself is the scoping point |
-| `lang.php` | `intelephense` by the pin above; upstream would otherwise start `phpactor`. This is the PhpStorm/Symfony replacement path |
+| `lang.php` | `intelephense` by the pin above; upstream would otherwise start `phpactor`. This is the PHP and Symfony path |
 
 Mason installs follow the same scoping, with one documented exception in
 `lua/plugins/create_mason.lua`: the universal SQL extra's `sqlfluff` is a Python
@@ -293,8 +292,7 @@ Intelephense premium is machine-local and never seeded into the image. Store the
 key once with `just intelephense-licence`; `dev nvim` reads
 `~/.config/intelephense/licence.key` and injects it as
 `INTELEPHENSE_LICENCE_KEY`, which `lua/plugins/create_lang-php.lua` passes as the
-server's `licenceKey` (nil means free tier). `just ide-setup` runs the same step
-as part of the wider post-deploy IDE setup.
+server's `licenceKey` (nil means free tier).
 
 ### Formatting and prerequisites
 
@@ -342,60 +340,21 @@ which compile-checks every Lua seed with the image's own Neovim
 
 ---
 
-## Two Editors, Two Keymaps
+## The Editor and Its Keymap
 
-Neovim and the JetBrains IDEs are deliberately separate. Neovim runs LazyVim
-with the bindings [../keybindings.md](../keybindings.md) documents; the IDEs run
-their own keymap and emulate nothing. That is the point of keeping them both:
-the IDEs are the alternative to the herdr-plus-Neovim flow, not a second skin
-over it.
+Neovim is the only editor on this workstation. It runs LazyVim with the bindings
+[../keybindings.md](../keybindings.md) documents, from a herdr pane and — for
+anything needing a language server — inside the project's Dev Container.
 
-They used to share a keymap. **IdeaVim** drove the IDEs from a `~/.ideavimrc`
-seed so that a habit learned in either editor transferred, and
-`_shared/keymaps/custom.xml` was emptied to get out of its way. The sharing was
-never free — 26 `sethandler` directives to arbitrate every contested `Ctrl` key,
-four Marketplace plugins, and a rule that LazyVim won every disagreement, which
-meant reaching for a displaced IDE action through a `<leader>` chord. It was
-removed: the IDEs now keep the keymap that suits them, and Neovim keeps the one
-that suits it.
-
-What that restored, in `_shared/keymaps/custom.xml`:
-
-| Key | Action |
-| --- | --- |
-| `ctrl t`, `alt f12` | Terminal tool window |
-| `ctrl alt r` | Rename |
-| `shift ctrl b` | Git branches |
-| `shift alt s` | Reveal in project view |
-| `shift ctrl insert` | Paste history |
-| `shift alt left` / `shift alt right` | Back / Forward |
-| `shift ctrl u` | Toggle CamelCase |
-
-`shift ctrl u` needs `de.netnexus.camelcaseplugin`, which is back in
-`_shared/plugins.list` — with no Vim emulation it is the IDEs' only case
-mechanism, where previously vim-abolish's `cr*` coercions covered it.
-`tooling/jetbrains/validate` gates that the binding and the plugin entry agree,
-in both directions.
-
-> An `<action>` element **replaces** the parent keymap's whole shortcut list
-> rather than adding to it. That is why `GotoTypeDeclaration` has no entry: a
-> mouse-only override was silently deleting its default `control+shift+B`, and
-> `$default` already supplies both that and `ctrl+shift+button1`. `Back` and
-> `Forward` restate their mouse halves for the same reason.
-
-Case conversion in Neovim is still **vim-abolish** (`crs`, `crc`, `crm`, `cru`,
-`cr-`, `cr.`, `crt`). It was originally chosen over text-case.nvim because it
-was the only case plugin IdeaVim emulated; that reason is gone, but the plugin
-works and swapping it would cost the muscle memory for nothing.
+Case conversion is **vim-abolish** (`crs`, `crc`, `crm`, `cru`, `cr-`, `cr.`,
+`crt`). text-case.nvim would do the same job; the plugin works and swapping it
+would cost the muscle memory for nothing.
 
 `hardtime.nvim` and `precognition.nvim` are seeded in
 `lua/plugins/create_training.lua` as **transition scaffolding**, not editor
 features — hardtime hints at shorter motions and hard-blocks the arrow keys,
-precognition draws motion targets as virtual text. They train the Neovim half
-only. Delete that seed and its deployed copy once the habits stick.
-
-JetBrains settings capture, promotion and application are
-[../capturing-changes.md](../capturing-changes.md)'s subject, not this page's.
+precognition draws motion targets as virtual text. Delete that seed and its
+deployed copy once the habits stick.
 
 ---
 
@@ -462,7 +421,7 @@ outside a work tree, a no-op in the *main* checkout — detected by
 also fires on every ordinary branch switch — a no-op when the tool or the
 `.worktreeinclude` is absent, and it never exits non-zero, because it must never
 abort the worktree or checkout operation that invoked it. It resolves the
-Homebrew binary by explicit path candidates, since a GUI-launched IDE runs hooks
+Homebrew binary by explicit path candidates, since a GUI-launched tool runs hooks
 with a minimal environment. `git worktreeinclude` itself never overwrites an
 existing file and never touches a tracked one, so re-running the sync in a
 worktree you have already edited is safe.

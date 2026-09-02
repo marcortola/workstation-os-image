@@ -35,9 +35,6 @@ second inventory. `CLAUDE.md` imports this file for Claude Code.
   `dotfiles/` and the image-owned niri system config under `niri/` (see NOTICE).
 - `~/.config/homebrew/Brewfile` declares user tools and Flatpaks.
 - `tooling/data/image-provided-brew-formulae` lists Homebrew shadows the image owns.
-- `tooling/data/jetbrains-settings/_shared/` is the canonical "feel the same" JetBrains
-  config; each `tooling/data/jetbrains-settings/<Product>/` holds only that IDE's
-  product-specific remainder.
 - `tooling/data/zirconium-watermark` is the last upstream Zirconium commit
   reviewed against this image. `just upstream-diff` reports what changed since;
   `/port-zirconium` is the review, and `just upstream-accept` advances the
@@ -56,10 +53,6 @@ second inventory. `CLAUDE.md` imports this file for Claude Code.
   application databases, backups, device-specific runtime state.
 - For a GUI change, find its deterministic config and add a reviewed file or a
   narrow export/restore mechanism. Never copy an application directory wholesale.
-- JetBrains: put product-neutral settings (keymaps, colours, fonts, neutral
-  editor/UI) once in `_shared/`, and product-specific ones (code styles,
-  templates, inspections, product toolbars) in the per-product dir. A file lives
-  in exactly one place.
 
 ## Invariants
 
@@ -144,19 +137,6 @@ prefer them over reinventing the shape:
   `tooling/audit/niri-binds` fails on a shadowed bind, since `niri validate`
   does not.
 
-### JetBrains
-
-- JetBrains config is repo-owned and applied explicitly. chezmoi never deploys
-  it and nothing auto-syncs it.
-- Never capture JetBrains license `*.key` files, `dataSources*`, `ssl/`,
-  `settingsSync/`, or per-product runtime state.
-- Declare shared plugins as Marketplace IDs in
-  `tooling/data/jetbrains-settings/_shared/plugins.list`; JARs are fetched at apply
-  time, never vendored. Only portable, non-language-locked plugins belong there;
-  product-specific ones go in the per-product list.
-- Colour schemes and every `plugins.list` are vendored artifacts preserved by
-  `just sync` and `just jetbrains-promote`.
-
 ### Packages
 
 - Docker stays rootful and usable without `sudo` through dynamic local user
@@ -220,6 +200,13 @@ prefer them over reinventing the shape:
   expired by TTL rather than swept.
 - The ship popup is the mechanical half of `/worktree-push`: it refuses a dirty
   tree rather than writing a commit, and never deletes a branch.
+- Both popups that can delete a checkout -- ship and close-workspace -- end in
+  the shared `dev-flow/checkout-remove.sh`, which owns the linked-worktree
+  probe, the dirty display and the confirmation. A clean tree is removed
+  without `--force` so git can still refuse; a dirty one takes a second answer,
+  about losing the work rather than about removing a directory. Never give
+  either popup its own copy of that tail again, and never teach it to delete a
+  branch: that needs the merge check, which is `/worktree-remove`'s.
 
 ### Worktrees
 
@@ -249,7 +236,7 @@ prefer them over reinventing the shape:
   pass; gitleaks misses tool-specific key shapes, so those hand-written gates
   are the real secret boundary. If a gate is genuinely wrong, say so and stop.
 - Confirm before any command that writes the live account or cloud state:
-  `just jetbrains-apply --force`, `just ai-reset --replace`, `just dms-apply`.
+  `just ai-reset --replace`, `just dms-apply`.
   Audit, diff, validate and dry runs are always safe.
 - On finding a secret in a live file or a diff, stop. Do not echo the value and
   do not commit it; report the path only.

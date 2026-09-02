@@ -119,7 +119,7 @@ references them; they ship because they are in the payload.
 | `system_files/usr/lib/sysctl.d/99-workstation-zram.conf` | `vm.swappiness = 180` |
 
 Nothing else under `/usr/lib/sysctl.d` sets the inotify limits, so without that
-first file the kernel defaults stand — and they are what a JetBrains IDE
+first file the kernel defaults stand — and they are what a language server
 indexing a repository and a node dev server watching the same tree consume
 between them. Exhausting a watch limit does not raise an error the user sees;
 the editor simply stops noticing that files changed.

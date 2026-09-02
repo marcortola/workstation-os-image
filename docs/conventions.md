@@ -350,14 +350,7 @@ than the script.
 Destructive recipes take `[confirm]` or default to a dry run. `just dms-apply`
 carries `[confirm("Overwrite live DMS settings from the tracked overlay?")]` and
 `just flatpak-prune` carries `[confirm("Remove every unused Flatpak runtime from
-this account?")]`; `just jetbrains-apply`, `just jetbrains-plugins` and
-`just ai-reset` are dry runs until `--force`.
-
-> `just jetbrains-apply --force` on its own is still refused —
-> `tooling/jetbrains/apply-settings` also requires
-> `--i-understand-overwrites-cloud`. `--force` primes a forced cloud push, and
-> that push overwrites the settings your other machines synced to the JetBrains
-> cloud.
+this account?")]`; `just ai-reset` is a dry run until `--force`.
 
 ---
 

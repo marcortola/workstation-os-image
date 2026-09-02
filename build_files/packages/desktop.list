@@ -77,5 +77,5 @@ fish                        # the image owns /usr/bin/fish; never install via br
 bolt                        # thunderbolt: /sys/bus/thunderbolt/devices/domain0 present
 NetworkManager-tui          # nmtui
 nm-connection-editor        # GUI for the two configured WireGuard VPNs
-openssh-askpass             # GUI ssh prompts, e.g. git from a JetBrains IDE
+openssh-askpass             # GUI ssh passphrase prompts for apps with no tty
 input-remapper              # was installed and configured on the old image
