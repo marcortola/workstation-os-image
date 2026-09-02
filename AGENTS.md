@@ -228,6 +228,18 @@ prefer them over reinventing the shape:
   `worktree.useRelativePaths` in the git config seed, since the popup never
   spells `git worktree add`; convert an old one with `git worktree repair
   --relative-paths`.
+- The post-checkout hook is one slot with two claimants: `git lfs install` writes
+  its own there and will not merge, and `init.templateDir` makes ours the
+  incumbent, so ours carries LFS -- it chains `git lfs post-checkout`, the git
+  seed holds `[filter "lfs"]`, `dev.list` ships `git-lfs`, all three gated. Never
+  run `git lfs install` here.
+- A post-checkout exit status BECOMES `git worktree add`'s, after git wrote the
+  checkout. The hook never exits non-zero, and no caller reads that status as "no
+  checkout": the create popup probes the path and adopts what git made, never
+  rolls back.
+- The hook sentinel carries a version; `init` upgrades an older one. Bump it with
+  the body or the edit reaches no repo that has a hook -- 27 of 30 were frozen
+  that way. A foreign hook is never clobbered; clear it by hand.
 
 ## Safety
 

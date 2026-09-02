@@ -201,6 +201,25 @@ grep -q 'satococoa/tap/git-worktreeinclude' \
     system_files/usr/share/workstation-os-image/dotfiles/dot_config/homebrew/create_Brewfile
 grep -q 'templateDir' system_files/usr/share/workstation-os-image/dotfiles/dot_config/git/create_config
 [[ -x tooling/worktree/init ]]
+
+# The version in the hook's ownership sentinel is what lets `just worktree-init`
+# replace an older copy of the hook in a repository that already has one. Without
+# it every edit below this line is dead code in every existing repository.
+grep -qE '^# workstation-worktree-init: managed post-checkout hook v[0-9]+$' \
+    system_files/usr/share/workstation-os-image/dotfiles/dot_config/git/template/hooks/create_executable_post-checkout
+
+# One mechanism, three files. `git lfs install` writes its own post-checkout into
+# the same slot and refuses to merge with an incumbent, and init.templateDir makes
+# ours the incumbent in every new clone -- so the managed hook is the only thing
+# carrying Git LFS here. The chain, the filter config the chain resolves content
+# through, and the binary both of them call must ship together or LFS is silently
+# half-configured.
+grep -q 'git lfs post-checkout' \
+    system_files/usr/share/workstation-os-image/dotfiles/dot_config/git/template/hooks/create_executable_post-checkout
+grep -q '^\[filter "lfs"\]' \
+    system_files/usr/share/workstation-os-image/dotfiles/dot_config/git/create_config
+grep -qE '^git-lfs([[:space:]]|$)' build_files/packages/dev.list
+
 tooling/worktree/test-init
 
 # The `dev` wrapper's --mount strings have to satisfy the devcontainer CLI's own

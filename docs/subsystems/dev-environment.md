@@ -401,14 +401,53 @@ wiring that keeps them in sync.
 The hook is
 `system_files/usr/share/workstation-os-image/dotfiles/dot_config/git/template/hooks/create_executable_post-checkout`.
 It fires only on branch checkouts (`[ "${3:-}" = "1" ] || exit 0`, so a file
-checkout is ignored) and immediately delegates. `init.templateDir` in
+checkout is ignored), chains Git LFS, then delegates. `init.templateDir` in
 `system_files/usr/share/workstation-os-image/dotfiles/dot_config/git/create_config`
 seeds it into every *new* clone.
+
+The first line of the hook is an ownership sentinel carrying a version number.
+That version is the upgrade lever: `tooling/worktree/init` replaces any installed
+hook whose version is older than the seed's, which is the only way an edit to the
+hook reaches a repository that already carries one. Bump it whenever the body
+changes; `tooling/validate/sources` asserts the sentinel exists but cannot tell
+you that you forgot to increment it.
+
+#### Git LFS lives in this hook
+
+`git lfs install` writes its own `post-checkout` into the same slot and will not
+merge with an incumbent — it offers `--force` to clobber or `--manual` to print
+instructions, never a chain. Since `init.templateDir` makes ours the incumbent in
+every clone made here, ours is what carries LFS: the hook runs
+`git lfs post-checkout "$@"` when `git-lfs` is on `PATH`, and the
+`[filter "lfs"]` block in the git config seed supplies the content half that
+`git lfs install` would otherwise have written. `git lfs install` is therefore
+never run on this machine. The image ships `git-lfs` in `dev.list`, and
+`tooling/validate/sources` gates all three files together.
+
+The `[filter "lfs"]` half is a chezmoi `create_` seed, so it lands on a new
+account only; an account that already has `~/.config/git/config` needs the block
+added by hand. That is true of every line in that seed, `templateDir` included.
+And because the host now resolves LFS content, an LFS-tracked file is real bytes
+in the working tree — a Dev Container mounting that tree has neither the filter
+nor the binary, so committing an LFS file from inside one would store content
+instead of a pointer. No repository here tracks anything in LFS today.
+
+Unlike git-lfs's stock hook, ours never exits non-zero. `githooks(5)` is explicit
+that `post-checkout` "cannot affect the outcome of git switch or git checkout,
+other than that the hook's exit status becomes the exit status of these two
+commands" — git has already finished the checkout by then. A hook that exits
+non-zero therefore does not undo anything; it only makes callers *believe* the
+checkout failed, and walk away from a complete one. That is exactly how a
+half-created worktree happens, so the managed hook swallows a failing
+`git lfs post-checkout` rather than passing it on.
 
 For a repository whose hooks path has been hijacked — Husky and lefthook both do
 this — the hook never fires and the fallback is manual: run
 `workstation-worktree-sync` inside the new checkout, which is the same helper the
-hook would have called.
+hook would have called. A repository that carries a *foreign* `post-checkout`
+file rather than a redirected hooks path is the other shape of the same problem:
+`tooling/worktree/init` reports it and refuses to clobber it, so that repository
+keeps only the second net until the foreign hook is dealt with by hand.
 
 ### The copy itself
 
@@ -438,9 +477,18 @@ just worktree-init --all      # every repo under $WORKSTATION_PROJECTS_ROOT
 picker scans.
 
 It is idempotent and non-destructive: it never overwrites an existing
-`.worktreeinclude`, and never replaces a hook it did not write. An existing
-managed hook with local edits, or any unmanaged `post-checkout`, is reported and
-skipped rather than clobbered.
+`.worktreeinclude`, and never replaces a hook it did not write. Any unmanaged
+`post-checkout`, and a managed hook of the *current* version whose bytes differ
+(something composed onto it), is reported and skipped rather than clobbered.
+
+It does replace an older version of its own hook, reporting
+`hook: upgraded (v0 -> v3)`. A hook with no sentinel at all that still calls
+`workstation-worktree-sync` is the shape this script installed before the
+sentinel existed, and reads as version 0. Without that, every repository cloned
+before a hook change fell through to the "a different post-checkout hook is
+already installed" skip and kept its hook forever — which is what actually
+happened: 27 of the 30 repositories on this machine held the pre-sentinel hook,
+so `--all` updated none of them.
 
 Dependencies (`node_modules`, `vendor`, `.venv`) are deliberately **not** copied.
 They are large, often platform-specific, and belong in a per-repo install step.

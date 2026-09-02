@@ -546,12 +546,23 @@ just worktree-init --all                 # every repo under ~/projects
 `--all` walks `WORKSTATION_PROJECTS_ROOT` (default `~/projects`) to a depth of
 four, skipping `node_modules`, `vendor` and existing worktree directories. It is
 idempotent: it never overwrites an existing `.worktreeinclude`, and never
-replaces a hook it does not recognise as its own.
+replaces a hook it does not recognise as its own. It *does* replace an older
+version of its own hook — `hook: upgraded (v0 -> v3)` — which is how a change to
+the hook reaches repos that already have one.
+
+A repo carrying a third party's `post-checkout` (git-lfs writes one) is reported
+as `hook: skip (a different post-checkout hook is already installed)` and left
+alone, so it keeps only the second, machine-local net. Deal with the foreign hook
+first, then re-run. For a stale `git lfs install` with nothing actually tracked in
+LFS, that means deleting `.git/hooks/post-checkout` and `.git/hooks/post-merge`
+and unsetting `lfs.repositoryformatversion`; the managed hook chains git-lfs
+itself, so a repo that genuinely uses LFS loses nothing by handing the slot over.
 
 **Verify:**
 
 ```bash
-test -x "$(git rev-parse --git-common-dir)/hooks/post-checkout" && echo hook ok
+hook="$(git rev-parse --git-common-dir)/hooks/post-checkout"
+test -x "$hook" && head -2 "$hook" | tail -1     # the ownership sentinel and its version
 cat .worktreeinclude
 ```
 

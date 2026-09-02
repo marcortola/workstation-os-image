@@ -4,7 +4,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 worktree_init="$repo_root/tooling/worktree/init"
 hook_seed="$repo_root/system_files/usr/share/workstation-os-image/dotfiles/dot_config/git/template/hooks/create_executable_post-checkout"
-managed_marker="# workstation-worktree-init: managed post-checkout hook v1"
+managed_sentinel_re='^# workstation-worktree-init: managed post-checkout hook v[0-9]+$'
 workdir="$(mktemp -d)"
 trap 'rm -rf -- "$workdir"' EXIT
 
@@ -75,7 +75,7 @@ git -C "$primary" worktree add -q -b linked "$linked"
 
 hook="$primary/.git/hooks/post-checkout"
 cmp -s "$hook_seed" "$hook" || fail "installed hook differs from its seed"
-grep -Fqx "$managed_marker" "$hook" || fail "installed hook has no ownership sentinel"
+grep -Eq "$managed_sentinel_re" "$hook" || fail "installed hook has no ownership sentinel"
 
 # A tool may compose extra commands into the managed hook. The sentinel alone
 # must not authorize replacement: only byte-for-byte current content is safe to
@@ -87,6 +87,227 @@ after="$(sha256sum "$hook")"
 [[ $before == "$after" ]] || fail "locally composed hook was overwritten"
 grep -Fq 'hook: skip (managed hook has local changes)' <<< "$output" \
     || fail "locally composed hook was not reported as preserved"
+
+# An older version of our own hook must be REPLACED, not preserved. This is what
+# `hook: skip (a different post-checkout hook is already installed)` used to swallow:
+# a repository cloned before the sentinel existed kept its hook forever, so every
+# later edit to the hook was dead code in every repository that already had one.
+pre_sentinel="$workdir/pre-sentinel"
+new_repo "$pre_sentinel"
+cat >"$pre_sentinel/.git/hooks/post-checkout" <<'PRESENTINEL'
+#!/usr/bin/env bash
+# post-checkout - the shape this script installed before the sentinel existed.
+[ "${3:-}" = "1" ] || exit 0
+for cand in workstation-worktree-sync "$HOME/.local/bin/workstation-worktree-sync"; do
+    if command -v "$cand" >/dev/null 2>&1; then
+        exec "$cand"
+    fi
+done
+exit 0
+PRESENTINEL
+chmod 755 "$pre_sentinel/.git/hooks/post-checkout"
+upgrade_output="$("$worktree_init" "$pre_sentinel")" \
+    || fail "upgrading a pre-sentinel hook returned failure"
+grep -Fq 'hook: upgraded (v0 -> v' <<< "$upgrade_output" \
+    || fail "pre-sentinel hook was not reported as upgraded: $upgrade_output"
+cmp -s "$hook_seed" "$pre_sentinel/.git/hooks/post-checkout" \
+    || fail "pre-sentinel hook was not replaced with the seed"
+[[ -x $pre_sentinel/.git/hooks/post-checkout ]] \
+    || fail "upgraded hook is not executable"
+
+# A third party's hook in the same slot is still never touched. git-lfs writes
+# exactly this one, and its `exit 2` is what half-created a checkout here.
+foreign="$workdir/foreign-hook"
+new_repo "$foreign"
+cat >"$foreign/.git/hooks/post-checkout" <<'FOREIGN'
+#!/bin/sh
+command -v git-lfs >/dev/null 2>&1 || { printf >&2 "\n%s\n\n" "This repository is configured for Git LFS but 'git-lfs' was not found on your path."; exit 2; }
+git lfs post-checkout "$@"
+FOREIGN
+chmod 755 "$foreign/.git/hooks/post-checkout"
+foreign_before="$(sha256sum "$foreign/.git/hooks/post-checkout")"
+foreign_output="$("$worktree_init" "$foreign")" \
+    || fail "a foreign hook made onboarding fail"
+[[ $foreign_before == "$(sha256sum "$foreign/.git/hooks/post-checkout")" ]] \
+    || fail "a foreign post-checkout hook was overwritten"
+grep -Fq 'hook: skip (a different post-checkout hook is already installed)' <<< "$foreign_output" \
+    || fail "a foreign hook was not reported as skipped"
+
+# Naming the delegate is not ownership. A third party's hook that merely mentions
+# `workstation-worktree-sync` -- in a comment, or because it calls it too -- must
+# not be read as our pre-sentinel hook and destroyed.
+mentions="$workdir/mentions-helper"
+new_repo "$mentions"
+cat >"$mentions/.git/hooks/post-checkout" <<'MENTIONS'
+#!/bin/sh
+# NOTE: this repo does NOT use workstation-worktree-sync; we roll our own.
+./scripts/project-postcheckout.sh "$@"
+MENTIONS
+chmod 755 "$mentions/.git/hooks/post-checkout"
+mentions_before="$(sha256sum "$mentions/.git/hooks/post-checkout")"
+mentions_output="$("$worktree_init" "$mentions")" \
+    || fail "a hook mentioning the delegate made onboarding fail"
+[[ $mentions_before == "$(sha256sum "$mentions/.git/hooks/post-checkout")" ]] \
+    || fail "a third-party hook that merely names the delegate was overwritten"
+grep -Fq 'hook: skip (a different post-checkout hook is already installed)' <<< "$mentions_output" \
+    || fail "a hook that merely names the delegate was not reported as foreign"
+
+# The pre-sentinel shape has no version to diff against, so a composition onto it
+# cannot be told from the original. It is still upgraded -- otherwise the frozen
+# hook stays frozen -- but never without a copy left beside it.
+composed="$workdir/composed-pre-sentinel"
+new_repo "$composed"
+cat >"$composed/.git/hooks/post-checkout" <<'COMPOSED'
+#!/usr/bin/env bash
+[ "${3:-}" = "1" ] || exit 0
+./scripts/relink-node-modules.sh || true
+for cand in workstation-worktree-sync "$HOME/.local/bin/workstation-worktree-sync"; do
+    if command -v "$cand" >/dev/null 2>&1; then
+        exec "$cand"
+    fi
+done
+exit 0
+COMPOSED
+chmod 755 "$composed/.git/hooks/post-checkout"
+composed_output="$("$worktree_init" "$composed")" \
+    || fail "upgrading a composed pre-sentinel hook returned failure"
+grep -Fq 'hook: upgraded (v0 -> v' <<< "$composed_output" \
+    || fail "composed pre-sentinel hook was not upgraded: $composed_output"
+composed_backup=("$composed"/.git/hooks/post-checkout.pre-v*.bak)
+[[ -f ${composed_backup[0]} ]] \
+    || fail "pre-sentinel upgrade left no backup beside the hook"
+grep -Fq 'relink-node-modules' "${composed_backup[0]}" \
+    || fail "the backup does not hold the composed hook"
+
+# A hook AHEAD of the seed is never downgraded, and is not reported as a local
+# edit: that reading sends someone hunting for a change nobody made.
+newer="$workdir/newer-hook"
+new_repo "$newer"
+sed 's/\(hook v\)[0-9][0-9]*$/\19999/' "$hook_seed" > "$newer/.git/hooks/post-checkout"
+chmod 755 "$newer/.git/hooks/post-checkout"
+newer_before="$(sha256sum "$newer/.git/hooks/post-checkout")"
+newer_output="$("$worktree_init" "$newer")" \
+    || fail "a newer installed hook made onboarding fail"
+[[ $newer_before == "$(sha256sum "$newer/.git/hooks/post-checkout")" ]] \
+    || fail "a newer installed hook was downgraded to the seed"
+grep -Fq 'hook: skip (installed hook is newer: v9999' <<< "$newer_output" \
+    || fail "a newer installed hook was misreported: $newer_output"
+
+# A sentinel whose version is not a plain decimal is not a version. It must not
+# reach bash arithmetic, and it must not be mistaken for something newer.
+padded="$workdir/padded-version"
+new_repo "$padded"
+sed 's/hook v[0-9][0-9]*$/hook v08/' "$hook_seed" > "$padded/.git/hooks/post-checkout"
+chmod 755 "$padded/.git/hooks/post-checkout"
+padded_output="$("$worktree_init" "$padded" 2>&1)" \
+    || fail "a zero-padded sentinel version made onboarding fail"
+grep -Fq 'value too great for base' <<< "$padded_output" \
+    && fail "a zero-padded sentinel version reached bash arithmetic: $padded_output"
+cmp -s "$hook_seed" "$padded/.git/hooks/post-checkout" \
+    || fail "a hook with an unparseable sentinel version was not brought to the seed"
+
+# The seed's own sentinel is read strictly. A seed whose sentinel is malformed
+# must stop the run, not silently read as version 0 -- that would make every
+# installed hook look current and freeze all of them while reporting success.
+fake_root="$workdir/fake-repo-root"
+fake_seed="$fake_root/system_files/usr/share/workstation-os-image/dotfiles/dot_config/git/template/hooks/create_executable_post-checkout"
+mkdir -p "$fake_root/tooling/worktree" "$(dirname "$fake_seed")"
+cp "$worktree_init" "$fake_root/tooling/worktree/init"
+sed 's/\(hook v[0-9][0-9]*\)$/\1 /' "$hook_seed" > "$fake_seed"
+broken_seed_repo="$workdir/broken-seed-target"
+new_repo "$broken_seed_repo"
+if broken_seed_output="$(
+    HOME="$HOME" "$fake_root/tooling/worktree/init" "$broken_seed_repo" 2>&1
+)"; then
+    fail "a seed with a malformed sentinel was accepted"
+fi
+grep -Fq 'carries no ownership sentinel' <<< "$broken_seed_output" \
+    || fail "a malformed seed sentinel was not reported: $broken_seed_output"
+
+# --- the hook must survive a checkout, never decide it -----------------------
+# A post-checkout exit status BECOMES `git worktree add`'s exit status (see
+# githooks(5): the hook "cannot affect the outcome ... other than that the hook's
+# exit status becomes the exit status of these two commands"). git created the
+# checkout either way, so a caller reading that status as failure walks away from
+# a complete directory. git-lfs's stock hook exits 2 when git-lfs is missing;
+# ours chains git-lfs and still must not.
+exec_repo="$workdir/hook-exec"
+new_repo "$exec_repo"
+"$worktree_init" "$exec_repo" >/dev/null
+
+# A closed PATH, so git-lfs's presence is the test's choice rather than the
+# machine's. The hook needs nothing else: `command`, `printf` and `exec` are
+# builtins, and /usr/bin/env resolves `bash` through this same PATH.
+stub_bin="$workdir/stub-bin"
+mkdir -p "$stub_bin" "$HOME/.local/bin"
+ln -sf "$(command -v bash)" "$stub_bin/bash"
+ln -sf "$(command -v git)" "$stub_bin/git"
+
+export WORKSTATION_TEST_LOG="$workdir/hook.log"
+cat >"$HOME/.local/bin/workstation-worktree-sync" <<'SYNC'
+#!/usr/bin/env bash
+printf 'sync\n' >>"$WORKSTATION_TEST_LOG"
+exit 0
+SYNC
+chmod 755 "$HOME/.local/bin/workstation-worktree-sync"
+
+run_hook() {
+    env PATH="$stub_bin" HOME="$HOME" WORKSTATION_TEST_LOG="$WORKSTATION_TEST_LOG" \
+        "$exec_repo/.git/hooks/post-checkout" "$@"
+}
+
+# git-lfs absent: exit 0, and the delegate still runs.
+rm -f "$WORKSTATION_TEST_LOG" "$stub_bin/git-lfs"
+run_hook 0000000 1111111 1 \
+    || fail "hook failed a branch checkout with git-lfs absent"
+grep -Fqx 'sync' "$WORKSTATION_TEST_LOG" \
+    || fail "hook did not reach workstation-worktree-sync with git-lfs absent"
+
+# git-lfs present and failing: still exit 0, still reaches the delegate, and is
+# invoked with git's own dispatch (`git lfs X` execs `git-lfs X`) and the hook's
+# three arguments.
+cat >"$stub_bin/git-lfs" <<'LFS'
+#!/usr/bin/env bash
+printf 'git-lfs %s\n' "$*" >>"$WORKSTATION_TEST_LOG"
+exit 3
+LFS
+chmod 755 "$stub_bin/git-lfs"
+rm -f "$WORKSTATION_TEST_LOG"
+run_hook 0000000 1111111 1 \
+    || fail "a failing git-lfs aborted the checkout"
+grep -Fqx 'git-lfs post-checkout 0000000 1111111 1' "$WORKSTATION_TEST_LOG" \
+    || fail "git-lfs was not chained with the hook arguments: $(cat "$WORKSTATION_TEST_LOG")"
+grep -Fqx 'sync' "$WORKSTATION_TEST_LOG" \
+    || fail "a failing git-lfs stopped the hook reaching workstation-worktree-sync"
+
+# A file checkout is not worktree population's business, but it IS git-lfs's:
+# the stock hook has no branch-checkout gate and refreshes lockable files after
+# one, so gating the chain would make this hook a subset of the one it replaces.
+rm -f "$WORKSTATION_TEST_LOG"
+run_hook 0000000 1111111 0 || fail "hook failed a file checkout"
+grep -Fqx 'git-lfs post-checkout 0000000 1111111 0' "$WORKSTATION_TEST_LOG" \
+    || fail "git-lfs was not chained on a file checkout: $(cat "$WORKSTATION_TEST_LOG")"
+grep -Fqx 'sync' "$WORKSTATION_TEST_LOG" \
+    && fail "hook populated a worktree on a file checkout"
+
+# The delegate's exit status must not become the hook's. An `exec` here would
+# hand a caller a failed checkout over a helper that merely could not finish.
+cat >"$HOME/.local/bin/workstation-worktree-sync" <<'FAILSYNC'
+#!/usr/bin/env bash
+printf 'sync\n' >>"$WORKSTATION_TEST_LOG"
+exit 5
+FAILSYNC
+chmod 755 "$HOME/.local/bin/workstation-worktree-sync"
+rm -f "$WORKSTATION_TEST_LOG"
+run_hook 0000000 1111111 1 \
+    || fail "a failing workstation-worktree-sync became the hook's exit status"
+grep -Fqx 'sync' "$WORKSTATION_TEST_LOG" \
+    || fail "the failing delegate was never reached"
+
+# End to end, on the real PATH: creating a worktree in an onboarded repository
+# returns success. This is the regression the popup half-created a checkout over.
+git -C "$exec_repo" worktree add -q -b exec-check "$workdir/exec-check" >/dev/null \
+    || fail "git worktree add failed in a repository carrying the managed hook"
 
 # An inventory redirection failure must produce a failing exit status and must
 # never be followed by a generated-success message.

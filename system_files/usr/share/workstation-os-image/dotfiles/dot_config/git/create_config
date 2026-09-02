@@ -65,3 +65,20 @@
     # stays a repository when it is bind-mounted into a Dev Container alongside
     # the common .git (see `dev`, which passes --mount-git-worktree-common-dir).
     useRelativePaths = true
+
+[filter "lfs"]
+    # `git lfs install` normally writes this block itself, but it also insists on
+    # installing its own hooks and refuses to merge with the managed
+    # post-checkout hook that init.templateDir already put in place. So the
+    # config half is declared here and the hook half is chained from
+    # ~/.config/git/template/hooks/post-checkout, and `git lfs install` is never
+    # needed on this machine.
+    #
+    # required = true is upstream's own default and the loud one: without
+    # git-lfs on PATH an LFS checkout fails instead of silently writing pointer
+    # files into the working tree. The image ships git-lfs (dev.list) so that
+    # branch is a build regression, not a state a user can reach.
+    clean = git-lfs clean -- %f
+    smudge = git-lfs smudge -- %f
+    process = git-lfs filter-process
+    required = true
