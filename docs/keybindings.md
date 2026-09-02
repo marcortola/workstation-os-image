@@ -167,6 +167,7 @@ moving a *window* are different keys.
 | `Mod+T` | Terminal |
 | `Mod+Shift+T` | Coding session |
 | `Mod+Shift+P` | Project picker |
+| `Mod+S` | Coding spaces (bar widget popout) |
 | `Mod+Shift+D` | lazydocker |
 | `Mod+F` | File manager |
 | `Ctrl+Alt+Delete` | btop |

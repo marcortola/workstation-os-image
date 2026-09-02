@@ -13,6 +13,14 @@ scaffold|.config/foot/dank-colors.ini|dot_config/foot/create_dank-colors.ini|-
 # from docs/keybindings.md and the niri binds, so it is regenerated rather than
 # captured; `just cheatsheet` rebuilds it and validate asserts it is in sync.
 scaffold|.config/DankMaterialShell/cheatsheets/workstation.json|dot_config/DankMaterialShell/cheatsheets/workstation.json|-
+# The herdr bar widget. Image-owned QML like the niri scaffolding: hand-edited
+# here, applied by chezmoi, never captured. DMS discovers a plugin from the
+# directory, so plugin.json and its component must land together. The enablement
+# seed is create-only rather than scaffold because DMS owns that file afterwards
+# for every other plugin -- rewriting it on each apply would delete theirs.
+scaffold|.config/DankMaterialShell/plugins/herdrJobs/plugin.json|dot_config/DankMaterialShell/plugins/herdrJobs/plugin.json|-
+scaffold|.config/DankMaterialShell/plugins/herdrJobs/HerdrJobsWidget.qml|dot_config/DankMaterialShell/plugins/herdrJobs/HerdrJobsWidget.qml|-
+scaffold|.config/DankMaterialShell/plugin_settings.json|dot_config/DankMaterialShell/create_plugin_settings.json|-
 copy|.codex/AGENTS.md|dot_codex/create_AGENTS.md|-
 scrub|.codex/config.toml|dot_codex/create_config.toml|codex-config
 copy|.claude/CLAUDE.md|dot_claude/create_CLAUDE.md|-
@@ -51,6 +59,7 @@ scaffold|.config/herdr/plugins/dev-flow/agents.sh|dot_config/herdr/plugins/dev-f
 scaffold|.config/herdr/plugins/dev-flow/checkout-remove.sh|dot_config/herdr/plugins/dev-flow/executable_checkout-remove.sh|-
 scaffold|.config/herdr/plugins/dev-flow/close-workspace.sh|dot_config/herdr/plugins/dev-flow/executable_close-workspace.sh|-
 scaffold|.config/herdr/plugins/dev-flow/equalize-panes.sh|dot_config/herdr/plugins/dev-flow/executable_equalize-panes.sh|-
+scaffold|.config/herdr/plugins/dev-flow/focus-space.sh|dot_config/herdr/plugins/dev-flow/executable_focus-space.sh|-
 scaffold|.config/herdr/plugins/dev-flow/focus-tab.sh|dot_config/herdr/plugins/dev-flow/executable_focus-tab.sh|-
 scaffold|.config/herdr/plugins/dev-flow/herdr-request.sh|dot_config/herdr/plugins/dev-flow/executable_herdr-request.sh|-
 scaffold|.config/herdr/plugins/dev-flow/layout-common.sh|dot_config/herdr/plugins/dev-flow/layout-common.sh|-

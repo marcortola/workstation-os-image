@@ -138,6 +138,10 @@ for target in \
     .config/foot/workstation.ini \
     .config/DankMaterialShell/themes/tokyoNightDark/theme.json \
     .config/DankMaterialShell/cheatsheets/workstation.json \
+    .config/DankMaterialShell/plugins/herdrJobs/plugin.json \
+    .config/DankMaterialShell/plugins/herdrJobs/HerdrJobsWidget.qml \
+    .config/DankMaterialShell/plugin_settings.json \
+    .config/herdr/plugins/dev-flow/focus-space.sh \
     .config/git/config \
     .config/git/ignore \
     .config/git/template/hooks/post-checkout \

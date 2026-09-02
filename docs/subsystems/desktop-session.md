@@ -503,6 +503,70 @@ other implementation and the two conflict, so only one can be present.
 
 ---
 
+## The herdr Bar Widget
+
+`herdrJobs` is a DMS plugin, sitting in the centre of the bar just after the
+notification button. It carries two counts — spaces that are `blocked` in red
+and `done` in green, each hidden at zero — and opens a popout listing every open
+space with its state, the same rows the `prefix+s` space picker draws. Clicking a
+row focuses that space and raises the herdr window; the popout closes behind it.
+
+The counts are `done` rather than the picker's `*` freshness mark, deliberately:
+herdr keeps calling a space `done` until it goes back to work, so the count
+survives until it is dealt with, where the mark expires after
+`AGENT_FRESH_SECONDS` whether or not anyone looked.
+
+`Mod+S` opens the same popout without the mouse, mirroring herdr's own
+`prefix+s`. The bind is `dms ipc call widget toggle herdrJobs` — `widget` is
+DMS's generic bar-widget popout IPC, and it treats a plugin id like any built-in
+one. It is in the full reference in [../keybindings.md](../keybindings.md) but
+not in the one-screen digest, which is at its 28-row cap.
+
+It is the first QML this repository ships, and it is a **view, not a second
+source**. Every row comes from `spaces.sh --json`, the picker's own row builder:
+
+```
+~/.config/herdr/plugins/dev-flow/spaces.sh --json
+```
+
+The picker renders those objects as padded TSV, the widget parses them as JSON,
+and neither recomputes state, the just-finished `*` mark or the attention
+ordering. That matters more than it looks: herdr times nothing, so freshness can
+only come from the stamp `agent-freshness.sh` writes — see
+[dev-environment.md](dev-environment.md) and
+[../design-records/agent-recency.md](../design-records/agent-recency.md).
+
+`--json` lists **open spaces only**, unlike the picker, so it runs no `git` at
+all: two herdr socket reads and a `jq` pass, polled every three seconds. The
+widget is the ambient indicator; the picker stays the navigator. Focusing is
+`focus-space.sh`, which scopes the session over the socket and then raises the
+window — the picker never needs the second half, because it is already running
+inside the window it would raise.
+
+Four files have to agree, and every way they can disagree is silent:
+
+| File | What it carries |
+| --- | --- |
+| `.../dotfiles/dot_config/DankMaterialShell/plugins/herdrJobs/plugin.json` | The id, the component path, and `capabilities` |
+| `.../plugins/herdrJobs/HerdrJobsWidget.qml` | The pill, the popout, the poll |
+| `.../dotfiles/dot_config/DankMaterialShell/create_plugin_settings.json` | The enablement seed. Create-only, because DMS owns that file afterwards for every other plugin |
+| `system_files/usr/share/workstation-os-image/dms-settings.json` | The bar entry, in `barConfigs[].centerWidgets` |
+
+A plugin with no bar entry loads and renders nothing; a bar entry with no
+enablement seed renders nothing either; a `launcher` capability routes the widget
+off the bar entirely. `tooling/validate/sources` asserts all four agree.
+
+What it cannot assert is the QML. Nothing on this machine lints QML — there is
+no `qmllint` — so a syntax error passes `just validate` and shows up only as a
+missing widget. The check is a reload:
+
+```
+dms ipc call plugins reload herdrJobs    # PLUGIN_RELOAD_SUCCESS, or a component error
+```
+
+An error anywhere in the file, including inside the popout that is only built on
+click, fails that reload rather than waiting for the click.
+
 ## DMS Settings Ownership
 
 DMS settings are **UI-owned after a one-time seed**. On first login
@@ -532,6 +596,8 @@ into a live account, is the capture workflow, owned by
 | A terminal entry without `X-TerminalArg*` | `xdg-terminal-exec` silently drops `--app-id` and `--title`; app-id-matched desktop entries stop associating | The image ships `workstation-footclient.desktop`; the build gate asserts the resulting command line, not just the resolved entry |
 | The niri spawn-target gate greps `spawn "..."` | A `spawn-sh` target, or anything in `local.kdl`, is not resolved at build time | Known gap. Prefer `spawn "..."` for a bare binary; `spawn-sh` only where `$HOME` expansion is genuinely needed |
 | `local.kdl` is seeded create-only | Editing `create_local.kdl.tmpl` in the repo never re-seeds an account that already has the file | Change the live file, then run `just sync` to refresh the seed |
+| A plugin directory created while DMS runs | `PluginService` binds its watcher once at startup, and a watcher aimed at a missing folder never fires when it appears, so the plugin is invisible | `dms ipc call plugin-scan scan`, once. On a fresh account there is no gap: chezmoi runs at `graphical-session-pre.target`, before `dms.service` |
+| `just dms-capture` on `barConfigs` | The recipe takes the live array wholesale and the apply side replaces arrays rather than merging them, so capturing while `herdrJobs` is absent from live deletes it from the overlay | Capture `barConfigs` only from a session that already has the widget on the bar |
 | DnD with genuinely X11-only apps | Still broken, and not fixable here | Upstream `xwayland-satellite#133` |
 | `dsearch.service` in the greeter's user manager | Crash-loops on a read-only home for as long as the login screen is up | A `10-skip-system-users.conf` drop-in setting `ConditionUser=!@system` — the same treatment given to `dms`, `fcitx5`, `foot-server`, `gcr-ssh-agent`, `iio-niri`, `udiskie` and `xdg-user-dirs`. `99-check-build.sh` fails the build if the user preset enables a non-`workstation-*` unit without one |
 
