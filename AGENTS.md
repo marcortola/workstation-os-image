@@ -206,6 +206,11 @@ prefer them over reinventing the shape:
   on dead chords free the keys the rest moves into -- so run `herdr config
   check` after any edit; it reports a collision as `kept keys.X, disabled
   keys.Y` rather than failing.
+- Both dev layouts are built from `pane split` and `pane move`, never
+  `layout.apply`: that call replaces the tab it is handed and restarts the
+  agent in it. `layout.sh` (three tabs, the default) and `layout-split.sh`
+  (one tab) undo each other and share `layout-common.sh`. The split tab is
+  named `dev`: `focus-tab.sh` resolves `main`/`nvim`/`term` as tabs first.
 - herdr times nothing: `agent list` carries `state_change_seq`, a counter, and
   no clock. Every recency answer comes from one stamp per checkout, written by
   the `pane.agent_status_changed` hook and read through

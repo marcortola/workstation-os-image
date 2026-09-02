@@ -39,8 +39,11 @@ require_file docs/README.md
 # without a timestamp, so three separate behaviours -- a freshness mark, an
 # expiry window and whether a conversation resumes -- hang off one stamp file,
 # and an agent that does not know that is one `date` call away from adding a
-# second, silently disagreeing clock.
-(( $(wc -l < AGENTS.md) <= 289 ))
+# second, silently disagreeing clock. Raised to 293 for the second dev layout:
+# `layout.apply` is the API anyone adding a third would reach for first, and it
+# replaces the tab it is handed, so applying a layout with it restarts the
+# agent -- a rule that has to be read before the code, not after.
+(( $(wc -l < AGENTS.md) <= 293 ))
 
 # README.md is a landing pad into docs/ and nothing else. Capped because it grows
 # back otherwise: it was 855 lines covering fourteen concerns before the handbook

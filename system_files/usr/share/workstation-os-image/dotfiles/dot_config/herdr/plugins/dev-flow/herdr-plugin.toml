@@ -16,6 +16,15 @@ title = "Apply dev layout"
 contexts = ["workspace"]
 command = ["./layout.sh"]
 
+# The second layout: one tab, the agent pinned to a third of the width, the
+# editor stacked over the terminal in the rest. The action above stays the
+# default and is also what takes this one apart again.
+[[actions]]
+id = "layout-split"
+title = "Apply split layout"
+contexts = ["workspace"]
+command = ["./layout-split.sh"]
+
 [[actions]]
 id = "adopt-worktrees"
 title = "Open worktrees of every repo"
