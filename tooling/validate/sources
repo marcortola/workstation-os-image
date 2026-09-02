@@ -57,8 +57,12 @@ require_file docs/README.md
 # silent -- an id that disagrees across three files, a capability that moves it
 # off the bar, a plugin directory DMS never scanned -- and an agent that does
 # not know the check is a plugin reload will conclude the widget is fine
-# because `just validate` passed.
-(( $(wc -l < AGENTS.md) <= 312 ))
+# because `just validate` passed. Raised to 316 for DataGrip: it is the one piece
+# of software here that no package manager can install, so the Brewfile line an
+# agent would reach for first is not an oversight to correct but the mistake the
+# entry warns against -- the Homebrew cask is macOS-only and the Flathub build is
+# retired, and both facts are invisible from inside this repository.
+(( $(wc -l < AGENTS.md) <= 316 ))
 
 # README.md is a landing pad into docs/ and nothing else. Capped because it grows
 # back otherwise: it was 855 lines covering fourteen concerns before the handbook
@@ -298,6 +302,25 @@ jq -e --arg id "$herdr_widget_id" \
 grep -q 'spaces.sh --json' "$herdr_widget/HerdrJobsWidget.qml"
 grep -q 'focus-space.sh' "$herdr_widget/HerdrJobsWidget.qml"
 grep -q '"--json"' "$dev_flow/executable_spaces.sh"
+
+# One mechanism, two files: DataGrip has no package on Linux -- the Homebrew cask
+# is macOS-only and the Flathub build was retired -- so the image ships the
+# launcher while workstation-bootstrap-user unpacks the vendor tarball, puts the
+# binary on the session PATH and installs the icon into the user's hicolor theme.
+# Either half alone is a launcher that does nothing or an install with no way to
+# start it, and neither failure is visible until someone clicks the icon.
+datagrip_desktop=system_files/usr/share/applications/datagrip.desktop
+datagrip_bootstrap=system_files/usr/libexec/workstation-bootstrap-user
+require_file "$datagrip_desktop"
+require_file "$datagrip_bootstrap"
+datagrip_exec="$(sed -nE 's/^Exec=([^ ]+).*/\1/p' "$datagrip_desktop")"
+datagrip_icon="$(sed -nE 's/^Icon=(.+)/\1/p' "$datagrip_desktop")"
+[[ -n $datagrip_exec && -n $datagrip_icon ]]
+grep -q "local/bin/$datagrip_exec\"" "$datagrip_bootstrap" \
+    || { echo "$datagrip_desktop runs $datagrip_exec, which $datagrip_bootstrap never links" >&2; exit 1; }
+grep -q "icons/hicolor/scalable/apps" "$datagrip_bootstrap"
+grep -q "$datagrip_icon.svg\"" "$datagrip_bootstrap" \
+    || { echo "$datagrip_desktop names icon $datagrip_icon, which $datagrip_bootstrap never installs" >&2; exit 1; }
 
 # --- every tracked structured config file parses -----------------------------
 # A malformed greeter/settings.json fails at the login screen, which is the one

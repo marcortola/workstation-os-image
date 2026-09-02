@@ -3,6 +3,7 @@ set -euo pipefail
 
 state_home="${XDG_STATE_HOME:-$HOME/.local/state}"
 brew=/home/linuxbrew/.linuxbrew/bin/brew
+jq=/home/linuxbrew/.linuxbrew/bin/jq
 brewfile="${XDG_CONFIG_HOME:-$HOME/.config}/homebrew/Brewfile"
 marker="$state_home/workstation-os-image/bootstrap-complete"
 
@@ -25,12 +26,12 @@ if [[ -f $marker && "$(cat "$marker")" == "$script_hash" ]]; then
     exit 0
 fi
 
-mkdir -p "$(dirname "$marker")" "$HOME/.local/bin"
+mkdir -p "$(dirname "$marker")" "$HOME/.local/bin" "$HOME/.local/opt"
 
 # The repository checkout is no longer cloned here: /usr/bin/wjust clones it on
 # demand the first time a recipe runs. That keeps this bootstrap free of any
 # GitHub dependency, so a transient clone failure can no longer block the
-# essential brew provisioning below.
+# essential brew and DataGrip provisioning below.
 
 # The ublue brew layer ships /usr/share/homebrew.tar.zst and
 # enables brew-setup.service, which unpacks it on first boot. Never install
@@ -57,6 +58,57 @@ for name in "${trust_names[@]}"; do
     "$brew" trust --formula "$name"
 done
 "$brew" bundle install --file "$brewfile"
+
+# DataGrip is the one JetBrains product this image still provisions, and the
+# only thing on this machine no package manager can install. The Homebrew cask
+# is `depends_on :macos` and ships a `.dmg`; the Flathub build was retired on
+# 2026-07-22, and its ref now carries "This application is no longer
+# maintained", frozen at 2026.2. So install the official Linux tarball entirely
+# below the home directory, from the same release API the Homebrew cask's own
+# livecheck reads, verifying the download-CDN archive against the checksum
+# served by the release API host.
+#
+# Placed after `brew bundle install` on purpose: jq is a Brewfile formula, so
+# the parse below has nothing to run until that line has completed once.
+workdir="$(mktemp -d)"
+trap 'rm -rf -- "$workdir"' EXIT
+
+datagrip_release="$(curl -fsSL \
+    'https://data.services.jetbrains.com/products/releases?code=DG&latest=true&type=release')"
+datagrip_url="$("$jq" -er '.DG[0].downloads.linux.link' <<< "$datagrip_release")"
+datagrip_checksum_url="$("$jq" -er '.DG[0].downloads.linux.checksumLink' \
+    <<< "$datagrip_release")"
+
+datagrip_archive="${datagrip_url##*/}"
+curl -fL --retry 3 "$datagrip_url" -o "$workdir/$datagrip_archive"
+curl -fL --retry 3 "$datagrip_checksum_url" -o "$workdir/$datagrip_archive.sha256"
+(cd "$workdir" && sha256sum -c "$datagrip_archive.sha256")
+tar -xzf "$workdir/$datagrip_archive" -C "$HOME/.local/opt"
+
+# The archive unpacks to DataGrip-<version>/. sort -V, not sort: lexicographically
+# 2026.10 sorts below 2026.2, so a plain sort silently pins the older build
+# forever once a two-digit minor ships.
+datagrip_home="$(find "$HOME/.local/opt" -maxdepth 1 -name 'DataGrip-*' -type d \
+    | sort -V | tail -n 1)"
+[[ -n $datagrip_home ]]
+
+# This script re-runs whenever its own hash changes, not once per account, so
+# every extracted tree would otherwise accumulate at ~2.8 GB each.
+find "$HOME/.local/opt" -maxdepth 1 -name 'DataGrip-*' -type d \
+    -not -path "$datagrip_home" -exec rm -rf {} +
+ln -sfn "$datagrip_home/bin/datagrip" "$HOME/.local/bin/datagrip"
+
+# The tarball ships no desktop entry: a Toolbox-less install expects the IDE's
+# own "Create Desktop Entry" action, which is a GUI step and therefore not
+# reproducible. /usr/share/applications/datagrip.desktop is the entry instead,
+# and it names `datagrip` for both Exec and Icon -- the symlink above puts the
+# first on the session PATH, and the copy below puts the second in this user's
+# icon theme. Copied under a stable name rather than referenced at its absolute
+# path, so the next version bump does not leave the entry pointing at a tree
+# the prune above has removed.
+icon_dir="${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor/scalable/apps"
+mkdir -p "$icon_dir"
+install -m 0644 "$datagrip_home/bin/datagrip.svg" "$icon_dir/datagrip.svg"
 
 printf '%s\n' "$script_hash" > "$marker"
 echo "Workstation user bootstrap complete."
