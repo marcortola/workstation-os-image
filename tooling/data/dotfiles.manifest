@@ -48,6 +48,7 @@ scaffold|.config/herdr/plugins/dev-flow/adopt-worktrees.sh|dot_config/herdr/plug
 scaffold|.config/herdr/plugins/dev-flow/agent-finished.sh|dot_config/herdr/plugins/dev-flow/agent-finished.sh|-
 scaffold|.config/herdr/plugins/dev-flow/agent-freshness.sh|dot_config/herdr/plugins/dev-flow/executable_agent-freshness.sh|-
 scaffold|.config/herdr/plugins/dev-flow/agents.sh|dot_config/herdr/plugins/dev-flow/executable_agents.sh|-
+scaffold|.config/herdr/plugins/dev-flow/checkout-remove.sh|dot_config/herdr/plugins/dev-flow/executable_checkout-remove.sh|-
 scaffold|.config/herdr/plugins/dev-flow/close-workspace.sh|dot_config/herdr/plugins/dev-flow/executable_close-workspace.sh|-
 scaffold|.config/herdr/plugins/dev-flow/equalize-panes.sh|dot_config/herdr/plugins/dev-flow/executable_equalize-panes.sh|-
 scaffold|.config/herdr/plugins/dev-flow/focus-tab.sh|dot_config/herdr/plugins/dev-flow/executable_focus-tab.sh|-

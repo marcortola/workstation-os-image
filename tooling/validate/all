@@ -16,8 +16,11 @@ tooling/validate/rpm-keys
 mapfile -t shell_files < <(
     find tooling build_files system_files/usr/bin system_files/usr/libexec -type f \
         \( -perm /111 -o -name '*.sh' \) -print | sort
+    # Both chezmoi executable prefixes: create_executable_* are the create-only
+    # personal seeds, executable_* the image-owned scaffold ones. The scaffold
+    # half went unchecked until the dev-flow plugin grew to seventeen scripts.
     find system_files/usr/share/workstation-os-image/dotfiles -type f \
-        -name 'create_executable_*' -print | sort
+        \( -name 'create_executable_*' -o -name 'executable_*' \) -print | sort
     # Bundle scripts only (maxdepth 1 skips the vendored Node installer).
     find tooling/ai/ai-cli-setup -maxdepth 1 -name '*.sh' -print | sort
 )

@@ -7,6 +7,9 @@ herdr_cli() {
 
 plugin_dir=$(cd "$(dirname "$0")" && pwd)
 # shellcheck source=agent-finished.sh
+# Resolved at run time from the deployed plugin directory, which is not this
+# path in the repository.
+# shellcheck disable=SC1091
 . "$plugin_dir/agent-finished.sh"
 
 # A hand-linked project carries no worktree metadata, so git resolves its repo from the pane.
