@@ -43,12 +43,31 @@ put it.
 One stamp per checkout, written when the transition happens, read by everything
 that asks about recency.
 
-`dev-flow/agent-freshness.sh` runs on `pane.agent_status_changed`. On `done` or
-`blocked` it writes `<unix seconds>\t<checkout path>` into
-`~/.local/state/workstation/agent-finished/<sha1 of the path>`, and it sets a
-herdr workspace token with a ten-minute TTL. On any other status it clears the
-token. `dev-flow/agent-finished.sh` holds the paths, the two windows and the
-readers; it is sourced, never run.
+`dev-flow/agent-freshness.sh` runs on `pane.agent_status_changed` and writes
+`<unix seconds>\t<checkout path>` into
+`~/.local/state/workstation/agent-finished/<sha1 of the path>`.
+`dev-flow/agent-finished.sh` holds the paths, the two windows and the readers;
+it is sourced, never run.
+
+A finish is a **transition**, not a state, and that distinction is the whole of
+the rule. herdr derives `done` rather than accepting it — `pane report-agent
+--state` takes only `idle`, `working`, `blocked` and `unknown`, and no agent
+manifest emits `done` — and the docs say what it derives it for: *"A done agent
+stays visible until you view it."* So a turn that ends while you are **watching**
+it goes `working -> idle` and never passes through `done`. Keying the stamp on
+`done` alone therefore lost exactly the projects you had open when you finished
+one, which is not a corner case; it is the common one.
+
+The stamp is written on `done`, on `blocked`, and on `idle` only when the pane
+was `working` a moment earlier. The last clause is load-bearing: without it,
+every re-detection of a pane that has sat at its prompt for a week would reset
+the clock and nothing would ever expire. The previous status per pane lives
+beside the stamps, because herdr's event carries the new status and not the old.
+
+The sidebar badge keeps the narrower rule — `done` or `blocked` only. Those are
+the two states that also mean *and you have not looked yet*, and herdr clears
+`done` itself the moment the pane is viewed, so a badge on `idle` would outlive
+the thing it announces.
 
 Three consumers, one clock:
 

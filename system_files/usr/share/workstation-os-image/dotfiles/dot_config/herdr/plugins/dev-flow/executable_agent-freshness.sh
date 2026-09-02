@@ -28,15 +28,39 @@ IFS=$'\t' read -r status pane workspace < <(
 
 [ -n "$workspace" ] || exit 0
 
-# `blocked` wants an answer and `done` wants a review; both are "this space is
-# asking for you", which is the state the picker already collapses them into.
+previous=$(agent_status_previous "$pane")
+if [ -n "$pane" ]; then
+    agent_status_remember "$pane" "$status"
+fi
+
+# The badge is only for the two states that also mean "and you have not looked
+# yet". herdr derives `done` itself and drops it back to `idle` the moment the
+# pane is viewed, so a badge on `idle` would outlive the thing it announces.
 case $status in
-    done | blocked) ;;
+    done | blocked)
+        herdr_cli workspace report-metadata "$workspace" \
+            --source dev.flow --token fresh=new --ttl-ms "$((AGENT_FRESH_SECONDS * 1000))" >/dev/null 2>&1 || true
+        ;;
     *)
         herdr_cli workspace report-metadata "$workspace" --source dev.flow --clear-token fresh >/dev/null 2>&1 || true
-        exit 0
         ;;
 esac
+
+# The stamp is a wider question than the badge: did work end here, viewed or
+# not. `done` and `blocked` always answer yes. `idle` answers yes only as the
+# far side of a working transition -- a turn that ended while you watched it
+# never reaches `done` -- and no otherwise, or every re-detection of a pane
+# that has been sitting at its prompt for a week would reset the clock.
+finished=no
+case $status in
+    done | blocked) finished=yes ;;
+    idle)
+        if [ "$previous" = working ]; then
+            finished=yes
+        fi
+        ;;
+esac
+[ "$finished" = yes ] || exit 0
 
 # The workspace knows its checkout when herdr created the worktree; a hand-linked
 # space only knows where its pane is standing.
@@ -48,6 +72,3 @@ fi
 [ -n "$checkout" ] || exit 0
 
 agent_finished_write "$(agent_checkout_key "$checkout")"
-
-herdr_cli workspace report-metadata "$workspace" \
-    --source dev.flow --token fresh=new --ttl-ms "$((AGENT_FRESH_SECONDS * 1000))" >/dev/null 2>&1 || true

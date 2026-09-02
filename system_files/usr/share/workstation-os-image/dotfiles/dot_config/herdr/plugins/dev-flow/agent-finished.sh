@@ -16,6 +16,11 @@
 
 AGENT_FINISHED_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/workstation/agent-finished"
 
+# The status each pane was last seen in. herdr sends the new status and not the
+# old one, and a finish is a transition rather than a state: a turn that ends
+# while you are watching it goes working -> idle and never passes through done.
+AGENT_STATUS_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/workstation/agent-status"
+
 # A space that finished inside AGENT_FRESH_SECONDS is marked as just finished.
 # One that finished longer ago than AGENT_EXPIRED_SECONDS is expired: the space
 # picker hides it, and reopening it starts a clean conversation instead of
@@ -28,6 +33,26 @@ AGENT_EXPIRED_SECONDS=43200
 agent_checkout_key() {
     git -C "$1" rev-parse --path-format=absolute --show-toplevel 2>/dev/null ||
         printf '%s\n' "$1"
+}
+
+agent_status_file() {
+    printf '%s/%s\n' "$AGENT_STATUS_DIR" "$(printf '%s' "$1" | tr -c 'A-Za-z0-9_.-' '_')"
+}
+
+agent_status_previous() {
+    local file
+    file=$(agent_status_file "$1")
+    [ -f "$file" ] || return 0
+    cat "$file" 2>/dev/null || true
+}
+
+agent_status_remember() {
+    local file
+    file=$(agent_status_file "$1")
+    mkdir -p "$AGENT_STATUS_DIR"
+    printf '%s\n' "$2" >"$file"
+    # Pane ids do not outlive a herdr server for long.
+    find "$AGENT_STATUS_DIR" -type f -mtime +30 -delete 2>/dev/null || true
 }
 
 agent_finished_file() {
