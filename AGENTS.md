@@ -155,6 +155,10 @@ prefer them over reinventing the shape:
 - A tap-qualified `brew`/`cask` line is self-trusting but not self-installing on
   an existing machine: run `just brew-apply` once after deploy to install newly
   added entries.
+- DataGrip has no Linux package: the Homebrew cask is `depends_on :macos` and
+  the Flathub build is retired. Never declare it in the Brewfile. It is unpacked
+  from the JetBrains release API by `workstation-bootstrap-user`, its launcher is
+  image-owned, and `tooling/validate/sources` gates that the two halves agree.
 
 ### Neovim
 

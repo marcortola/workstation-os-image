@@ -20,6 +20,7 @@ project's dev container and not on the host at all.**
 | Something no repository packages, that has to be compiled or unpacked | `build_files/00-toolchain.sh`, pinned by a `sha256` `ARG` in the `Containerfile` | the `toolchain` build stage |
 | A CLI tool the user runs | `~/.config/homebrew/Brewfile` | `just brew-apply` now, `uupd` daily thereafter |
 | A GUI application | a `flatpak` line in the same Brewfile | `just brew-apply` |
+| A GUI application no repository, Homebrew or Flathub can install | `system_files/usr/libexec/workstation-bootstrap-user` | `workstation-bootstrap.service`, at first graphical login and again whenever that script changes |
 | A language runtime, SDK or project-specific toolchain | neither — the project's dev container | `dev`, see [dev-environment.md](dev-environment.md) |
 | A third-party AI CLI | the Brewfile or `just ai-tools-install`; never vendored | see [ai-clis.md](ai-clis.md) |
 
@@ -366,6 +367,53 @@ The XWayland drag-and-drop gap it works around is
 orphaned runtimes accumulate as applications change. `just flatpak-prune` runs
 `flatpak uninstall --unused`, which lists what it would remove and waits for a
 yes. It is deliberately not wired into the nightly update path: it deletes data.
+
+---
+
+## Vendor tarballs
+
+Exactly one application is installed this way, and the bar for a second is that
+every row above it in the decision table has been tried and failed. **DataGrip**
+clears it: the Homebrew cask is `depends_on :macos` with a `DataGrip.app`
+artifact, so `brew install --cask datagrip` cannot run here — note that
+`brew install --cask --dry-run datagrip` still prints `Would install 1 cask`,
+because `--dry-run` skips requirement checks — and the Flathub build was retired
+on 2026-07-22, its ref carrying `End-of-life: This application is no longer
+maintained` and frozen at 2026.2 while every other JetBrains Flatpak keeps
+shipping releases. There is no third package.
+
+`workstation-bootstrap-user` therefore installs the official Linux tarball
+entirely below the home directory, from the same release API the Homebrew cask's
+own `livecheck` block reads:
+
+```bash
+datagrip_release="$(curl -fsSL \
+    'https://data.services.jetbrains.com/products/releases?code=DG&latest=true&type=release')"
+```
+
+The archive comes from the download CDN and the checksum from the release API
+host, so `sha256sum -c` is a cross-host check rather than a restatement of what
+one server just sent. It unpacks to `~/.local/opt/DataGrip-<version>/`, older
+trees are pruned — the script re-runs on every edit to itself, and each tree is
+~2.8 GB — and `~/.local/bin/datagrip` is relinked to the survivor.
+
+The launcher is the image's, not the tarball's: a Toolbox-less JetBrains install
+expects the IDE's own **Create Desktop Entry** action, which is a GUI step and
+therefore not reproducible.
+`system_files/usr/share/applications/datagrip.desktop` says `Exec=datagrip` and
+`Icon=datagrip`, and the bootstrap supplies both names — the symlink above for
+the first, a copy of the tarball's `bin/datagrip.svg` into
+`~/.local/share/icons/hicolor/scalable/apps/` for the second. The icon is copied
+under a stable name rather than pointed at where it lives, so a version bump
+does not leave the entry aimed at a tree the prune has already removed.
+`tooling/validate/sources` asserts the two files still name the same binary and
+the same icon; either half alone fails silently, at the moment somebody clicks
+the icon.
+
+Updates are DataGrip's own. The install is writable by the user who owns it, so
+the IDE's built-in updater patches it in place; the bootstrap only re-establishes
+a checksum-verified baseline when the script itself changes. Nothing here is
+wired into `uupd`.
 
 ---
 

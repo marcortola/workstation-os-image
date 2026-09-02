@@ -1,0 +1,21 @@
+[Desktop Entry]
+Type=Application
+Name=DataGrip
+GenericName=Database IDE
+Comment=The IDE for databases and SQL
+# `datagrip` rather than an absolute path, for the same reason
+# workstation-footclient.desktop says `footclient`: the install lives under the
+# home directory at a version-stamped path this file must not name, and the
+# niri.service drop-in 10-homebrew-path.conf already puts %h/.local/bin on the
+# session PATH. workstation-bootstrap-user maintains that symlink and installs
+# the matching icon into the user's hicolor theme; tooling/validate/sources
+# gates that the two halves still name the same thing.
+Exec=datagrip %u
+Icon=datagrip
+Terminal=false
+Categories=Development;IDE;Database;
+Keywords=sql;database;jdbc;jetbrains;
+StartupNotify=true
+# The app-id DataGrip sets on its own windows. Without it neither niri nor the
+# dock can match a running window back to this entry.
+StartupWMClass=jetbrains-datagrip
