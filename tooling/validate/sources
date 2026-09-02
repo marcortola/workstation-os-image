@@ -193,9 +193,8 @@ jq -e '.autoMode.environment == null' \
     tooling/ai/ai-cli-setup/config/claude/settings.json >/dev/null
 
 # Worktree untracked-file propagation: every creation path (herdr, Claude Code,
-# the post-checkout hook, the JetBrains External Tool) reaches the same
-# committed .worktreeinclude through `git worktree add`, so assert the wiring
-# that keeps them in sync.
+# the post-checkout hook) reaches the same committed .worktreeinclude through
+# `git worktree add`, so assert the wiring that keeps them in sync.
 grep -q 'workstation-worktree-sync' \
     system_files/usr/share/workstation-os-image/dotfiles/dot_config/git/template/hooks/create_executable_post-checkout
 grep -q 'satococoa/tap/git-worktreeinclude' \

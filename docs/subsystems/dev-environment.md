@@ -428,9 +428,9 @@ gets the same list. This repository ships one at its root; its patterns are:
 CLAUDE.local.md
 ```
 
-### The four creation paths
+### The three creation paths
 
-All four reach the same inventory, and `tooling/validate/sources` asserts the
+All three reach the same inventory, and `tooling/validate/sources` asserts the
 wiring that keeps them in sync.
 
 | Path | How it reaches `.worktreeinclude` |
@@ -438,7 +438,6 @@ wiring that keeps them in sync.
 | **herdr** (`herdr worktree create`) | Shells out to `git worktree add`, so the `post-checkout` hook fires |
 | **`dev.flow` `worktree-setup.sh`** | A second, machine-local net on the `worktree.created` event: the union of every `.worktreeinclude` in `~/projects`, copied only where git already ignores the file and the target does not have it |
 | **Claude Code** (`--worktree`, subagent isolation) | Reads `.worktreeinclude` natively |
-| **JetBrains "New Worktree"** | The IDE shells out to git, so the same `post-checkout` hook applies |
 
 The hook is
 `system_files/usr/share/workstation-os-image/dotfiles/dot_config/git/template/hooks/create_executable_post-checkout`.
@@ -448,10 +447,9 @@ checkout is ignored) and immediately delegates. `init.templateDir` in
 seeds it into every *new* clone.
 
 For a repository whose hooks path has been hijacked — Husky and lefthook both do
-this — the fallback is the **Sync worktree files** External Tool, shipped in
-`tooling/data/jetbrains-settings/_shared/tools/`. It runs `git worktreeinclude
-apply` in `$ProjectFileDir$` from Tools → External Tools, and appears in the main
-menu, the project view and search-everywhere.
+this — the hook never fires and the fallback is manual: run
+`workstation-worktree-sync` inside the new checkout, which is the same helper the
+hook would have called.
 
 ### The copy itself
 
@@ -588,9 +586,7 @@ draws, and `sidebar_start_collapsed = true` is what decides it begins that way.
 `Ctrl+G` `b` brings it back. Removal never touches the branch, deliberately: herdr does
 not delete branches and neither does the popup.
 
-The `ga` and `gd` fish functions this replaced are gone. Outside a herdr pane,
-use `git worktree add` directly; the `post-checkout` hook still fires, so
-`.worktreeinclude` propagation is unaffected.
+The `ga` and `gd` fish functions this replaced are gone.
 
 For heavier parallel work — several agents on several branches at once — the
 unit is one herdr workspace plus one worktree per branch, and the agent drives

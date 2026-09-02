@@ -3,15 +3,14 @@
 # gitignored files (.env, .idea, ...) from the main worktree into the current
 # linked worktree. Driven by the git post-checkout hook, which every
 # worktree-creation path reaches because they all shell out to `git worktree
-# add` -- herdr's dev-flow popup, the JetBrains "New Worktree" UI, the agent
-# CLIs' worktree skills, and plain git -- so all of them behave the same from
-# one committed inventory.
+# add` -- herdr's dev-flow popup, the agent CLIs' worktree skills, and plain
+# git -- so all of them behave the same from one committed inventory.
 #
 # Safe by construction: no-op outside a git work tree, no-op in the main
 # checkout, no-op when git-worktreeinclude or a .worktreeinclude is absent, and
 # it never exits non-zero — it must never abort the surrounding worktree or
-# checkout operation. PATH is resolved explicitly because a GUI-launched IDE may
-# run git hooks with a minimal environment.
+# checkout operation. PATH is resolved explicitly because a git hook can be
+# invoked with a minimal environment.
 
 # Must be inside a work tree.
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0

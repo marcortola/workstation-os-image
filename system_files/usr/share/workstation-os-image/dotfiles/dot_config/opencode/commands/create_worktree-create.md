@@ -14,8 +14,6 @@ Task/feature name: **$ARGUMENTS**
 !`git worktree list --porcelain`
 - Repository root: !`git rev-parse --show-toplevel`
 - Current branch: !`git rev-parse --abbrev-ref HEAD`
-- herdr session:
-!`printenv HERDR_ENV || echo "no herdr session"`
 
 ## Steps
 
@@ -27,33 +25,34 @@ Task/feature name: **$ARGUMENTS**
    - `docs` — documentation
    - `chore` — maintenance
 
-2. Update main first (skip if already on `main`):
+2. Fetch the remote-tracking ref rather than updating local `main`. Git refuses
+   `main:main` while `main` is checked out somewhere, which it always is when
+   this runs from a worktree:
    ```bash
-   current_branch=$(git rev-parse --abbrev-ref HEAD)
-   if [ "$current_branch" = "main" ]; then
-     git pull origin main
-   else
-     git fetch origin main:main
-   fi
+   git fetch origin +refs/heads/main:refs/remotes/origin/main
    ```
 
-3. Create the worktree and its workspace. Choose this path or the no-herdr flow
-   below with a runtime check, not a judgement call: take this one when
-   `HERDR_ENV` is set to `1`, and the one below when it is unset.
+3. Create the worktree and its workspace:
    ```bash
-   repo=$(basename "$(git rev-parse --show-toplevel)")
-   created=$(herdr worktree create --cwd "$(git rev-parse --show-toplevel)" \
-       --branch {branch-name} --base origin/main \
-       --label "$repo/{branch-name}" --focus)
+   main_repo=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
+   repo=$(basename "$main_repo")
+   slug=$(printf '%s' '<branch-name>' | tr '/' '-')
+   created=$(herdr worktree create --cwd "$main_repo" \
+       --branch <branch-name> --base origin/main \
+       --path "${main_repo}__worktrees/${slug}" \
+       --label "$repo/<branch-name>" --focus)
    pane=$(printf '%s\n' "$created" | jq -r '.result.root_pane.pane_id')
-   herdr agent start {branch-name} --kind opencode --pane "$pane"
+   herdr agent start <branch-name> --kind opencode --pane "$pane"
    ```
-   herdr creates the checkout at `~/.herdr/worktrees/<repo>/<branch-slug>` (the
-   slug is the branch name with `/` replaced by `-`), opens it as its own
-   workspace grouped under the parent repository and focuses it, and — because
-   it shells out to `git worktree add` — fires the repo's `post-checkout` hook,
-   so `workstation-worktree-sync` copies the untracked files listed in
-   `.worktreeinclude` (`.env`, `.idea`, `.claude/settings.local.json`, ...).
+   herdr opens the checkout as its own workspace grouped under the parent
+   repository and focuses it, and — because it shells out to `git worktree add`
+   — fires the repo's `post-checkout` hook, so `workstation-worktree-sync`
+   copies the untracked files listed in `.worktreeinclude` (`.env`, `.idea`,
+   `.claude/settings.local.json`, ...).
+   `--path` is not optional: herdr's own default is `~/.herdr/worktrees/<repo>/`,
+   while the `prefix+shift+w` popup creates checkouts beside the repository at
+   `<repo>__worktrees/<branch-slug>`. Passing it keeps every checkout on the
+   machine in one place.
    `--label` is not cosmetic: herdr labels a worktree workspace with the
    branch alone, and the Agent sidebar's only location token is that workspace
    name, so without it every worktree row loses the repository it belongs to.
@@ -67,47 +66,18 @@ Task/feature name: **$ARGUMENTS**
    Worktree created via herdr!
 
    Branch:    <branch-name>
-   Path:      ~/.herdr/worktrees/<repo>/<branch-slug>
+   Path:      <repo>__worktrees/<branch-slug>
    Workspace: focused, grouped under <repo>, opencode running in its pane
 
-   Switch workspaces: ctrl+b w        Switch tabs: ctrl+b 1..9 or ctrl+b n/p
+   Switch workspaces: prefix+w        Switch tabs: prefix+1..9 or prefix+n/p
    Ship it when done: worktree-push recipe
    Discard it:        worktree-remove recipe
    ```
 
-## JetBrains / no-herdr flow
-
-When `HERDR_ENV` is unset — a JetBrains IDE, a plain terminal, a script — there
-is no server to open a workspace in. Either create the worktree from the IDE's
-**New Worktree** UI (the git `post-checkout` hook copies the `.worktreeinclude`
-files automatically), or create it here:
-
-```bash
-git fetch origin +refs/heads/main:refs/remotes/origin/main
-dir="$HOME/.herdr/worktrees/$(basename "$(git rev-parse --show-toplevel)")/<branch-name>"
-git worktree add "$dir" -b <branch-name> origin/main
-( cd "$dir" && workstation-worktree-sync )   # copy .env, .idea, ... from main
-```
-
-The explicit `workstation-worktree-sync` call is belt-and-braces for repos whose
-`post-checkout` hook is not installed yet.
-
-Then open `$dir` with the IDE launcher (`webstorm`/`phpstorm`/`idea "$dir"`), or run
-Tools → External Tools → **Sync worktree files** if you created it in the IDE.
-Report the path instead of a workspace:
-
-```
-Worktree created at ~/.herdr/worktrees/<repo>/<branch-name> (open it in the IDE)
-
-Branch: <branch-name>
-Ship it when done: worktree-push recipe
-Discard it:        worktree-remove recipe
-```
-
 ## Notes
 
-- herdr creates worktrees under `~/.herdr/worktrees/<repo>/` (not as sibling
-  directories of the repository).
+- Checkouts live beside the repository at `<repo>__worktrees/<branch-slug>`, the
+  same place the `prefix+shift+w` popup puts them.
 - Each worktree is its own herdr workspace, grouped under the parent repository.
 - All worktrees share the same git history.
 - List everything with `herdr worktree list` or `git worktree list`.

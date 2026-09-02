@@ -28,19 +28,24 @@ new_repo() {
     git -C "$repo" commit -q --allow-empty -m initial
 }
 
-# Every IDE/no-tmux recipe must fetch the remote-tracking ref and use that
-# fetched commit as the new branch's base. Updating local main can fail when it
-# is checked out in another worktree.
-ide_recipes=(
+# Every create recipe must fetch the remote-tracking ref and base the new branch
+# on that fetched commit. `git fetch origin main:main` is refused while main is
+# checked out, which it always is when a recipe runs from a worktree.
+create_recipes=(
     "$repo_root/system_files/usr/share/workstation-os-image/dotfiles/dot_claude/commands/create_worktree-create.md"
     "$repo_root/system_files/usr/share/workstation-os-image/dotfiles/dot_codex/skills/worktree-create/create_SKILL.md"
     "$repo_root/system_files/usr/share/workstation-os-image/dotfiles/dot_config/opencode/commands/create_worktree-create.md"
 )
-for recipe in "${ide_recipes[@]}"; do
+for recipe in "${create_recipes[@]}"; do
     grep -Fq 'git fetch origin +refs/heads/main:refs/remotes/origin/main' "$recipe" \
-        || fail "IDE recipe does not fetch origin/main: $recipe"
-    grep -Eq '^git worktree add .* origin/main$' "$recipe" \
-        || fail "IDE recipe does not branch from origin/main: $recipe"
+        || fail "create recipe does not fetch origin/main: $recipe"
+    grep -Fq -- '--base origin/main' "$recipe" \
+        || fail "create recipe does not branch from origin/main: $recipe"
+    # The recipe ships the flag as literal shell for an agent to run, so the
+    # expansion is the thing being asserted, not something to expand here.
+    # shellcheck disable=SC2016
+    grep -Fq -- '--path "${main_repo}__worktrees/${slug}"' "$recipe" \
+        || fail "create recipe does not pin the checkout path: $recipe"
 done
 
 # `herdr worktree remove` runs `git worktree remove` and never deletes the

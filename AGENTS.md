@@ -232,8 +232,8 @@ prefer them over reinventing the shape:
 - Keep the union conservative: root-level globs and explicit nested paths,
   never a gitignore engine, only what git already ignores, never overwriting.
   Refuse a third list. When the two disagree, `.worktreeinclude` is right.
-- Checkouts live at `<repo>__worktrees/<branch-slug>`, created by the
-  `prefix+shift+w` popup. No fish helper; outside herdr use plain git.
+- Checkouts live at `<repo>__worktrees/<branch-slug>`: the `prefix+shift+w`
+  popup and the create recipes both pin it with `--path`, never herdr's default.
 - A checkout must record the main repo by a RELATIVE path or git is dead inside
   the container: `dev` passes `--mount-git-worktree-common-dir` to every `up` AND
   `exec` (both derive the workspace path from it), and the CLI honours it only

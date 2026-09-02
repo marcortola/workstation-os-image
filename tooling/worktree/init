@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # worktree-init — make git-worktree file propagation work in a repository:
 #   1. install the post-checkout hook into .git/hooks so worktrees created by
-#      the JetBrains IDE (or any raw `git worktree add`) copy their untracked
+#      any `git worktree add` — herdr shells out to it — copy their untracked
 #      files, and
-#   2. drop a starter .worktreeinclude when the repo has none, so all four
-#      creation paths (herdr, Claude Code, the hook, the IDE External Tool)
-#      have an inventory to read.
+#   2. drop a starter .worktreeinclude when the repo has none, so all three
+#      creation paths (herdr, an agent recipe, the hook) have an inventory to
+#      read.
 #
 # init.templateDir already seeds the hook into freshly cloned repos; this is the
 # retrofit for repos that already exist, and the bulk bootstrap for every repo
@@ -79,9 +79,9 @@ generate_worktreeinclude() {
     if {
         echo "# Untracked files to copy into new git worktrees (gitignore syntax)."
         echo "# Only files git IGNORES and that match here are copied; tracked files"
-        echo "# never are. Read by Claude Code, herdr, the post-checkout hook, and the"
-        echo "# JetBrains 'Sync worktree files' External Tool. Commit to share with the"
-        echo "# team. node_modules/vendor/.venv belong in a per-project install step, not"
+        echo "# never are. Read by Claude Code, herdr and the post-checkout hook."
+        echo "# Commit to share with the team."
+        echo "# node_modules/vendor/.venv belong in a per-project install step, not"
         echo "# here — copying them per worktree is the wrong tool."
         echo
         echo ".env"

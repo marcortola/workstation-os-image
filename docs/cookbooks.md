@@ -556,8 +556,8 @@ test -x "$(git rev-parse --git-common-dir)/hooks/post-checkout" && echo hook ok
 cat .worktreeinclude
 ```
 
-Every creation path — herdr, an agent, a raw `git worktree add`, the JetBrains
-External Tool — reaches the same committed `.worktreeinclude` through the hook.
+Every creation path — herdr, an agent, a raw `git worktree add` — reaches the
+same committed `.worktreeinclude` through the hook.
 Never add a second copy list. See
 [subsystems/dev-environment.md](subsystems/dev-environment.md).
 

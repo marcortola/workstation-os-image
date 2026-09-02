@@ -21,9 +21,8 @@ If no target was given, ask the user which worktree to remove.
 
 **BLOCK** if the target is the main worktree: "Cannot remove the main worktree."
 
-Unless it was created with an explicit `--path`, the checkout lives at
-`~/.herdr/worktrees/<repo>/<branch-slug>`, where the slug is the branch name with
-`/` replaced by `-`.
+The checkout lives beside the repository at `<repo>__worktrees/<branch-slug>`,
+where the slug is the branch name with `/` replaced by `-`.
 
 ### 2. Check merge status (squash-merge aware)
 
@@ -110,8 +109,8 @@ ws=$(herdr worktree list --cwd "$main" | jq -r --arg b "$branch" \
   herdr worktree remove --workspace "$ws"
   ```
 
-- **`$ws` empty, or no herdr server running** (`herdr status`): fall back to git
-  directly.
+- **`$ws` empty** — the jq filter reads `.open_workspace_id`, so this is any
+  checkout whose workspace is not currently open. Fall back to git directly.
 
   ```bash
   git worktree remove "$worktree_path"
@@ -125,13 +124,6 @@ check and get explicit user confirmation before escalating to
 `git worktree remove --force "$worktree_path"`. Pass `--force` **only** in the
 risky case the user has explicitly approved.
 
-### 4b. Worktrees created outside herdr
-
-A worktree created outside herdr — from a JetBrains IDE, or by a plain
-`git worktree add` — has no herdr workspace to look up, so `$ws` comes back empty
-and the git fallback in step 4 handles it. Close the worktree's project in the IDE
-first so it is not left pointing at a deleted directory; the nvim-session cleanup in
-step 6 is a harmless no-op for you.
 
 ### 5. Delete the local branch
 
