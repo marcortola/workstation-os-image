@@ -10,9 +10,7 @@ set -euo pipefail
 
 plugin_dir=$(cd "$(dirname "$0")" && pwd)
 # shellcheck source=agent-finished.sh
-# Resolved at run time from the deployed plugin directory, which is not this
-# path in the repository.
-# shellcheck disable=SC1091
+# shellcheck source=agent-finished.sh
 . "$plugin_dir/agent-finished.sh"
 
 herdr_cli() {

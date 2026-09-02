@@ -25,7 +25,11 @@ mapfile -t shell_files < <(
     find tooling/ai/ai-cli-setup -maxdepth 1 -name '*.sh' -print | sort
 )
 bash -n "${shell_files[@]}"
-shellcheck "${shell_files[@]}"
+# -x follows sourced files, which is what makes the `# shellcheck source=`
+# directives already scattered through these scripts do anything at all;
+# SCRIPTDIR resolves those relative paths against the sourcing file rather than
+# the invocation directory, since the plugin scripts source their siblings.
+shellcheck -x --source-path=SCRIPTDIR "${shell_files[@]}"
 
 # Dictation records a complete WAV before uploading it, so it uses the
 # completed-audio model and consumes that model's JSON response contract.
