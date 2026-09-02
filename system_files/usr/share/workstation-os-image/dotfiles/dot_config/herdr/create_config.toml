@@ -218,6 +218,15 @@ status_indicators = "dots"
 # sidebar expanded on every start.
 sidebar_collapsed_mode = "hidden"
 sidebar_start_collapsed = true
+# The same string on the right of the tab row. herdr has no workspace token
+# there -- the entry types are zoom, hostname, datetime, text and command -- so
+# it reads the one derivation, window-title.sh, which prints under --print
+# instead of pushing to the host terminal. That entry polls, where the title
+# itself is pushed from the plugin's workspace.focused hook, so the interval is
+# the shortest herdr accepts.
+tab_bar_right = [
+    { type = "command", command = "$HOME/.config/herdr/plugins/dev-flow/window-title.sh --print", interval_seconds = 1 },
+]
 
 # Worktree workspaces are labelled with the branch slug alone; the repository
 # comes from the spaces panel's grouping rather than the label, which is why
