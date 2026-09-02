@@ -127,16 +127,19 @@ project twice no longer stacks duplicate workspaces. The compare is exact and
 matches the repository basename, so it never captures a worktree workspace,
 which the `dev.flow` popup labels with the branch slug.
 
-Either path then applies the dev layout — `main` running the agent, plus `nvim`
-and `term`. The `dev.flow` plugin applies it only for a herdr-created worktree or
-on demand from `prefix+shift+n`, and a workspace opened from the picker got
-neither. The gate is the workspace's tab count rather than which branch reached
-it: `layout.sh` creates its tabs unconditionally, so a second run would stack
-another `nvim` and `term`, while a single-tab workspace restored from an older
-session is laid out on the next pick. `layout.sh` calls `herdr`, `jq`, `git` and
-`dirname` by name, so the picker hands it a `PATH` rather than trusting the
-keybind's, and a failure never propagates, because the picker still owes the
-caller its `exec`.
+Either path then applies the default dev layout — `main` running the agent, plus
+`nvim` and `term`. The `dev.flow` plugin applies it only for a herdr-created
+worktree or on demand from `prefix+shift+n`, and a workspace opened from the
+picker got neither. The gate is what the workspace already holds rather than
+which branch reached it: `layout.sh` creates its tabs unconditionally, so a
+second run would stack another `nvim` and `term`, while a workspace restored from
+an older session is laid out on the next pick. One tab is not enough on its own,
+because the split layout described below is one tab too, so the gate is one tab
+**and** one pane — the shape of a workspace nothing has laid out yet. Without the
+second half, picking a project again would take a chosen split layout apart.
+`layout.sh` calls `herdr`, `jq`, `git` and `dirname` by name, so the picker hands
+it a `PATH` rather than trusting the keybind's, and a failure never propagates,
+because the picker still owes the caller its `exec`.
 
 Scoping is also the whole job when a herdr window is already open. Every
 attached client mirrors the others, so the window on screen has already moved
@@ -523,6 +526,46 @@ Three rules, each with a failure behind it:
   bound `prefix+alt+o` opencode pane says it plainly: "an agent outside a herdr
   pane never reaches the sidebar". Outside a pane the state hook exits 0
   silently, so nothing warns you.
+
+### The two layouts
+
+There are two, and either can be applied on top of the other. `prefix+shift+n`
+builds the default: three tabs, `main` running the agent plus `nvim` and `term`.
+`prefix+shift+v` builds the alternative, a single `dev` tab holding all three:
+
+```
++----------+---------------------------+
+|          |           nvim            |
+|   main   +---------------------------+
+|   33%    |      term (a sliver)      |
++----------+---------------------------+
+```
+
+`main` keeps its third of the width whatever you are working in; the right-hand
+column is the editor's at rest and the terminal takes it on `prefix+t`. The three
+ratios are named constants at the top of
+`system_files/usr/share/workstation-os-image/dotfiles/dot_config/herdr/plugins/dev-flow/layout-common.sh`,
+which also holds everything both layouts share — the editor and agent commands,
+the idle-pane probe, and the socket calls the CLI does not expose.
+
+**Neither layout is built with `layout.apply`, and that is deliberate.** It is
+the socket method that looks made for the job, and it replaces the tab it is
+handed: a request naming an existing `tab_id` and an existing `pane_id` comes
+back with a new tab holding new panes, the old ones closed and the `pane_id`
+ignored rather than adopted. Building a layout that way would kill the agent
+every time it was applied. `pane split` and `pane move` are the calls that carry
+a process across, so both layouts are built from those. Switching therefore moves
+the live panes in and out of the `dev` tab rather than recreating them: the agent
+keeps its conversation, Neovim keeps its unsaved buffers, and a tab closes itself
+once its last pane leaves.
+
+`prefix+m`, `prefix+n` and `prefix+t` answer in both layouts. `focus-tab.sh`
+looks for a tab of that label first and falls back to a pane of that label in the
+focused tab, which is why the split tab is called `dev` — a tab named `main`
+would be found first and the key would never reach the pane inside it. Focusing
+`nvim` or `term` also hands them the column, and focusing `main` does not: the
+resize is restricted to a `down` split, and the vertical split is the one that
+pins `main` to its third.
 
 The per-branch worktree loop lives in the `dev.flow` plugin, reachable by key
 from any pane. Checkouts land beside the repository at

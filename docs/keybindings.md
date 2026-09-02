@@ -82,10 +82,10 @@ Written with the prefix here, unlike the reference below.
 | Key | Action |
 |---|---|
 | `Ctrl+H`, `Ctrl+J`, `Ctrl+K`, `Ctrl+L` | Focus panes, crossing into nvim. No prefix |
-| `Ctrl+G` `m` | The main tab, where claude runs |
-| `Ctrl+G` `n` | The nvim tab — not next-tab |
-| `Ctrl+G` `t` | The term tab |
-| `Ctrl+Alt+T` | The term tab, no prefix |
+| `Ctrl+G` `m` | `main`, where claude runs |
+| `Ctrl+G` `n` | `nvim` — not next-tab |
+| `Ctrl+G` `t` | `term` |
+| `Ctrl+Alt+T` | `term`, no prefix |
 | `Ctrl+Alt+N` / `Ctrl+Alt+P` | Cycle tabs, no prefix |
 | `Ctrl+G` `v` / `h` | Split beside / below |
 | `Ctrl+G` `z` | Zoom one pane, and back |
@@ -242,6 +242,7 @@ without the prefix.
 | `shift+u` | Adopt every repository's worktrees as spaces, in one pass |
 | `shift+m` | Ship the branch: push, open the PR, merge it when checks pass |
 | `shift+n` | Build the layout: `main`, `nvim`, `term` |
+| `shift+v` | The other layout: `main` beside `nvim` over `term` |
 
 The space picker refreshes itself while it is open, so progress arrives without
 reopening it. A `*` beside the state means that space finished within the last
@@ -254,17 +255,27 @@ old one. Inside the picker, `ctrl+r` rescans for worktrees created elsewhere and
 than writing a commit and never deletes a branch; `/worktree-push` is the half
 that needs judgement.
 
+There are two layouts and `shift+n` is the default one. `shift+v` builds the
+other: a single tab holding all three, with `main` pinned to a third of the
+width on the left and `nvim` stacked over `term` in the rest. `shift+n` takes it
+apart again. Neither direction restarts anything — the panes are moved, so the
+agent keeps its conversation and the editor keeps its unsaved buffers.
+
 ### Tabs
 
 | Key | Action |
 |---|---|
-| `m`, `n`, `t` | Jump to `main`, `nvim`, `term` |
+| `m`, `n`, `t` | Jump to `main`, `nvim`, `term` — tabs, or panes in the split layout |
 | `c` | New tab |
 | `1` … `9` | Tab by number |
 | `alt+x` | Close the tab |
 
 Two of these skip the prefix: `ctrl+alt+n` and `ctrl+alt+p` cycle tabs, and
 `ctrl+alt+t` jumps to `term`.
+
+In the split layout the same three keys reach panes instead, and `n` and `t`
+also hand the right-hand column to whichever of the two you asked for. `m` only
+focuses: `main` keeps its third of the width whatever you are working in.
 
 ### Panes
 
