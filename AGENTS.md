@@ -229,6 +229,13 @@ prefer them over reinventing the shape:
   Refuse a third list. When the two disagree, `.worktreeinclude` is right.
 - Checkouts live at `<repo>__worktrees/<branch-slug>`, created by the
   `prefix+shift+w` popup. No fish helper; outside herdr use plain git.
+- A checkout must record the main repo by a RELATIVE path or git is dead inside
+  the container: `dev` passes `--mount-git-worktree-common-dir` to every `up` AND
+  `exec` (both derive the workspace path from it), and the CLI honours it only
+  for a relative worktree, ignoring it silently otherwise. The lever is
+  `worktree.useRelativePaths` in the git config seed, since the popup never
+  spells `git worktree add`; convert an old one with `git worktree repair
+  --relative-paths`.
 
 ## Safety
 

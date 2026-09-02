@@ -39,8 +39,12 @@ require_file docs/README.md
 # without a timestamp, so three separate behaviours -- a freshness mark, an
 # expiry window and whether a conversation resumes -- hang off one stamp file,
 # and an agent that does not know that is one `date` call away from adding a
-# second, silently disagreeing clock.
-(( $(wc -l < AGENTS.md) <= 289 ))
+# second, silently disagreeing clock. Raised to 295 for the worktree/Dev Container
+# invariant: a linked checkout is not a repository inside the container unless it
+# records a relative path, the flag that fixes it is inert rather than loud when
+# it does not, and an agent that does not know that will delete the flag to make
+# a broken container start.
+(( $(wc -l < AGENTS.md) <= 295 ))
 
 # README.md is a landing pad into docs/ and nothing else. Capped because it grows
 # back otherwise: it was 855 lines covering fourteen concerns before the handbook
@@ -196,6 +200,41 @@ grep -q 'satococoa/tap/git-worktreeinclude' \
 grep -q 'templateDir' system_files/usr/share/workstation-os-image/dotfiles/dot_config/git/create_config
 [[ -x tooling/worktree/init ]]
 tooling/worktree/test-init
+
+# The `dev` wrapper's --mount strings have to satisfy the devcontainer CLI's own
+# grammar, which takes type/source/target plus an optional external= and rejects
+# anything else at parse time. A `,readonly` suffix once slipped in here and
+# broke `dev` for every project on the machine; `fish --no-execute` cannot see
+# inside a string literal, so assert the grammar itself. Fish interpolation --
+# "(command)" and $var -- collapses to a placeholder first.
+dev_fish=system_files/usr/share/workstation-os-image/dotfiles/dot_config/fish/functions/create_dev.fish
+require_file "$dev_fish"
+dev_mounts=0
+while read -r dev_mount; do
+    dev_mounts=$((dev_mounts + 1))
+    [[ $dev_mount =~ ^type=(bind|volume),source=[^,]+,target=[^,]+(,external=(true|false))?$ ]] \
+        || { echo "not valid devcontainer --mount syntax: $dev_mount" >&2; exit 1; }
+done < <(
+    grep -oE '"type=(bind|volume),.*"' "$dev_fish" \
+        | sed -E 's/"\(.*\)"/X/; s/\$[A-Za-z_][A-Za-z0-9_]*/X/g; s/^"//; s/"$//'
+)
+(( dev_mounts >= 5 ))
+
+# One mechanism, two files: `dev` mounts a linked worktree's common .git, which
+# the CLI honours only where the checkout records a RELATIVE path, so the git
+# config seed is what makes the flag do anything at all.
+grep -q -- '--mount-git-worktree-common-dir' "$dev_fish"
+grep -q 'useRelativePaths = true' \
+    system_files/usr/share/workstation-os-image/dotfiles/dot_config/git/create_config
+
+# `up` and `exec` both derive the container workspace path from that flag, so a
+# call that omits it chdirs into a path the container does not have.
+while read -r dev_call; do
+    # The single quotes are the point: match the literal fish variable name.
+    # shellcheck disable=SC2016
+    [[ $dev_call == *'$dcflags'* ]] \
+        || { echo "devcontainer call without \$dcflags: $dev_call" >&2; exit 1; }
+done < <(grep -E 'devcontainer (up|exec) --workspace-folder' "$dev_fish")
 
 # --- every tracked structured config file parses -----------------------------
 # A malformed greeter/settings.json fails at the login screen, which is the one

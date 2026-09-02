@@ -82,8 +82,11 @@ out where you went in, not at the repo root.
 Startup is idempotent: `devcontainer up` builds on the first call and is a fast
 no-op afterwards, and the same mount set is passed on every `up`, so a plain
 `dev` and a `dev nvim` share one container with no rebuild. When `up` fails, the
-function prints the exact verbose command to re-run rather than swallowing the
-error.
+function prints the CLI's own last twenty lines and then the exact verbose
+command to re-run. It captures that output rather than discarding it because the
+alternative hid a real bug for days: `dev` passed a mount string the CLI rejects
+outright, and every invocation failed with nothing but the retry hint to show
+for it.
 
 ---
 
@@ -178,9 +181,31 @@ the host:
 
 lazygit is mounted rather than downloaded because it is a static Go binary and
 therefore runs on any base image. Its config rides along so the theme and
-nerd-font icons match the host, mounted read-only at `/lazygitconf-src` and then
+nerd-font icons match the host, mounted at `/lazygitconf-src` and then
 *copied* into the store, because lazygit writes state beside its config and must
 not write into the host's copy.
+
+A linked worktree needs one thing more. Its `.git` is a *file* pointing at the
+main repository, which sits outside the workspace, so a bind-mounted checkout is
+not a repository at all: `git status` inside answers `fatal: not a git
+repository: (null)`, and every git integration goes with it, lazygit included.
+`dev` therefore passes `--mount-git-worktree-common-dir` on every `up` **and**
+every `exec`, which mounts the common `.git` beside the checkout. The CLI honours
+that flag only where the worktree records a *relative* path, so
+`~/.config/git/config` sets `worktree.useRelativePaths = true`. That config is the
+single lever, because the `prefix+shift+w` popup calls `herdr worktree create`
+and never spells the `git worktree add` command itself. A checkout made before
+this is converted with `git worktree repair --relative-paths`, run in the main
+repository.
+
+Two consequences follow. The container workspace moves from `/workspaces/<slug>`
+to `/workspaces/<repo>__worktrees/<slug>`, because the common `.git` has to sit
+at the same relative offset inside the container as it does outside — which is
+why the flag belongs on `exec` too, or `exec` chdirs to a path the container does
+not have. And each main repository's *local* `.git/config` gains
+`extensions.relativeWorktrees` and repository format version 1. Nothing is
+committed and no collaborator sees it, but git older than 2.48 refuses to read
+that repository.
 
 Committing from the in-container lazygit needs an identity, so `dev nvim`
 forwards `GIT_AUTHOR_NAME`/`EMAIL` and `GIT_COMMITTER_NAME`/`EMAIL` from the
@@ -558,9 +583,11 @@ model does not change when you switch tools. The seed paths are inventoried in
 - **The `/nvim-plugins` mount is read-write.** A container that needs a plugin
   the host has not cloned will clone it into the host's shared plugin directory.
   That is what makes plugin reuse work, but it means container sessions can
-  mutate host state. The nvim *config* mount is read-only only by convention:
-  the provisioner copies it into the store and never writes back, but nothing
-  enforces that.
+  mutate host state. Nothing `dev` attaches is enforced read-only: the CLI's
+  `--mount` grammar accepts only `type`, `source`, `target` and `external`, so
+  read-only cannot be expressed from the command line at all. The nvim and
+  lazygit config mounts are read-only by convention — the provisioner copies
+  them into the store and never writes back, but nothing enforces that.
 - **The store reset does not clear `/nvimdata/bin`.** The base-image fingerprint
   check wipes the nvim binary, Node and the XDG directories, but `fd` and
   `ripgrep` survive it. `fd` is fetched as the `x86_64-unknown-linux-gnu` build,
