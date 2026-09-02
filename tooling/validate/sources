@@ -52,7 +52,13 @@ require_file docs/README.md
 # tab and every one of them read as a plausible way to write it. `pane move`
 # answering a refusal with a SUCCESS reply is the trap under all of them, and an
 # agent that does not know it will read the tab id back out of that reply.
-(( $(wc -l < AGENTS.md) <= 305 ))
+# Raised to 312 for the herdr bar widget: it is the first QML this repository
+# ships and nothing on the machine lints QML, so the ways it breaks are all
+# silent -- an id that disagrees across three files, a capability that moves it
+# off the bar, a plugin directory DMS never scanned -- and an agent that does
+# not know the check is a plugin reload will conclude the widget is fine
+# because `just validate` passed.
+(( $(wc -l < AGENTS.md) <= 312 ))
 
 # README.md is a landing pad into docs/ and nothing else. Capped because it grows
 # back otherwise: it was 855 lines covering fourteen concerns before the handbook
@@ -261,6 +267,37 @@ while read -r dev_call; do
     [[ $dev_call == *'$dcflags'* ]] \
         || { echo "devcontainer call without \$dcflags: $dev_call" >&2; exit 1; }
 done < <(grep -E 'devcontainer (up|exec) --workspace-folder' "$dev_fish")
+
+# The herdr bar widget spans four files that have to agree, and every way they
+# can disagree is silent: a plugin whose id is missing from the bar config loads
+# and never renders, a bar id with no enablement seed renders nothing, a stray
+# "launcher" capability routes the widget off the bar entirely, and a renamed
+# dev-flow script leaves a pill that polls an empty list forever. Nothing here
+# parses QML -- there is no qmllint on this machine and the widget is the only
+# QML the repo ships -- so these are the only mechanical checks it gets.
+herdr_widget=system_files/usr/share/workstation-os-image/dotfiles/dot_config/DankMaterialShell/plugins/herdrJobs
+herdr_widget_seed=system_files/usr/share/workstation-os-image/dotfiles/dot_config/DankMaterialShell/create_plugin_settings.json
+dev_flow=system_files/usr/share/workstation-os-image/dotfiles/dot_config/herdr/plugins/dev-flow
+require_file "$herdr_widget/plugin.json"
+require_file "$herdr_widget_seed"
+require_file "$dev_flow/executable_focus-space.sh"
+herdr_widget_id=$(jq -r '.id' "$herdr_widget/plugin.json")
+[[ -f $herdr_widget/$(jq -r '.component' "$herdr_widget/plugin.json") ]]
+# index() answers 0 for a first-element hit, which jq -e reads as false, so both
+# tests compare against null rather than relying on truthiness.
+jq -e '(.capabilities | index("dankbar-widget") != null)
+       and (.capabilities | index("launcher") == null)' "$herdr_widget/plugin.json" >/dev/null
+jq -e --arg id "$herdr_widget_id" '.[$id].enabled == true' "$herdr_widget_seed" >/dev/null
+jq -e --arg id "$herdr_widget_id" \
+    '[.barConfigs[]
+      | (.leftWidgets // []) + (.centerWidgets // []) + (.rightWidgets // [])
+      | .[] | if type == "string" then . else .id end] | index($id) != null' \
+    system_files/usr/share/workstation-os-image/dms-settings.json >/dev/null
+# One mechanism, two files: the widget is a view of the space picker's rows, so
+# it shells out to the picker's own script rather than asking herdr again.
+grep -q 'spaces.sh --json' "$herdr_widget/HerdrJobsWidget.qml"
+grep -q 'focus-space.sh' "$herdr_widget/HerdrJobsWidget.qml"
+grep -q '"--json"' "$dev_flow/executable_spaces.sh"
 
 # --- every tracked structured config file parses -----------------------------
 # A malformed greeter/settings.json fails at the login screen, which is the one

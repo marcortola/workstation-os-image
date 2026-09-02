@@ -519,6 +519,11 @@
         "subcat": "Launchers & apps"
       },
       {
+        "key": "Mod+S",
+        "desc": "Coding Spaces (herdr)",
+        "subcat": "Launchers & apps"
+      },
+      {
         "key": "Mod+F",
         "desc": "File Manager",
         "subcat": "Launchers & apps"

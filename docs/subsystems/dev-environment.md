@@ -641,6 +641,12 @@ from any pane. Checkouts land beside the repository at
 | `prefix+s` | Space picker: live workspaces plus on-disk worktrees that have no workspace yet, grouped by repository and sorted so a blocked or finished agent rises to the top |
 | `prefix+shift+u` | Open every linked worktree of every repository as a workspace. Also runs at server start |
 
+The same rows reach the desktop without opening a terminal: the `herdrJobs` DMS
+bar widget polls `spaces.sh --json` and lists the open spaces, with a click
+focusing one. It is a view of this picker rather than a second reader of herdr —
+[desktop-session.md](desktop-session.md) covers the plugin and what breaks
+silently about it.
+
 The worktree workspace is labelled with the branch slug alone. The repository is
 not lost, because `agent_panel_sort = "spaces"` groups rows under their space
 and `[ui.sidebar.spaces]` carries `branch` and `git_status` on the second row —

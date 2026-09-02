@@ -195,6 +195,12 @@ binds {
     Mod+Shift+T hotkey-overlay-title="Coding Session (herdr)" {
         spawn-sh "xdg-terminal-exec --app-id=herdr --title=herdr --dir=$HOME -- /home/linuxbrew/.linuxbrew/bin/herdr";
     }
+    // The same list the herdr picker draws on prefix+s, from the desktop: the
+    // bar widget's popout. `widget toggle` is DMS's generic bar-widget popout
+    // IPC and treats a plugin id like any built-in one.
+    Mod+S hotkey-overlay-title="Coding Spaces (herdr)" {
+        spawn "dms" "ipc" "call" "widget" "toggle" "herdrJobs";
+    }
     Mod+F hotkey-overlay-title="File Manager" { spawn "nautilus"; }
     Mod+Shift+P hotkey-overlay-title="Projects (coding session)" {
         spawn-sh "xdg-terminal-exec --app-id=dev-terminal --title=Projects --dir=$HOME -- $HOME/.local/bin/workstation-dev --herdr";

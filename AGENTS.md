@@ -136,6 +136,14 @@ prefer them over reinventing the shape:
   `dms/binds.kdl`.
   `tooling/audit/niri-binds` fails on a shadowed bind, since `niri validate`
   does not.
+- The `herdrJobs` bar widget and the `prefix+s` space picker are two views of
+  one list: both render `spaces.sh --json`. Never add a second row builder and
+  never recompute state or the just-finished mark in QML. The id must agree
+  across `plugin.json`, the `plugin_settings.json` seed and `dms-settings.json`,
+  and a `launcher` capability would route the widget off the bar. Nothing lints
+  QML, so a broken widget is silent: `dms ipc call plugins reload herdrJobs`
+  answering `PLUGIN_RELOAD_SUCCESS` is the check, and a plugin directory created
+  after DMS started needs one `dms ipc call plugin-scan scan` to be seen at all.
 
 ### Packages
 

@@ -27,6 +27,19 @@ repo_root_by_cwd() {
     jq -Rn '[inputs | split("\t") | {key: .[0], value: .[1]}] | from_entries'
 }
 
+# The three live reads a row build needs, held together so the picker and the
+# DMS bar widget cannot drift into fetching different things. Globals rather
+# than a return value because bash has no way to hand back three blobs, and the
+# script already carries state at this level.
+state_workspaces=
+state_panes=
+state_repo_by_cwd=
+read_state() {
+  state_workspaces=$(herdr_cli workspace list)
+  state_panes=$(herdr_cli pane list)
+  state_repo_by_cwd=$(repo_root_by_cwd "$state_workspaces" "$state_panes")
+}
+
 checkouts_of() {
   git -C "$1" worktree list --porcelain 2>/dev/null |
     awk -v root="$1" '
@@ -44,42 +57,28 @@ disk_worktrees() {
   while IFS= read -r root; do
     index=$((index + 1))
     checkouts_of "$root" >"$scans/$index" &
-  done < <(jq -rn --argjson workspaces "$1" --argjson repo_by_cwd "$2" \
+  done < <(jq -rn --argjson workspaces "$state_workspaces" --argjson repo_by_cwd "$state_repo_by_cwd" \
     '[$workspaces.result.workspaces[].worktree.repo_root] + [$repo_by_cwd[]] | map(select(. != null)) | unique | .[]')
   wait
   { cat "$scans"/* 2>/dev/null || true; } | jq -Rn '[inputs | split("\t") | {repo: .[0], checkout: .[1]}]'
   rm -rf "$scans"
 }
 
-space_rows() {
-  local topology=$1
-  local workspaces panes repo_by_cwd worktrees
-  workspaces=$(herdr_cli workspace list)
-  panes=$(herdr_cli pane list)
-  repo_by_cwd=$(repo_root_by_cwd "$workspaces" "$panes")
-
-  # The per-repo `git worktree list` scan is the only slow part of a row build,
-  # and its answer changes only when a checkout appears or goes. The refresh loop
-  # reruns everything else every couple of seconds and reuses this; ctrl-r is
-  # what throws it away.
-  if [ -s "$topology" ]; then
-    worktrees=$(cat "$topology")
-  else
-    worktrees=$(disk_worktrees "$workspaces" "$repo_by_cwd")
-    printf '%s' "$worktrees" >"$topology"
-  fi
-
-  jq -rn \
-    --argjson workspaces "$workspaces" \
-    --argjson panes "$panes" \
-    --argjson repo_by_cwd "$repo_by_cwd" \
+# The row build, as data. The herdr picker renders these rows as padded TSV and
+# the DMS bar widget reads the same objects as JSON, so state, the just-finished
+# mark and the attention ordering are computed exactly once. $1 is the worktree
+# topology: the picker passes its memoised disk scan so that closed checkouts
+# appear, the widget passes [] because it lists only open spaces.
+rows_json() {
+  jq -cn \
+    --argjson workspaces "$state_workspaces" \
+    --argjson panes "$state_panes" \
+    --argjson repo_by_cwd "$state_repo_by_cwd" \
     --argjson finished "$(agent_finished_map)" \
     --argjson now "$(date +%s)" \
     --argjson fresh_seconds "$AGENT_FRESH_SECONDS" \
     --argjson expired_seconds "$AGENT_EXPIRED_SECONDS" \
-    --argjson worktrees "$worktrees" '
-      def pad($width): . + (" " * ($width - length));
-
+    --argjson worktrees "$1" '
       # herdr leaves worktree metadata empty on some spaces; their panes still know where they live.
       ( $panes.result.panes
           | map(select(.cwd != null))
@@ -130,15 +129,48 @@ space_rows() {
       | sort_by([(map(attention_rank) | min), (map(.order) | min)])
       | map(sort_by([is_worktree, attention_rank, .order]))
       | flatten
-      | .[]
+      | map({ workspace_id: .workspace_id,
+              label: .label,
+              repo: repo,
+              checkout: checkout,
+              is_worktree: is_worktree,
+              state: state,
+              marked_state: marked_state,
+              is_fresh: is_fresh,
+              is_expired: is_expired,
+              attention_rank: attention_rank })'
+}
+
+space_rows() {
+  local topology=$1
+  local worktrees
+  read_state
+
+  # The per-repo `git worktree list` scan is the only slow part of a row build,
+  # and its answer changes only when a checkout appears or goes. The refresh loop
+  # reruns everything else every couple of seconds and reuses this; ctrl-r is
+  # what throws it away.
+  if [ -s "$topology" ]; then
+    worktrees=$(cat "$topology")
+  else
+    worktrees=$(disk_worktrees)
+    printf '%s' "$worktrees" >"$topology"
+  fi
+
+  # The picker's columns, unchanged: the cache is read positionally by
+  # visible_rows and by the wt: branch at the bottom of this file.
+  rows_json "$worktrees" |
+    jq -r '
+      def pad($width): . + (" " * ($width - length));
+      .[]
       | [ .workspace_id,
-          (marked_state | pad(8)),
-          (((if is_worktree then "  └ " else "" end) + .label) | pad(38)),
-          checkout,
-          repo,
-          (is_worktree | tostring),
+          (.marked_state | pad(8)),
+          (((if .is_worktree then "  └ " else "" end) + .label) | pad(38)),
+          .checkout,
+          .repo,
+          (.is_worktree | tostring),
           .label,
-          (is_expired | tostring) ]
+          (.is_expired | tostring) ]
       | @tsv'
 }
 
@@ -204,6 +236,16 @@ visible_rows() {
 
 if [ "${1:-}" = "--rows" ]; then
   visible_rows "$2" "${3-}"
+  exit 0
+fi
+
+# The DMS bar widget's poll. Only the open spaces, so no git runs at all and the
+# answer costs the two herdr reads: the widget is an ambient state indicator and
+# this picker stays the navigator. Exits non-zero with herdr down, which is how
+# the widget tells "no spaces" from "no server".
+if [ "${1:-}" = "--json" ]; then
+  read_state
+  rows_json '[]'
   exit 0
 fi
 

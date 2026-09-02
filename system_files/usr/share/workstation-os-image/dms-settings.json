@@ -16,7 +16,11 @@
           "enabled": true,
           "id": "weather"
         },
-        "notificationButton"
+        "notificationButton",
+        {
+          "enabled": true,
+          "id": "herdrJobs"
+        }
       ],
       "id": "default",
       "openOnOverview": true,

@@ -1,0 +1,14 @@
+{
+  "id": "herdrJobs",
+  "name": "herdr spaces",
+  "description": "Open herdr spaces and the agent state of each, from the same row builder as the space picker",
+  "version": "1.0.0",
+  "author": "workstation-os-image",
+  "type": "widget",
+  "capabilities": ["dankbar-widget"],
+  "component": "./HerdrJobsWidget.qml",
+  "icon": "smart_toy",
+  "requires_dms": ">=1.5.0",
+  "dependencies": ["herdr", "niri", "jq"],
+  "permissions": ["process"]
+}
