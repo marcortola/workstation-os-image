@@ -28,6 +28,14 @@ command = ["./adopt-worktrees.sh"]
 on = "worktree.created"
 command = ["./worktree-setup.sh"]
 
+# Recency has to be recorded as it happens. herdr reports agent state but never
+# a time -- `agent list` carries a counter, `state_change_seq`, and nothing
+# else -- so this hook is the only clock behind the picker's "just finished"
+# mark, its expiry window, and whether the dev layout resumes the conversation.
+[[events]]
+on = "pane.agent_status_changed"
+command = ["./agent-freshness.sh"]
+
 [[startup]]
 command = ["./adopt-worktrees.sh"]
 

@@ -5,6 +5,10 @@ herdr_cli() {
   "${HERDR_BIN_PATH:-herdr}" "$@"
 }
 
+plugin_dir=$(cd "$(dirname "$0")" && pwd)
+# shellcheck source=agent-finished.sh
+. "$plugin_dir/agent-finished.sh"
+
 target_workspace() {
   if [ -n "${1:-}" ]; then
     printf '%s\n' "$1"
@@ -96,9 +100,27 @@ main_tab=$(first_tab_of "$workspace")
 main_pane=$(root_pane_of_tab "$workspace" "$main_tab")
 cwd=${2:-$(pane_cwd "$main_pane")}
 
+# Resume the conversation only while it is still the same stretch of work: a
+# checkout whose last agent finish is inside AGENT_EXPIRED_SECONDS reopens with
+# `claude --continue`, an expired one starts clean. Without a stamp there is
+# nothing to continue and `--continue` would fail the pane into a bare shell,
+# so no stamp means a clean start too.
+claude_command() {
+  local age
+  age=$(agent_finished_age "$(agent_checkout_key "$1")") || {
+    printf 'claude\n'
+    return 0
+  }
+  if [ "$age" -lt "$AGENT_EXPIRED_SECONDS" ]; then
+    printf 'claude --continue\n'
+  else
+    printf 'claude\n'
+  fi
+}
+
 herdr_cli tab rename "$main_tab" main >/dev/null
 if pane_is_free "$main_pane"; then
-  herdr_cli pane run "$main_pane" claude >/dev/null
+  herdr_cli pane run "$main_pane" "$(claude_command "$cwd")" >/dev/null
 fi
 
 create_tab_running "$workspace" nvim "$cwd" "$(editor_command "$cwd")"

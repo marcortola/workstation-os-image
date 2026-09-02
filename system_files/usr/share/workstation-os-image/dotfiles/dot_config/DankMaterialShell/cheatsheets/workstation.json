@@ -146,8 +146,18 @@
         "subcat": "Projects and worktrees"
       },
       {
+        "key": "Ctrl+G shift+u",
+        "desc": "Adopt every repository's worktrees as spaces",
+        "subcat": "Projects and worktrees"
+      },
+      {
         "key": "Ctrl+G shift+x",
         "desc": "Close a space, showing uncommitted work first",
+        "subcat": "Projects and worktrees"
+      },
+      {
+        "key": "Ctrl+G shift+m",
+        "desc": "Ship the branch: push, PR, auto-merge",
         "subcat": "Projects and worktrees"
       },
       {
@@ -158,16 +168,6 @@
       {
         "key": "Ctrl+G g",
         "desc": "lazygit at this pane's repository",
-        "subcat": "Projects and worktrees"
-      },
-      {
-        "key": "Mod+Shift+P",
-        "desc": "Project picker, from the desktop",
-        "subcat": "Projects and worktrees"
-      },
-      {
-        "key": "Mod+Shift+T",
-        "desc": "Open herdr in the first place",
         "subcat": "Projects and worktrees"
       },
       {
@@ -469,6 +469,16 @@
       {
         "key": "shift+o",
         "desc": "Open an existing worktree",
+        "subcat": "Projects"
+      },
+      {
+        "key": "shift+u",
+        "desc": "Adopt every repository's worktrees as spaces, in one pass",
+        "subcat": "Projects"
+      },
+      {
+        "key": "shift+m",
+        "desc": "Ship the branch: push, open the PR, merge it when checks pass",
         "subcat": "Projects"
       },
       {

@@ -206,6 +206,15 @@ prefer them over reinventing the shape:
   on dead chords free the keys the rest moves into -- so run `herdr config
   check` after any edit; it reports a collision as `kept keys.X, disabled
   keys.Y` rather than failing.
+- herdr times nothing: `agent list` carries `state_change_seq`, a counter, and
+  no clock. Every recency answer comes from one stamp per checkout, written by
+  the `pane.agent_status_changed` hook and read through
+  `dev-flow/agent-finished.sh` -- the picker's just-finished mark, its expiry
+  window, and whether the dev layout resumes the conversation. Never add a
+  second recency source. The sidebar badge is the same event's herdr token,
+  expired by TTL rather than swept.
+- The ship popup is the mechanical half of `/worktree-push`: it refuses a dirty
+  tree rather than writing a commit, and never deletes a branch.
 
 ### Worktrees
 

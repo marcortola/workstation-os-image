@@ -71,11 +71,11 @@ Written with the prefix here, unlike the reference below.
 | `Ctrl+G` `s` | Space picker — projects, branches, worktrees |
 | `Ctrl+G` `shift+w` | New branch worktree, with the layout ready |
 | `Ctrl+G` `shift+o` | Open an existing worktree |
+| `Ctrl+G` `shift+u` | Adopt every repository's worktrees as spaces |
 | `Ctrl+G` `shift+x` | Close a space, showing uncommitted work first |
+| `Ctrl+G` `shift+m` | Ship the branch: push, PR, auto-merge |
 | `Ctrl+G` `shift+n` | Build the layout: main, nvim, term |
 | `Ctrl+G` `g` | lazygit at this pane's repository |
-| `Mod+Shift+P` | Project picker, from the desktop |
-| `Mod+Shift+T` | Open herdr in the first place |
 
 #### Tabs and panes
 
@@ -239,7 +239,20 @@ without the prefix.
 | `shift+w` | New branch worktree, with the tab layout ready |
 | `shift+x` | Close a space, showing anything uncommitted before it does |
 | `shift+o` | Open an existing worktree |
+| `shift+u` | Adopt every repository's worktrees as spaces, in one pass |
+| `shift+m` | Ship the branch: push, open the PR, merge it when checks pass |
 | `shift+n` | Build the layout: `main`, `nvim`, `term` |
+
+The space picker refreshes itself while it is open, so progress arrives without
+reopening it. A `*` beside the state means that space finished within the last
+ten minutes. A checkout nothing has finished in for twelve hours is expired: it
+is hidden, and reopening it starts a clean conversation rather than resuming the
+old one. Inside the picker, `ctrl+r` rescans for worktrees created elsewhere and
+`ctrl+a` shows the expired rows.
+
+`shift+m` is the mechanical half of shipping. It refuses a dirty tree rather
+than writing a commit and never deletes a branch; `/worktree-push` is the half
+that needs judgement.
 
 ### Tabs
 

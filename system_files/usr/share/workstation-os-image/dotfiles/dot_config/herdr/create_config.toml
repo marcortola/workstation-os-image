@@ -80,6 +80,7 @@ focus_pane_right = "prefix+right"
 key = "prefix+alt+o"
 type = "pane"
 command = "opencode"
+description = "opencode in a pane"
 
 # Vim-aware pane focus: forwarded into the pane when it runs nvim or fzf,
 # handled by herdr otherwise.
@@ -156,6 +157,14 @@ width = "70%"
 height = "50%"
 
 [[keys.command]]
+key = "prefix+shift+m"
+type = "popup"
+command = "$HOME/.config/herdr/plugins/dev-flow/worktree-ship.sh"
+description = "ship the branch: push, PR, auto-merge"
+width = "70%"
+height = "60%"
+
+[[keys.command]]
 key = "prefix+shift+n"
 type = "plugin_action"
 command = "dev.flow.layout"
@@ -210,5 +219,5 @@ sidebar_start_collapsed = true
 [ui.sidebar.spaces]
 rows = [
     ["workspace"],
-    ["branch", "git_status"],
+    ["branch", "git_status", "$fresh"],
 ]

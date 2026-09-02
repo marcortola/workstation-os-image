@@ -45,6 +45,8 @@ copy|.config/herdr/config.toml|dot_config/herdr/create_config.toml|-
 # discovers it from the linked directory, so every file must land together.
 scaffold|.config/herdr/plugins/dev-flow/herdr-plugin.toml|dot_config/herdr/plugins/dev-flow/herdr-plugin.toml|-
 scaffold|.config/herdr/plugins/dev-flow/adopt-worktrees.sh|dot_config/herdr/plugins/dev-flow/executable_adopt-worktrees.sh|-
+scaffold|.config/herdr/plugins/dev-flow/agent-finished.sh|dot_config/herdr/plugins/dev-flow/agent-finished.sh|-
+scaffold|.config/herdr/plugins/dev-flow/agent-freshness.sh|dot_config/herdr/plugins/dev-flow/executable_agent-freshness.sh|-
 scaffold|.config/herdr/plugins/dev-flow/agents.sh|dot_config/herdr/plugins/dev-flow/executable_agents.sh|-
 scaffold|.config/herdr/plugins/dev-flow/close-workspace.sh|dot_config/herdr/plugins/dev-flow/executable_close-workspace.sh|-
 scaffold|.config/herdr/plugins/dev-flow/equalize-panes.sh|dot_config/herdr/plugins/dev-flow/executable_equalize-panes.sh|-
@@ -58,6 +60,7 @@ scaffold|.config/herdr/plugins/dev-flow/urls.sh|dot_config/herdr/plugins/dev-flo
 scaffold|.config/herdr/plugins/dev-flow/window-title.sh|dot_config/herdr/plugins/dev-flow/executable_window-title.sh|-
 scaffold|.config/herdr/plugins/dev-flow/worktree-create.sh|dot_config/herdr/plugins/dev-flow/executable_worktree-create.sh|-
 scaffold|.config/herdr/plugins/dev-flow/worktree-setup.sh|dot_config/herdr/plugins/dev-flow/executable_worktree-setup.sh|-
+scaffold|.config/herdr/plugins/dev-flow/worktree-ship.sh|dot_config/herdr/plugins/dev-flow/executable_worktree-ship.sh|-
 template|.config/niri/local.kdl|dot_config/niri/create_local.kdl.tmpl|-
 template|.config/starship.toml|dot_config/create_starship.toml.tmpl|-
 copy|.config/lazygit/config.yml|dot_config/lazygit/create_config.yml|-

@@ -35,8 +35,12 @@ require_file docs/README.md
 # not written down. The cap is a forcing function against AGENTS.md becoming a
 # second README, and invariants are exactly what it should protect -- but it
 # only works if each rise is deliberate, so keep it in one place with a reason
-# attached.
-(( $(wc -l < AGENTS.md) <= 279 ))
+# attached. Raised to 289 for the agent-recency clock: herdr reports agent state
+# without a timestamp, so three separate behaviours -- a freshness mark, an
+# expiry window and whether a conversation resumes -- hang off one stamp file,
+# and an agent that does not know that is one `date` call away from adding a
+# second, silently disagreeing clock.
+(( $(wc -l < AGENTS.md) <= 289 ))
 
 # README.md is a landing pad into docs/ and nothing else. Capped because it grows
 # back otherwise: it was 855 lines covering fourteen concerns before the handbook
