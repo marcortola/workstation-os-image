@@ -31,10 +31,19 @@ for p in \
     uupd satty iio-niri \
     tuned tuned-ppd xdg-user-dirs \
     docker-ce containerd.io \
+    git-lfs \
     pipewire wireplumber systemd firewalld accountsservice
 do
     rpm -q "$p" >/dev/null || fail "missing package: $p"
 done
+
+# git-lfs's %post writes /etc/gitconfig through `git lfs install --system`, and a
+# file left in /etc outlives every upgrade as machine-local state that no build
+# gate can see afterwards. 20-packages.sh undoes it; assert it stayed undone,
+# because the next package with a config-writing scriptlet will not announce
+# itself either.
+test ! -e /etc/gitconfig \
+    || fail "/etc/gitconfig exists: a package scriptlet wrote system git config into the ostree /etc merge"
 
 # --- vendor assertions ---------------------------------------------------
 # The includepkgs regression guard. On the previous base, Terra shipped

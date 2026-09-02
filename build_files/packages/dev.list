@@ -5,6 +5,7 @@ cabextract                  # refresh-msttcore-fonts.sh, which the fonts install
 cpio
 unzip
 shadow-utils                # usermod, used by workstation-configure-user-groups
+git-lfs                     # chained by the managed git post-checkout hook
 mariadb
 postgresql
 mkcert

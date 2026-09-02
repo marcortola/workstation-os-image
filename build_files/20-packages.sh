@@ -21,6 +21,19 @@ for list in /ctx/build_files/packages/*.list; do
         "${exclude_args[@]}" "${pkgs[@]}"
 done
 
+# git-lfs's %post runs `git lfs install --system`, which writes /etc/gitconfig --
+# a file the base does not ship at all. /etc is a three-way ostree merge, so
+# anything a build leaves there becomes machine-local forever and stops tracking
+# the image, and `bootc container lint` passes it without comment. The LFS filter
+# this image wants is declared once, in the chezmoi git config seed, so undo the
+# scriptlet's half. `uninstall --system` removes only the keys it added, which
+# leaves the file empty rather than absent; drop it when nothing else is in it,
+# so a future base that ships its own /etc/gitconfig survives this.
+if [ -f /etc/gitconfig ]; then
+    git lfs uninstall --system
+    [ -s /etc/gitconfig ] || rm -f /etc/gitconfig
+fi
+
 # uupd is the single updater on this image. ublue-os-update-services exists to
 # schedule the paths uupd already covers, and it does it through preset files at
 # priority 10 -- so disabling its timers is not durable: a later layer re-running

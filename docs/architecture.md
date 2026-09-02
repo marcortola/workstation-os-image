@@ -55,7 +55,7 @@ Twelve entries, none of which ever reaches an image layer.
 | `scrub/` | The filters that strip secrets and tool-injection surface out of the mixed AI-CLI seeds: `claude-settings` and `codex-config`. |
 | `upstream/` | `zirconium-diff`: fetches Zirconium, filters to the profiles this image is comparable to, and reports which of our files each upstream change maps onto. Backs `just upstream-diff` and `just upstream-accept`. |
 | `validate/` | The gates behind `just validate`: `all` (the aggregator), `repo`, `sources`, `image-build`, `rpm-keys`, `source-images`, `lint-nvim-seeds.lua`. |
-| `worktree/` | `init` installs the post-checkout hook and a starter `.worktreeinclude` into a repo; `test-init` covers it. |
+| `worktree/` | `init` installs the post-checkout hook — upgrading an older version of its own, never a third party's — and a starter `.worktreeinclude` into a repo; `test-init` covers it. |
 
 ### `tooling/data/`
 
