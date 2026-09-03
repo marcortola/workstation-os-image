@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+# The parked-work probes on the LIVE machine.
+#
+# tooling/validate/sources asserts the probe against fixtures, which proves we
+# have not broken it. Only this can catch the vendor breaking it: every signal a
+# probe reads is an undocumented internal, and when one changes shape the probe
+# answers "not parked" forever, silently, and every surface degrades to the
+# behaviour that made this feature necessary with nothing to show that it
+# failed.
+#
+# The second half is coverage. An agent with no probe is never parked, which is
+# correct and invisible, so the first time an uncovered agent appears on a live
+# pane this says so rather than leaving the gap to be rediscovered.
+set -uo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+registry="$repo_root/tooling/data/agent-probe-registry"
+probes="$repo_root/system_files/usr/libexec/workstation-agent-probes/probes"
+status=0
+
+test -f "$registry" || { echo "audit input is missing: $registry" >&2; exit 1; }
+test -d "$probes" || { echo "audit input is missing: $probes" >&2; exit 1; }
+
+echo "Agent parked-work probes:"
+
+# What herdr is actually looking at. Read once: it decides both whether a
+# missing signal matters and which agents need a probe at all.
+herdr_socket="${XDG_CONFIG_HOME:-$HOME/.config}/herdr/herdr.sock"
+live_agents=
+if command -v herdr >/dev/null && [ -S "$herdr_socket" ]; then
+    live_agents=$(herdr pane list 2>/dev/null |
+        jq -r '[.result.panes[].agent // empty] | unique | .[]' 2>/dev/null) || live_agents=
+    herdr_up=yes
+else
+    herdr_up=no
+fi
+
+agent_is_live() {
+    printf '%s\n' "$live_agents" | grep -qxF "$1"
+}
+
+claude_sessions="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sessions"
+blind() {
+    echo "  claude probe is blind: $1"
+    status=2
+}
+
+# The shape the probe depends on, asserted field by field against whatever is
+# live. Absence is only a failure when claude is actually on a pane: a machine
+# that has never run it has nothing to say, and a session file left behind by a
+# dead process proves nothing about the format either way.
+if [ ! -d "$claude_sessions" ] || ! compgen -G "$claude_sessions/*.json" >/dev/null; then
+    if agent_is_live claude; then
+        blind "claude is live on a herdr pane but $claude_sessions holds no session file"
+    else
+        echo "  claude: not running, nothing to check"
+    fi
+else
+    live_pids=0
+    matched=0
+    for f in "$claude_sessions"/*.json; do
+        if ! jq -e '(.pid | type == "number")
+                    and (.sessionId | type == "string")
+                    and (.procStart | type == "string")
+                    and (.status | IN("busy", "shell", "idle", "waiting"))' "$f" >/dev/null 2>&1; then
+            blind "$(basename "$f") no longer carries pid, sessionId, procStart and a known status"
+            continue
+        fi
+        pid=$(jq -r '.pid' "$f")
+        [ -r "/proc/$pid/stat" ] || continue
+        live_pids=$((live_pids + 1))
+        # Field 22 of /proc/<pid>/stat is starttime; field 2 is comm and can
+        # contain spaces and parentheses, so the line is cut through its last ).
+        if [ "$(sed 's/.*) //' "/proc/$pid/stat" | awk '{print $20}')" = "$(jq -r '.procStart' "$f")" ]; then
+            matched=$((matched + 1))
+        fi
+    done
+    if [ "$live_pids" -eq 0 ]; then
+        # Every session file belongs to a process that is gone. The probe would
+        # correctly believe none of them, and the liveness rule is untestable.
+        echo "  claude: no session file has a live pid, liveness unchecked"
+    elif [ "$matched" -eq 0 ]; then
+        blind "$live_pids session files have live pids and none has a procStart matching field 22 of its /proc stat"
+    fi
+
+    # The pin is a warning rather than a failure: an upgrade is expected, and
+    # what it buys is two minutes of re-verifying an undocumented field rather
+    # than the option of never noticing.
+    pinned=$(awk -F'|' '$1 == "claude" && $2 == "probe" { print $3 }' "$registry")
+    if command -v claude >/dev/null; then
+        running=$(claude --version 2>/dev/null | grep -oE '[0-9]+(\.[0-9]+)+' | head -1)
+        if [ -n "$running" ] && [ -n "$pinned" ] && [ "$running" != "$pinned" ]; then
+            echo "  claude $running differs from the pin $pinned in $(realpath --relative-to="$repo_root" "$registry"):"
+            echo "    re-verify the sessions file shape, then move the pin"
+        fi
+    fi
+fi
+
+# Coverage. Every agent herdr is actually looking at needs either a probe or a
+# written reason there is none.
+if [ "$herdr_up" = yes ]; then
+    while IFS= read -r agent; do
+        [ -n "$agent" ] || continue
+        [ -x "$probes/$agent" ] && continue
+        if grep -q "^$agent|none|" "$registry"; then
+            echo "  $agent: no parked signal, by record -- $(awk -F'|' -v a="$agent" '$1 == a { print $3 }' "$registry")"
+            continue
+        fi
+        echo "  $agent is live on a herdr pane with neither a probe nor a registry entry"
+        status=2
+    done <<EOF
+$live_agents
+EOF
+else
+    echo "  herdr is not running, coverage unchecked"
+fi
+
+[ "$status" -eq 0 ] && echo "  no deviations"
+exit "$status"

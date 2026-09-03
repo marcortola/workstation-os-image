@@ -20,6 +20,10 @@ printf '\n'
 printf '\n'
 "$repo_root/tooling/audit/packages" || status=$?
 printf '\n'
+# Machine-state again, and the only thing that can see a vendor changing the
+# undocumented file a parked-work probe reads.
+"$repo_root/tooling/audit/agent-probes" || status=$?
+printf '\n'
 "$repo_root/tooling/audit/dotfiles" "$@" || {
     dotfile_status=$?
     (( dotfile_status > status )) && status=$dotfile_status

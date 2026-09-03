@@ -7,8 +7,20 @@ herdr_cli() {
 
 plugin_dir=$(cd "$(dirname "$0")" && pwd)
 # shellcheck source=agent-finished.sh
-# shellcheck source=agent-finished.sh
 . "$plugin_dir/agent-finished.sh"
+
+# The parked-work seam is image payload, not part of this plugin, because the
+# probes it dispatches read vendor internals and belong where the build gates
+# can see them. A machine without the image half keeps the behaviour it had
+# before probes existed rather than failing a row build.
+# shellcheck source=../../../../../../../libexec/workstation-agent-probes/lib.sh
+if [ -r /usr/libexec/workstation-agent-probes/lib.sh ]; then
+  . /usr/libexec/workstation-agent-probes/lib.sh
+else
+  agent_parked_probe() { printf '[]\n'; }
+  agent_parked_previous() { :; }
+  agent_parked_write() { :; }
+fi
 
 # A hand-linked project carries no worktree metadata, so git resolves its repo from the pane.
 repo_root_by_cwd() {
@@ -34,10 +46,142 @@ repo_root_by_cwd() {
 state_workspaces=
 state_panes=
 state_repo_by_cwd=
+state_parked=
 read_state() {
   state_workspaces=$(herdr_cli workspace list)
   state_panes=$(herdr_cli pane list)
   state_repo_by_cwd=$(repo_root_by_cwd "$state_workspaces" "$state_panes")
+  sweep_parked
+}
+
+# The far side of a finish. The hook on pane.agent_status_changed stamps when
+# the turn ends, and a turn that ends leaving a background shell running takes
+# the same working -> idle transition as one that is actually done -- which is
+# why the just-finished mark fires early today. Nothing emits an event when that
+# background work ends: no agent has one, so herdr has none to forward. The only
+# way to learn it is to notice a pane that was parked no longer is.
+#
+# So this is a poll, and it is deliberately not a timer. Both readers of this
+# file already poll -- the picker rebuilds every 2s, the bar widget every 3s --
+# and a third scheduler running slower than the two that exist would buy
+# nothing. The cost is that a row build writes: the same stamp, through the same
+# function, on the same clock as the hook. One clock, two writers.
+unpark() {
+  local pane=$1 workspace=$2 checkout=$3 status
+  [ -n "$checkout" ] || return 0
+  # The marker outlives the checkout it names. A directory that is gone is not a
+  # finish worth recording, and agent_finished_write would key the stamp on a
+  # path nothing will ever ask about again.
+  [ -d "$checkout" ] || return 0
+
+  status=$(printf '%s' "$state_panes" | jq -r --arg p "$pane" \
+    '.result.panes[] | select(.pane_id == $p) | .agent_status' 2>/dev/null) || status=
+
+  case $status in
+    # Leaving the parked set because a NEW turn started is not the work ending.
+    # The probe answers one question -- is background work alive -- and an agent
+    # that picked up another turn stops being parked without anything having
+    # finished. The hook owns that finish, as it always did.
+    working | blocked) return 0 ;;
+  esac
+
+  agent_finished_write "$checkout"
+
+  # The sidebar badge is the same answer in herdr's own state, expired by TTL
+  # rather than swept. Only while the space is still open and quiet; a pane that
+  # is gone has no workspace left to carry a token.
+  [ -n "$workspace" ] || return 0
+  case $status in
+    idle | done)
+      herdr_cli workspace report-metadata "$workspace" \
+        --source dev.flow --token fresh=new --ttl-ms "$((AGENT_FRESH_SECONDS * 1000))" >/dev/null 2>&1 || true
+      ;;
+  esac
+}
+
+parked_workspace_map() {
+  printf '%s' "$1" | awk -F'\t' '$5 != "yes" { print $2 }' |
+    jq -Rn '[inputs | select(length > 0) | {key: ., value: true}] | from_entries'
+}
+
+sweep_parked() {
+  local panes parked previous current nagged_ids pane workspace cwd checkout session nagged age
+
+  panes=$(printf '%s' "$state_panes" | jq -c '.result.panes')
+  previous=$(agent_parked_previous)
+
+  # A probe that failed is not a probe that said no. Conflating them makes one
+  # bad tick -- a timeout under load, a session file read mid-rewrite -- look
+  # exactly like the work ending, and fire the false finish this whole mechanism
+  # exists to prevent. A tick that could not tell changes nothing at all: the
+  # marker stands and every row keeps its last answer.
+  if ! parked=$(agent_parked_probe "$panes"); then
+    state_parked=$(parked_workspace_map "$previous")
+    return 0
+  fi
+
+  # The checkout key is resolved once, on the edge into parked, and then carried
+  # in the marker for as long as the pane stays parked -- one git call when
+  # something starts rather than one per parked pane per tick -- keyed on the
+  # session id as well as the pane id so a marker that outlived its herdr server
+  # cannot hand a reused pane id someone else's checkout.
+  current=$(
+    printf '%s' "$panes" | jq -r --argjson parked "$parked" \
+      '.[] | select(.pane_id | IN($parked[]))
+           | [.pane_id, (.workspace_id // ""), (.cwd // ""), (.agent_session.value // "")] | @tsv' |
+      while IFS=$'\t' read -r pane workspace cwd session; do
+        [ -n "$cwd" ] || continue
+        checkout=$(printf '%s' "$previous" |
+          awk -F'\t' -v p="$pane" -v s="$session" '$1 == p && $4 == s { print $3; exit }')
+        nagged=$(printf '%s' "$previous" |
+          awk -F'\t' -v p="$pane" -v s="$session" '$1 == p && $4 == s { print $5; exit }')
+        if [ -z "$checkout" ]; then
+          checkout=$(agent_checkout_key "$cwd")
+          nagged=no
+        fi
+        [ -n "$nagged" ] || nagged=no
+        printf '%s\t%s\t%s\t%s\t%s\n' "$pane" "$workspace" "$checkout" "$session" "$nagged"
+      done
+  )
+
+  # The unpark edge: parked a moment ago, not parked now. Re-stamp before
+  # recording, so a kill between the two repeats the stamp on the next tick
+  # rather than losing it. A row already nagged was called finished once and
+  # must not be called finished again when it finally goes.
+  while IFS=$'\t' read -r pane workspace checkout session nagged; do
+    [ -n "$pane" ] || continue
+    if printf '%s' "$current" | cut -f1,4 | grep -qxF "$pane$(printf '\t')$session"; then
+      continue
+    fi
+    if [ "$nagged" != yes ]; then
+      unpark "$pane" "$workspace" "$checkout"
+    fi
+  done <<<"$previous"
+
+  # A background task whose command can never exit would hold its checkout
+  # parked forever and the mark would never fire at all, which is worse than
+  # firing early. Past the ceiling it is called finished once and the flag keeps
+  # it that way: the row leaves parked so the mark can actually show, and the
+  # pane is not re-nagged and not read as an unpark when the task really ends.
+  # No new clock -- the age is the existing stamp through the existing accessor.
+  nagged_ids=
+  while IFS=$'\t' read -r pane workspace checkout session nagged; do
+    [ -n "$checkout" ] || continue
+    [ "$nagged" = no ] || continue
+    if age=$(agent_finished_age "$checkout") && [ "$age" -gt "$AGENT_PARKED_NAG_SECONDS" ]; then
+      unpark "$pane" "$workspace" "$checkout"
+      nagged_ids=$nagged_ids$pane$'\n'
+    fi
+  done <<<"$current"
+  if [ -n "$nagged_ids" ]; then
+    current=$(printf '%s' "$current" | awk -F'\t' -v ids="$nagged_ids" '
+      BEGIN { n = split(ids, a, "\n"); for (i = 1; i <= n; i++) if (a[i] != "") flagged[a[i]] = 1 }
+      { if ($1 in flagged) $5 = "yes"; print $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5 }')
+  fi
+
+  [ -z "$current" ] || current=$current$'\n'
+  agent_parked_write "$current"
+  state_parked=$(parked_workspace_map "$current")
 }
 
 checkouts_of() {
@@ -78,6 +222,7 @@ rows_json() {
     --argjson now "$(date +%s)" \
     --argjson fresh_seconds "$AGENT_FRESH_SECONDS" \
     --argjson expired_seconds "$AGENT_EXPIRED_SECONDS" \
+    --argjson parked "$state_parked" \
     --argjson worktrees "$1" '
       # herdr leaves worktree metadata empty on some spaces; their panes still know where they live.
       ( $panes.result.panes
@@ -89,6 +234,11 @@ rows_json() {
       | def checkout: .worktree.checkout_path // $pane_cwd[.workspace_id] // "";
         def repo: .worktree.repo_root // $repo_by_cwd[checkout] // checkout // .label;
         def is_worktree: .worktree.is_linked_worktree // false;
+        # Turn over, background work still running. Keyed on the workspace id
+        # and not on checkout, because checkout here is the raw pane cwd while
+        # the sweep records the git-normalised key, and the two only agree by
+        # accident. jq rejects a forward reference, so this stays above state.
+        def is_parked: $parked[.workspace_id] == true;
         # The rollup herdr computes for the space, in the words herdr uses for
         # it: blocked, done, working, idle. Reading .agent_status rather than
         # folding the agent list again is what keeps the picker saying what the
@@ -96,8 +246,11 @@ rows_json() {
         # is most rows, so that one renders as nothing rather than as a column
         # of noise. No apostrophes in here: the whole program is one
         # single-quoted shell word.
+        # A parked pane reads idle or done depending on whether you have looked
+        # at it since the turn ended; both mean the same thing here.
         def state: if .opened == false then "closed"
                    elif (.agent_status // "unknown") == "unknown" then ""
+                   elif is_parked and ((.agent_status == "idle") or (.agent_status == "done")) then "parked"
                    else .agent_status end;
         # herdr times nothing, so recency comes from the stamp agent-freshness.sh
         # writes per checkout on pane.agent_status_changed.
@@ -105,12 +258,12 @@ rows_json() {
         # Working again means you already answered it, so the mark goes as soon
         # as the space goes back to work -- the same moment the hook clears the
         # sidebar token.
-        def is_fresh: state != "working" and (finished_at != null) and (($now - finished_at) < $fresh_seconds);
+        def is_fresh: state != "working" and state != "parked" and (finished_at != null) and (($now - finished_at) < $fresh_seconds);
         # Only a checkout with no space of its own expires. An open space always
         # shows, however long ago its agent finished.
         def is_expired: (.opened == false) and (finished_at != null) and (($now - finished_at) > $expired_seconds);
         def marked_state: state + (if is_fresh and state != "" then "*" else "" end);
-        def attention_rank: if state == "blocked" or state == "done" then 0 elif state == "working" then 1 else 2 end;
+        def attention_rank: if state == "blocked" or state == "done" then 0 elif state == "working" or state == "parked" then 1 else 2 end;
 
         ( $workspaces.result.workspaces | map(checkout) ) as $open_paths
 
@@ -136,6 +289,7 @@ rows_json() {
               is_worktree: is_worktree,
               state: state,
               marked_state: marked_state,
+              is_parked: is_parked,
               is_fresh: is_fresh,
               is_expired: is_expired,
               attention_rank: attention_rank })'
@@ -212,6 +366,7 @@ visible_rows() {
       colour["blocked"] = "\033[31m"
       colour["done"]    = "\033[32m"
       colour["working"] = "\033[33m"
+      colour["parked"]  = "\033[33m"
       colour["idle"]    = "\033[2m"
       colour["closed"]  = "\033[2m"
     }

@@ -23,7 +23,20 @@ PluginComponent {
     property bool serverUp: false
     // A poll still in flight is skipped rather than queued: with herdr wedged,
     // a 3s timer against a 10s command timeout would otherwise stack processes.
+    //
+    // The latch expires rather than waiting to be cleared, because the callback
+    // that clears it is not guaranteed to arrive. Proc.maybeComplete() fires the
+    // callback only once exit, stdout AND stderr have all been seen, and its own
+    // timeout sets exit alone -- so a child whose streams never finish, which is
+    // what suspending the machine does to one in flight, leaves the callback
+    // uncalled forever. Without an expiry this widget then stops polling for the
+    // rest of the session and reports "herdr is not running" with herdr running
+    // throughout, leaving no orphan process and no logged error to find.
     property bool polling: false
+    property real pollStartedMs: 0
+    // Longer than Proc defaultTimeoutMs, which is 10s, so a poll that is merely
+    // slow is never abandoned and at most one extra process is ever in flight.
+    readonly property int pollCeilingMs: 15000
 
     // blocked and done are attention_rank 0 in spaces.sh, the rows it floats to
     // the top. They are the two ways a space wants a human: one agent is asking
@@ -41,6 +54,10 @@ PluginComponent {
     readonly property int blockedCount: rows.filter(r => r.state === "blocked").length
     readonly property int doneCount: rows.filter(r => r.state === "done").length
     readonly property int workingCount: rows.filter(r => r.state === "working").length
+    // parked is a turn that ended leaving background work running. herdr calls
+    // that pane idle and is not wrong about the turn; the bar answers about the
+    // work, so it counts beside working and shares its colour.
+    readonly property int parkedCount: rows.filter(r => r.state === "parked").length
 
     // The picker's colours, in the picker's vocabulary: red wants an answer,
     // green finished, yellow is still going, dim is neither.
@@ -51,6 +68,7 @@ PluginComponent {
         case "done":
             return Theme.success;
         case "working":
+        case "parked":
             return Theme.warning;
         default:
             return Theme.surfaceVariantText;
@@ -58,9 +76,11 @@ PluginComponent {
     }
 
     function refresh() {
-        if (root.polling)
+        // Still in flight, and not yet old enough to write off.
+        if (root.polling && (Date.now() - root.pollStartedMs) < root.pollCeilingMs)
             return;
         root.polling = true;
+        root.pollStartedMs = Date.now();
         Proc.runCommand("herdrJobs.rows", ["sh", "-c", "exec " + root.devFlow + "/spaces.sh --json"], (stdout, exitCode) => {
             root.polling = false;
             // spaces.sh exits non-zero with no server, which is how "no spaces"
@@ -96,13 +116,13 @@ PluginComponent {
 
     // The icon takes the most urgent colour present, in the picker's vocabulary:
     // red wants an answer, green finished, yellow is still going, plain is idle.
-    readonly property color pillColor: blockedCount > 0 ? Theme.error : (doneCount > 0 ? Theme.success : (workingCount > 0 ? Theme.warning : Theme.surfaceText))
+    readonly property color pillColor: blockedCount > 0 ? Theme.error : (doneCount > 0 ? Theme.success : ((workingCount + parkedCount) > 0 ? Theme.warning : Theme.surfaceText))
 
     // The glyph never changes -- the widget is the robot, and a shape that moves
     // is a second thing to learn. Working rides on top of it instead, as a dot
     // in the corner, so it survives the colour being spent on blocked or done:
     // "someone is waiting on you AND something is still running" is one look.
-    readonly property bool showWorkingDot: workingCount > 0
+    readonly property bool showWorkingDot: (workingCount + parkedCount) > 0
 
     horizontalBarPill: Component {
         Item {
@@ -184,7 +204,7 @@ PluginComponent {
             id: popout
 
             headerText: "herdr spaces"
-            detailsText: root.serverUp ? (root.rows.length + " open, " + root.blockedCount + " blocked, " + root.doneCount + " done, " + root.workingCount + " working") : "herdr is not running"
+            detailsText: root.serverUp ? (root.rows.length + " open, " + root.blockedCount + " blocked, " + root.doneCount + " done, " + root.workingCount + " working, " + root.parkedCount + " parked") : "herdr is not running"
             showCloseButton: true
 
             Item {

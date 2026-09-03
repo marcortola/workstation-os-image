@@ -136,10 +136,18 @@ jobs:
           # apt's shellcheck was the last unpinned tool in this workflow, and a
           # silent version rollover here presents as a new finding on an
           # unchanged tree. v0.9.0 is what noble currently ships, so this is a
-          # no-op today and reproducible tomorrow -- and it is the same command
-          # tooling/validate/all runs, so local and CI cannot diverge.
+          # no-op today and reproducible tomorrow.
+          #
+          # -x with the same source path as tooling/validate/all, or the
+          # source= directives these scripts carry are inert here and a sourced
+          # library resolves locally while reporting SC1091 in CI.
+          # This does NOT make the two runs identical: the file list below is
+          # narrower than validate/all's, which also lints the chezmoi scaffold
+          # scripts and the AI bundle, and this 0.9.0 pin is not the version a
+          # given machine has. Do not claim they cannot diverge.
           docker run --rm -v "$PWD":/repo:ro -w /repo \
-            docker.io/koalaman/shellcheck:v0.9.0 "${files[@]}"
+            docker.io/koalaman/shellcheck:v0.9.0 \
+            -x --source-path=SCRIPTDIR "${files[@]}"
 
   dms-settings-tests:
     runs-on: ubuntu-24.04

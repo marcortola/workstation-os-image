@@ -61,8 +61,15 @@ require_file docs/README.md
 # of software here that no package manager can install, so the Brewfile line an
 # agent would reach for first is not an oversight to correct but the mistake the
 # entry warns against -- the Homebrew cask is macOS-only and the Flathub build is
-# retired, and both facts are invisible from inside this repository.
-(( $(wc -l < AGENTS.md) <= 316 ))
+# retired, and both facts are invisible from inside this repository. Raised to
+# 331 for parked background work: herdr's `idle` means no foreground turn and
+# not no work, upstream settled that deliberately with a regression test, and
+# the two rules an agent needs before touching this are both counter-intuitive
+# -- the recency stamp now has two writers on one clock, and the obvious
+# agent-agnostic predicate for "still busy" was measured false, so an agent that
+# does not know will delete the per-agent probes and rebuild a process-tree walk
+# that reads true through every foreground tool call.
+(( $(wc -l < AGENTS.md) <= 331 ))
 
 # README.md is a landing pad into docs/ and nothing else. Capped because it grows
 # back otherwise: it was 855 lines covering fourteen concerns before the handbook
@@ -302,6 +309,107 @@ jq -e --arg id "$herdr_widget_id" \
 grep -q 'spaces.sh --json' "$herdr_widget/HerdrJobsWidget.qml"
 grep -q 'focus-space.sh' "$herdr_widget/HerdrJobsWidget.qml"
 grep -q '"--json"' "$dev_flow/executable_spaces.sh"
+
+# A checkout parked on background work spans five files that have to agree, and
+# every way they can disagree is silent: herdr calls the pane idle either way,
+# so a probe that never runs, a state word the row builder does not emit, or a
+# colour the widget does not know produce exactly the behaviour this feature
+# exists to replace, with nothing to show that it failed.
+probes=system_files/usr/libexec/workstation-agent-probes
+require_file "$probes/lib.sh"
+require_file docs/subsystems/agent-probes.md
+require_file tooling/data/agent-probe-registry
+# Assert coverage, not success: require_file above proves the glob is non-empty,
+# because a loop fed by a find that matches nothing passes without running.
+require_file "$probes/probes/claude"
+for probe in "$probes"/probes/*; do
+    probe_name=$(basename "$probe")
+    [[ -x $probe ]]
+    grep -q "^## $probe_name" docs/subsystems/agent-probes.md
+    grep -q "^$probe_name|probe|" tooling/data/agent-probe-registry
+done
+# The registry is the audit's list of what is covered and what is knowingly not,
+# so a line claiming a probe must have one.
+while IFS='|' read -r registry_agent registry_kind _; do
+    [[ $registry_agent == \#* || -z $registry_agent ]] && continue
+    [[ $registry_kind != probe ]] || require_file "$probes/probes/$registry_agent"
+    [[ $registry_kind == probe || $registry_kind == none ]]
+done < tooling/data/agent-probe-registry
+# Both plugin scripts define a no-op fallback for the machine where the image
+# half is absent, so grepping for the function name alone passes in the state
+# where lib.sh is never sourced and the whole feature is quietly dead. Gate the
+# source line itself.
+grep -q '^agent_parked_probe()' "$probes/lib.sh"
+grep -q '^agent_parked_write()' "$probes/lib.sh"
+for wired in executable_spaces.sh executable_agent-freshness.sh; do
+    grep -qF '. /usr/libexec/workstation-agent-probes/lib.sh' "$dev_flow/$wired"
+    grep -q 'agent_parked_probe' "$dev_flow/$wired"
+done
+grep -q 'sweep_parked' "$dev_flow/executable_spaces.sh"
+grep -q 'agent_parked_write' "$dev_flow/executable_spaces.sh"
+# One mechanism, two files: lib.sh documents the marker columns and spaces.sh is
+# the only thing that writes them.
+grep -q 'nagged' "$probes/lib.sh"
+grep -q 'nagged' "$dev_flow/executable_spaces.sh"
+grep -q 'def is_parked' "$dev_flow/executable_spaces.sh"
+grep -q 'colour\["parked"\]' "$dev_flow/executable_spaces.sh"
+grep -q 'case "parked"' "$herdr_widget/HerdrJobsWidget.qml"
+grep -q 'parkedCount' "$herdr_widget/HerdrJobsWidget.qml"
+# The widget's in-flight latch must expire on its own. DMS's Proc fires a
+# command callback only once exit, stdout AND stderr have all been seen, and its
+# timeout path sets exit alone, so a child whose streams never finish -- what
+# suspending the machine does to one in flight -- leaves the callback uncalled
+# forever. A latch cleared only by that callback then stops the widget polling
+# for the rest of the session, reporting herdr down with herdr up, leaving no
+# orphan process and no logged error behind to find it by.
+grep -q 'pollStartedMs' "$herdr_widget/HerdrJobsWidget.qml"
+grep -q 'pollCeilingMs' "$herdr_widget/HerdrJobsWidget.qml"
+
+# The probe against fixtures, which is the half that runs with no live machine.
+# procStart is substituted rather than pinned: it is the starttime of a live
+# process, and the point of the stale fixture is that a wrong one is rejected.
+probe_fixtures=$(mktemp -d)
+cp -r tooling/fixtures/agent-probes/claude/sessions "$probe_fixtures/"
+sed -i "s/__PROC1_START__/$(sed 's/.*) //' /proc/1/stat | awk '{print $20}')/" \
+    "$probe_fixtures"/sessions/*.json
+probe_saw=$(CLAUDE_CONFIG_DIR=$probe_fixtures "$probes/probes/claude" \
+    <tooling/fixtures/agent-probes/claude/panes.json)
+rm -rf "$probe_fixtures"
+# pA is parked. pB is busy, which is a foreground turn. pC carries a procStart
+# that no longer matches its pid, which is a session file outliving its session.
+# pD has no session id at all.
+[[ $probe_saw == '["pA"]' ]] || { echo "claude probe: expected [\"pA\"], got $probe_saw" >&2; exit 1; }
+probe_saw=$(CLAUDE_CONFIG_DIR=/nonexistent "$probes/probes/claude" \
+    <tooling/fixtures/agent-probes/claude/panes.json)
+[[ $probe_saw == '[]' ]] || { echo "claude probe with no sessions: got $probe_saw" >&2; exit 1; }
+
+# A probe that is there and does not answer must stay distinguishable from one
+# that says no. Conflating them turns a single bad tick -- a timeout under load,
+# a session file read mid-rewrite -- into a finish that never happened, which is
+# the exact false mark the parked state exists to remove.
+probe_stub=$(mktemp -d)
+printf '#!/usr/bin/env bash\ncat >/dev/null\nexit 1\n' >"$probe_stub/claude"
+chmod +x "$probe_stub/claude"
+probe_pane='[{"pane_id":"pA","agent":"claude"}]'
+if (
+    # shellcheck source=../../system_files/usr/libexec/workstation-agent-probes/lib.sh
+    . "$probes/lib.sh"
+    AGENT_PROBE_DIR=$probe_stub agent_parked_probe "$probe_pane" >/dev/null
+); then
+    echo "agent_parked_probe reported success for a probe that failed" >&2
+    exit 1
+fi
+# An agent with no probe is not a failure: that is the degrade path, and a
+# machine running an unprobed agent must not have every tick read as unknown.
+if ! (
+    # shellcheck source=../../system_files/usr/libexec/workstation-agent-probes/lib.sh
+    . "$probes/lib.sh"
+    AGENT_PROBE_DIR=$probe_stub agent_parked_probe '[{"pane_id":"pA","agent":"codex"}]' >/dev/null
+); then
+    echo "agent_parked_probe reported failure for an agent with no probe" >&2
+    exit 1
+fi
+rm -rf "$probe_stub"
 
 # One mechanism, two files: DataGrip has no package on Linux -- the Homebrew cask
 # is macOS-only and the Flathub build was retired -- so the image ships the

@@ -1,0 +1,12 @@
+# Which agents have a parked-work probe, and why the rest do not.
+#
+# <agent>|probe|<agent version the signal was last verified against>
+# <agent>|none|<why not, so nobody re-derives it>
+#
+# Read by tooling/validate/sources and tooling/audit/agent-probes at review
+# time, never by a probe at run time. The audit fails for any agent seen on a
+# live herdr pane that has neither a probe nor a line here, which is what keeps
+# the coverage gap loud instead of silent.
+claude|probe|2.1.236
+codex|none|no hook or protocol event fires when a unified_exec background terminal exits, and ThreadActiveFlag is waitingOnApproval/waitingOnUserInput only
+opencode|none|status is in-process only: the server binds --port 0 and writes no lock file, so an adapter must be a plugin that pushes; no live harm while OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS is unset

@@ -1,0 +1,6 @@
+[
+  { "pane_id": "pA", "agent": "claude", "agent_session": { "value": "sess-parked" } },
+  { "pane_id": "pB", "agent": "claude", "agent_session": { "value": "sess-busy" } },
+  { "pane_id": "pC", "agent": "claude", "agent_session": { "value": "sess-stale" } },
+  { "pane_id": "pD", "agent": "claude" }
+]
