@@ -335,9 +335,22 @@ while IFS='|' read -r registry_agent registry_kind _; do
     [[ $registry_kind != probe ]] || require_file "$probes/probes/$registry_agent"
     [[ $registry_kind == probe || $registry_kind == none ]]
 done < tooling/data/agent-probe-registry
-grep -q 'agent_parked_probe' "$probes/lib.sh"
-grep -q 'agent_parked_probe' "$dev_flow/executable_agent-freshness.sh"
-grep -q 'agent_parked_probe' "$dev_flow/executable_spaces.sh"
+# Both plugin scripts define a no-op fallback for the machine where the image
+# half is absent, so grepping for the function name alone passes in the state
+# where lib.sh is never sourced and the whole feature is quietly dead. Gate the
+# source line itself.
+grep -q '^agent_parked_probe()' "$probes/lib.sh"
+grep -q '^agent_parked_write()' "$probes/lib.sh"
+for wired in executable_spaces.sh executable_agent-freshness.sh; do
+    grep -qF '. /usr/libexec/workstation-agent-probes/lib.sh' "$dev_flow/$wired"
+    grep -q 'agent_parked_probe' "$dev_flow/$wired"
+done
+grep -q 'sweep_parked' "$dev_flow/executable_spaces.sh"
+grep -q 'agent_parked_write' "$dev_flow/executable_spaces.sh"
+# One mechanism, two files: lib.sh documents the marker columns and spaces.sh is
+# the only thing that writes them.
+grep -q 'nagged' "$probes/lib.sh"
+grep -q 'nagged' "$dev_flow/executable_spaces.sh"
 grep -q 'def is_parked' "$dev_flow/executable_spaces.sh"
 grep -q 'colour\["parked"\]' "$dev_flow/executable_spaces.sh"
 grep -q 'case "parked"' "$herdr_widget/HerdrJobsWidget.qml"
@@ -360,6 +373,34 @@ rm -rf "$probe_fixtures"
 probe_saw=$(CLAUDE_CONFIG_DIR=/nonexistent "$probes/probes/claude" \
     <tooling/fixtures/agent-probes/claude/panes.json)
 [[ $probe_saw == '[]' ]] || { echo "claude probe with no sessions: got $probe_saw" >&2; exit 1; }
+
+# A probe that is there and does not answer must stay distinguishable from one
+# that says no. Conflating them turns a single bad tick -- a timeout under load,
+# a session file read mid-rewrite -- into a finish that never happened, which is
+# the exact false mark the parked state exists to remove.
+probe_stub=$(mktemp -d)
+printf '#!/usr/bin/env bash\ncat >/dev/null\nexit 1\n' >"$probe_stub/claude"
+chmod +x "$probe_stub/claude"
+probe_pane='[{"pane_id":"pA","agent":"claude"}]'
+if (
+    # shellcheck source=../../system_files/usr/libexec/workstation-agent-probes/lib.sh
+    . "$probes/lib.sh"
+    AGENT_PROBE_DIR=$probe_stub agent_parked_probe "$probe_pane" >/dev/null
+); then
+    echo "agent_parked_probe reported success for a probe that failed" >&2
+    exit 1
+fi
+# An agent with no probe is not a failure: that is the degrade path, and a
+# machine running an unprobed agent must not have every tick read as unknown.
+if ! (
+    # shellcheck source=../../system_files/usr/libexec/workstation-agent-probes/lib.sh
+    . "$probes/lib.sh"
+    AGENT_PROBE_DIR=$probe_stub agent_parked_probe '[{"pane_id":"pA","agent":"codex"}]' >/dev/null
+); then
+    echo "agent_parked_probe reported failure for an agent with no probe" >&2
+    exit 1
+fi
+rm -rf "$probe_stub"
 
 # One mechanism, two files: DataGrip has no package on Linux -- the Homebrew cask
 # is macOS-only and the Flathub build was retired -- so the image ships the

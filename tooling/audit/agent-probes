@@ -23,6 +23,22 @@ test -d "$probes" || { echo "audit input is missing: $probes" >&2; exit 1; }
 
 echo "Agent parked-work probes:"
 
+# What herdr is actually looking at. Read once: it decides both whether a
+# missing signal matters and which agents need a probe at all.
+herdr_socket="${XDG_CONFIG_HOME:-$HOME/.config}/herdr/herdr.sock"
+live_agents=
+if command -v herdr >/dev/null && [ -S "$herdr_socket" ]; then
+    live_agents=$(herdr pane list 2>/dev/null |
+        jq -r '[.result.panes[].agent // empty] | unique | .[]' 2>/dev/null) || live_agents=
+    herdr_up=yes
+else
+    herdr_up=no
+fi
+
+agent_is_live() {
+    printf '%s\n' "$live_agents" | grep -qxF "$1"
+}
+
 claude_sessions="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sessions"
 blind() {
     echo "  claude probe is blind: $1"
@@ -30,14 +46,18 @@ blind() {
 }
 
 # The shape the probe depends on, asserted field by field against whatever is
-# live. A session with no live pid proves nothing either way, so the liveness
-# half is only asserted once some file has one.
-if [ ! -d "$claude_sessions" ]; then
-    echo "  claude: no session directory, nothing to check"
-elif ! compgen -G "$claude_sessions/*.json" >/dev/null; then
-    echo "  claude: no sessions running, nothing to check"
+# live. Absence is only a failure when claude is actually on a pane: a machine
+# that has never run it has nothing to say, and a session file left behind by a
+# dead process proves nothing about the format either way.
+if [ ! -d "$claude_sessions" ] || ! compgen -G "$claude_sessions/*.json" >/dev/null; then
+    if agent_is_live claude; then
+        blind "claude is live on a herdr pane but $claude_sessions holds no session file"
+    else
+        echo "  claude: not running, nothing to check"
+    fi
 else
-    seen_live=no
+    live_pids=0
+    matched=0
     for f in "$claude_sessions"/*.json; do
         if ! jq -e '(.pid | type == "number")
                     and (.sessionId | type == "string")
@@ -48,14 +68,20 @@ else
         fi
         pid=$(jq -r '.pid' "$f")
         [ -r "/proc/$pid/stat" ] || continue
+        live_pids=$((live_pids + 1))
         # Field 22 of /proc/<pid>/stat is starttime; field 2 is comm and can
         # contain spaces and parentheses, so the line is cut through its last ).
         if [ "$(sed 's/.*) //' "/proc/$pid/stat" | awk '{print $20}')" = "$(jq -r '.procStart' "$f")" ]; then
-            seen_live=yes
+            matched=$((matched + 1))
         fi
     done
-    [ "$seen_live" = yes ] ||
-        blind "no session file's procStart matches field 22 of its pid's /proc stat"
+    if [ "$live_pids" -eq 0 ]; then
+        # Every session file belongs to a process that is gone. The probe would
+        # correctly believe none of them, and the liveness rule is untestable.
+        echo "  claude: no session file has a live pid, liveness unchecked"
+    elif [ "$matched" -eq 0 ]; then
+        blind "$live_pids session files have live pids and none has a procStart matching field 22 of its /proc stat"
+    fi
 
     # The pin is a warning rather than a failure: an upgrade is expected, and
     # what it buys is two minutes of re-verifying an undocumented field rather
@@ -72,7 +98,7 @@ fi
 
 # Coverage. Every agent herdr is actually looking at needs either a probe or a
 # written reason there is none.
-if command -v herdr >/dev/null && [ -S "${XDG_CONFIG_HOME:-$HOME/.config}/herdr/herdr.sock" ]; then
+if [ "$herdr_up" = yes ]; then
     while IFS= read -r agent; do
         [ -n "$agent" ] || continue
         [ -x "$probes/$agent" ] && continue
@@ -82,7 +108,9 @@ if command -v herdr >/dev/null && [ -S "${XDG_CONFIG_HOME:-$HOME/.config}/herdr/
         fi
         echo "  $agent is live on a herdr pane with neither a probe nor a registry entry"
         status=2
-    done < <(herdr pane list 2>/dev/null | jq -r '[.result.panes[].agent // empty] | unique | .[]' 2>/dev/null)
+    done <<EOF
+$live_agents
+EOF
 else
     echo "  herdr is not running, coverage unchecked"
 fi

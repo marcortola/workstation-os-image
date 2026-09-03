@@ -96,6 +96,34 @@ the picker rebuilds every 2s and the bar widget polls every 3s, and a third
 scheduler slower than both would buy nothing. The cost is that a row build
 writes, which is why it writes only through `agent_finished_write`.
 
+Polling for an edge makes two distinctions load-bearing, and getting either
+wrong produces the false mark the whole amendment exists to remove:
+
+- **A probe that failed is not a probe that said no.** A timeout under load or a
+  session file read mid-rewrite would otherwise look exactly like the work
+  ending. `agent_parked_probe` returns non-zero when a probe that exists does not
+  answer, and the sweep then changes nothing at all: the marker stands and every
+  row keeps its last answer. An agent with no probe is not a failure — that is
+  the degrade path, and it is what keeps an unprobed agent behaving as before.
+- **Leaving the parked set is not always the work ending.** A pane also stops
+  being parked when the agent picks up a *new* turn. `unpark` reads the pane's
+  live status and returns without stamping on `working` or `blocked`; the hook
+  owns that finish, as it always did.
+
+A task whose command can never exit would hold its checkout parked forever and
+the mark would never fire at all, so past `AGENT_PARKED_NAG_SECONDS` it is called
+finished once. The row leaves `parked` at that point — otherwise `is_fresh` stays
+false and the escape hatch delivers nothing — and the marker carries a flag so it
+is neither re-nagged nor read as an unpark when the task really ends.
+
+One hole is known and accepted: a park shorter than a single poll tick, during
+which herdr also reported `done`, loses its sidebar badge. The hook suppresses
+the badge for a parked pane and the sweep never records the park, so nothing
+fires it later. The *stamp* is unaffected, so the picker's mark still works. The
+alternative — letting the hook write the marker too — makes it a second
+concurrent writer of a file the sweep read-modify-writes, and a lost update
+there would damage every park rather than a sub-3s one.
+
 Detection itself is per agent and cannot be otherwise. The obvious agnostic
 predicate — *the agent is idle and owns a live session-leader descendant* — was
 measured and is false: a pane mid-turn reads `idle` with one session leader for

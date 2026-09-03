@@ -66,16 +66,17 @@ case $status in
                 --source dev.flow --token fresh=new --ttl-ms "$((AGENT_FRESH_SECONDS * 1000))" >/dev/null 2>&1 || true
         fi
         ;;
-    working)
-        herdr_cli workspace report-metadata "$workspace" --source dev.flow --clear-token fresh >/dev/null 2>&1 || true
-        ;;
     idle)
-        # done -> idle is herdr saying the pane was viewed, which is the
-        # dismissal this clear exists for. Any other idle is a re-detection, and
-        # must not wipe a token the sweep has just set.
-        if [ "$previous" = "done" ]; then
+        # Arriving at idle is a dismissal -- you read the done, you answered the
+        # blocked -- and clears, as it always did. idle repeated is not an
+        # arrival but a re-detection, and must not wipe a token the sweep set on
+        # a pane that has been sitting at its prompt ever since.
+        if [ -n "$previous" ] && [ "$previous" != idle ]; then
             herdr_cli workspace report-metadata "$workspace" --source dev.flow --clear-token fresh >/dev/null 2>&1 || true
         fi
+        ;;
+    *)
+        herdr_cli workspace report-metadata "$workspace" --source dev.flow --clear-token fresh >/dev/null 2>&1 || true
         ;;
 esac
 

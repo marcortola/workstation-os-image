@@ -69,14 +69,28 @@ read_state() {
 unpark() {
   local pane=$1 workspace=$2 checkout=$3 status
   [ -n "$checkout" ] || return 0
-  agent_finished_write "$checkout"
-  [ -n "$workspace" ] || return 0
-  # The sidebar badge is the same answer in herdr's own state, expired by TTL
-  # rather than swept. Only while the space is still open and quiet: a pane that
-  # went back to work announces itself, and one that is gone has no workspace to
-  # carry a token.
+  # The marker outlives the checkout it names. A directory that is gone is not a
+  # finish worth recording, and agent_finished_write would key the stamp on a
+  # path nothing will ever ask about again.
+  [ -d "$checkout" ] || return 0
+
   status=$(printf '%s' "$state_panes" | jq -r --arg p "$pane" \
-    '.result.panes[] | select(.pane_id == $p) | .agent_status' 2>/dev/null) || return 0
+    '.result.panes[] | select(.pane_id == $p) | .agent_status' 2>/dev/null) || status=
+
+  case $status in
+    # Leaving the parked set because a NEW turn started is not the work ending.
+    # The probe answers one question -- is background work alive -- and an agent
+    # that picked up another turn stops being parked without anything having
+    # finished. The hook owns that finish, as it always did.
+    working | blocked) return 0 ;;
+  esac
+
+  agent_finished_write "$checkout"
+
+  # The sidebar badge is the same answer in herdr's own state, expired by TTL
+  # rather than swept. Only while the space is still open and quiet; a pane that
+  # is gone has no workspace left to carry a token.
+  [ -n "$workspace" ] || return 0
   case $status in
     idle | done)
       herdr_cli workspace report-metadata "$workspace" \
@@ -85,54 +99,89 @@ unpark() {
   esac
 }
 
+parked_workspace_map() {
+  printf '%s' "$1" | awk -F'\t' '$5 != "yes" { print $2 }' |
+    jq -Rn '[inputs | select(length > 0) | {key: ., value: true}] | from_entries'
+}
+
 sweep_parked() {
-  local panes parked previous current pane workspace cwd checkout age
+  local panes parked previous current nagged_ids pane workspace cwd checkout session nagged age
 
   panes=$(printf '%s' "$state_panes" | jq -c '.result.panes')
-  parked=$(agent_parked_probe "$panes")
   previous=$(agent_parked_previous)
 
-  # The checkout key is git-normalised once, on the edge into parked, and then
-  # carried in the marker for as long as the pane stays parked. The widget poll
-  # is documented to run no git at all; this keeps that true for every tick
-  # except the one where something starts.
+  # A probe that failed is not a probe that said no. Conflating them makes one
+  # bad tick -- a timeout under load, a session file read mid-rewrite -- look
+  # exactly like the work ending, and fire the false finish this whole mechanism
+  # exists to prevent. A tick that could not tell changes nothing at all: the
+  # marker stands and every row keeps its last answer.
+  if ! parked=$(agent_parked_probe "$panes"); then
+    state_parked=$(parked_workspace_map "$previous")
+    return 0
+  fi
+
+  # The checkout key is resolved once, on the edge into parked, and then carried
+  # in the marker for as long as the pane stays parked -- one git call when
+  # something starts rather than one per parked pane per tick -- keyed on the
+  # session id as well as the pane id so a marker that outlived its herdr server
+  # cannot hand a reused pane id someone else's checkout.
   current=$(
     printf '%s' "$panes" | jq -r --argjson parked "$parked" \
-      '.[] | select(.pane_id | IN($parked[])) | [.pane_id, (.workspace_id // ""), (.cwd // "")] | @tsv' |
-      while IFS=$'\t' read -r pane workspace cwd; do
+      '.[] | select(.pane_id | IN($parked[]))
+           | [.pane_id, (.workspace_id // ""), (.cwd // ""), (.agent_session.value // "")] | @tsv' |
+      while IFS=$'\t' read -r pane workspace cwd session; do
         [ -n "$cwd" ] || continue
-        checkout=$(printf '%s' "$previous" | awk -F'\t' -v p="$pane" '$1 == p { print $3; exit }')
-        [ -n "$checkout" ] || checkout=$(agent_checkout_key "$cwd")
-        printf '%s\t%s\t%s\n' "$pane" "$workspace" "$checkout"
+        checkout=$(printf '%s' "$previous" |
+          awk -F'\t' -v p="$pane" -v s="$session" '$1 == p && $4 == s { print $3; exit }')
+        nagged=$(printf '%s' "$previous" |
+          awk -F'\t' -v p="$pane" -v s="$session" '$1 == p && $4 == s { print $5; exit }')
+        if [ -z "$checkout" ]; then
+          checkout=$(agent_checkout_key "$cwd")
+          nagged=no
+        fi
+        [ -n "$nagged" ] || nagged=no
+        printf '%s\t%s\t%s\t%s\t%s\n' "$pane" "$workspace" "$checkout" "$session" "$nagged"
       done
   )
 
-  # Re-stamp before recording, so a kill between the two repeats the stamp on
-  # the next tick rather than losing it.
-  while IFS=$'\t' read -r pane workspace checkout; do
+  # The unpark edge: parked a moment ago, not parked now. Re-stamp before
+  # recording, so a kill between the two repeats the stamp on the next tick
+  # rather than losing it. A row already nagged was called finished once and
+  # must not be called finished again when it finally goes.
+  while IFS=$'\t' read -r pane workspace checkout session nagged; do
     [ -n "$pane" ] || continue
-    if ! printf '%s' "$current" | cut -f1 | grep -qxF "$pane"; then
+    if printf '%s' "$current" | cut -f1,4 | grep -qxF "$pane$(printf '\t')$session"; then
+      continue
+    fi
+    if [ "$nagged" != yes ]; then
       unpark "$pane" "$workspace" "$checkout"
     fi
   done <<<"$previous"
 
   # A background task whose command can never exit would hold its checkout
   # parked forever and the mark would never fire at all, which is worse than
-  # firing early. Past the ceiling it is treated as unparked once anyway; the
-  # re-stamp resets the age, so this nags hourly instead of latching. No new
-  # clock: the age is the existing stamp, read through the existing accessor.
-  while IFS=$'\t' read -r pane workspace checkout; do
+  # firing early. Past the ceiling it is called finished once and the flag keeps
+  # it that way: the row leaves parked so the mark can actually show, and the
+  # pane is not re-nagged and not read as an unpark when the task really ends.
+  # No new clock -- the age is the existing stamp through the existing accessor.
+  nagged_ids=
+  while IFS=$'\t' read -r pane workspace checkout session nagged; do
     [ -n "$checkout" ] || continue
-    age=$(agent_finished_age "$checkout") || continue
-    [ "$age" -gt "$AGENT_PARKED_NAG_SECONDS" ] || continue
-    unpark "$pane" "$workspace" "$checkout"
+    [ "$nagged" = no ] || continue
+    if age=$(agent_finished_age "$checkout") && [ "$age" -gt "$AGENT_PARKED_NAG_SECONDS" ]; then
+      unpark "$pane" "$workspace" "$checkout"
+      nagged_ids=$nagged_ids$pane$'\n'
+    fi
   done <<<"$current"
+  if [ -n "$nagged_ids" ]; then
+    current=$(printf '%s' "$current" | awk -F'\t' -v ids="$nagged_ids" '
+      BEGIN { n = split(ids, a, "\n"); for (i = 1; i <= n; i++) if (a[i] != "") flagged[a[i]] = 1 }
+      { if ($1 in flagged) $5 = "yes"; print $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5 }')
+  fi
 
-  [ -z "$current" ] || current="$current"$'\n'
+  [ -z "$current" ] || current=$current$'\n'
   agent_parked_write "$current"
-
-  state_parked=$(printf '%s' "$current" | cut -f2 |
-    jq -Rn '[inputs | select(length > 0) | {key: ., value: true}] | from_entries')
+  state_parked=$(parked_workspace_map "$current")
 }
 
 checkouts_of() {

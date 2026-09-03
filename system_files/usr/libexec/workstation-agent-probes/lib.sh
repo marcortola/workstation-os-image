@@ -29,12 +29,17 @@ AGENT_PROBE_DIR="${AGENT_PROBE_DIR:-/usr/libexec/workstation-agent-probes/probes
 # a JSON array of the pane ids that are parked. No arguments, no writes, no side
 # effects. One fork per agent kind, not per pane.
 #
-# Every other outcome is read as "not parked": no probe, non-zero exit, timeout,
-# output that is not an array of strings. A broken probe degrades this
-# workstation to the behaviour it had before probes existed, which is the only
-# failure mode worth having for a signal that rides an undocumented vendor file.
+# An agent with no probe contributes nothing and is not a failure: that is the
+# whole degrade path, and it is how an unprobed agent keeps the behaviour it had
+# before probes existed.
+#
+# A probe that is there and does not answer -- non-zero exit, timeout, output
+# that is not an array of strings -- IS a failure, and this returns non-zero
+# after collecting what it can. The distinction is the difference between "no
+# work is running" and "I could not tell", and a caller that conflates them
+# turns one bad tick into a finish that never happened.
 agent_parked_probe() {
-    local panes=$1 agent subset out parked='[]'
+    local panes=$1 agent subset out parked='[]' failed=0
     while IFS= read -r agent; do
         # The label is about to become a path component, so it is validated
         # rather than trusted: herdr reports whatever the manifest calls it.
@@ -42,18 +47,33 @@ agent_parked_probe() {
             '' | *[!a-z0-9_-]*) continue ;;
         esac
         [ -x "$AGENT_PROBE_DIR/$agent" ] || continue
-        subset=$(printf '%s' "$panes" | jq -c --arg a "$agent" '[.[] | select(.agent == $a)]') || continue
-        out=$(printf '%s' "$subset" | timeout 2 "$AGENT_PROBE_DIR/$agent" 2>/dev/null) || continue
-        printf '%s' "$out" | jq -e 'type == "array" and all(type == "string")' >/dev/null 2>&1 || continue
-        parked=$(jq -cn --argjson a "$parked" --argjson b "$out" '$a + $b | unique') || continue
+        if ! subset=$(printf '%s' "$panes" | jq -c --arg a "$agent" '[.[] | select(.agent == $a)]'); then
+            failed=1
+            continue
+        fi
+        if ! out=$(printf '%s' "$subset" | timeout 2 "$AGENT_PROBE_DIR/$agent" 2>/dev/null); then
+            failed=1
+            continue
+        fi
+        if ! printf '%s' "$out" | jq -e 'type == "array" and all(type == "string")' >/dev/null 2>&1; then
+            failed=1
+            continue
+        fi
+        parked=$(jq -cn --argjson a "$parked" --argjson b "$out" '$a + $b | unique') || failed=1
     done < <(printf '%s' "$panes" | jq -r '[.[].agent // empty] | unique | .[]')
     printf '%s\n' "$parked"
+    return "$failed"
 }
 
-# What was parked when this last ran, as `<pane id>\t<workspace id>\t<checkout>`
-# lines. The unpark edge is the difference between this and the current answer,
-# and it is the only thing that knows a background task has ended: no agent
-# emits an event for it, which is why the sweep is a poll.
+# What was parked when this last ran, as
+# `<pane id>\t<workspace id>\t<checkout>\t<session id>\t<nagged>` lines. The
+# unpark edge is the difference between this and the current answer, and it is
+# the only thing that knows a background task has ended: no agent emits an event
+# for it, which is why the sweep is a poll.
+#
+# The session id is carried because a pane id is workspace scoped and herdr
+# reuses it; a marker that outlived its server would otherwise hand a row the
+# checkout of whatever used to hold that id.
 agent_parked_previous() {
     cat "$AGENT_PARKED_FILE" 2>/dev/null || true
 }
