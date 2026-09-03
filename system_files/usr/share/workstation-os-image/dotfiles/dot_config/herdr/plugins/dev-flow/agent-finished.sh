@@ -24,11 +24,15 @@ AGENT_FINISHED_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/workstation/agent-fini
 AGENT_STATUS_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/workstation/agent-status"
 
 # A space that finished inside AGENT_FRESH_SECONDS is marked as just finished.
-# One that finished longer ago than AGENT_EXPIRED_SECONDS is expired: the space
-# picker hides it, and reopening it starts a clean conversation instead of
-# resuming the old one.
+#
+# There is deliberately no counterpart that expires a stamp. A checkout leaves
+# the picker when it is removed, not when it goes quiet: the closed rows come
+# from `git worktree list`, so the list is already bounded by what is on disk
+# and prunes itself through the ship and close-workspace popups. An age window
+# on top of that hid live checkouts nobody had asked to hide, and gave the
+# reboot path two answers to one question -- herdr restores the exact
+# conversation with no age limit, so a window here only disagreed with it.
 AGENT_FRESH_SECONDS=600
-AGENT_EXPIRED_SECONDS=43200
 
 # A checkout parked on background work is not stamped until that work ends, and
 # a task whose command can never exit would hold it there forever -- the mark
@@ -63,6 +67,22 @@ agent_status_remember() {
     printf '%s\n' "$2" >"$file"
     # Pane ids do not outlive a herdr server for long.
     find "$AGENT_STATUS_DIR" -type f -mtime +30 -delete 2>/dev/null || true
+}
+
+# Every remembered status belongs to a server that is gone, so a new server
+# starts without any. The file is a memory of a transition, not a fact about a
+# pane: a finish is `working` followed by `idle`, and nothing else records the
+# first half. session.json restores the public pane ids verbatim, so a machine
+# shut down mid-turn would come back with the pane still remembered as
+# `working`, and the first idle after the restore would be read as a turn that
+# ended while the server was off -- stamping a finish that never happened and
+# marking the space as just finished on the bar.
+#
+# This resets the existing clock rather than adding a second one: it removes a
+# reading taken by a dead server, and writes no stamp of its own.
+agent_status_forget_all() {
+    [ -d "$AGENT_STATUS_DIR" ] || return 0
+    find "$AGENT_STATUS_DIR" -type f -delete 2>/dev/null || true
 }
 
 agent_finished_file() {

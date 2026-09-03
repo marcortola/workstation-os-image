@@ -31,6 +31,16 @@ default_shell = "/usr/bin/fish"
 version_check = false
 manifest_check = false
 
+# Already the upstream default, and pinned anyway -- the one place this file
+# writes a value it agrees with. Restoring the conversation is the primary
+# resume path here, not a convenience: workstation-herdr-server.service keeps
+# the session across a reboot, and the dev layout's `claude --continue` is the
+# manual fallback for a pane this misses. An upstream flip of the default would
+# take that away with nothing in this repo changing, which is the same reason
+# [update] is pinned above.
+[session]
+resume_agents_on_restore = true
+
 # The scheme is a cascade, not a pick-and-mix: the four parked actions below are
 # replaced by dev-flow popups, and freeing their keys pushes close_tab,
 # rename_workspace, reload_config and resize_mode each one slot along. Changing

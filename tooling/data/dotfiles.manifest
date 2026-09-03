@@ -55,6 +55,7 @@ scaffold|.config/herdr/plugins/dev-flow/herdr-plugin.toml|dot_config/herdr/plugi
 scaffold|.config/herdr/plugins/dev-flow/adopt-worktrees.sh|dot_config/herdr/plugins/dev-flow/executable_adopt-worktrees.sh|-
 scaffold|.config/herdr/plugins/dev-flow/agent-finished.sh|dot_config/herdr/plugins/dev-flow/agent-finished.sh|-
 scaffold|.config/herdr/plugins/dev-flow/agent-freshness.sh|dot_config/herdr/plugins/dev-flow/executable_agent-freshness.sh|-
+scaffold|.config/herdr/plugins/dev-flow/agent-status-reset.sh|dot_config/herdr/plugins/dev-flow/executable_agent-status-reset.sh|-
 scaffold|.config/herdr/plugins/dev-flow/agents.sh|dot_config/herdr/plugins/dev-flow/executable_agents.sh|-
 scaffold|.config/herdr/plugins/dev-flow/checkout-remove.sh|dot_config/herdr/plugins/dev-flow/executable_checkout-remove.sh|-
 scaffold|.config/herdr/plugins/dev-flow/close-workspace.sh|dot_config/herdr/plugins/dev-flow/executable_close-workspace.sh|-
