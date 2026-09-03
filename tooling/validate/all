@@ -13,22 +13,30 @@ tooling/validate/repo
 command -v cosign >/dev/null && tooling/validate/source-images
 tooling/validate/rpm-keys
 
-mapfile -t shell_files < <(
-    find tooling build_files system_files/usr/bin system_files/usr/libexec -type f \
-        \( -perm /111 -o -name '*.sh' \) -print | sort
-    # Both chezmoi executable prefixes: create_executable_* are the create-only
-    # personal seeds, executable_* the image-owned scaffold ones. The scaffold
-    # half went unchecked until the dev-flow plugin grew to seventeen scripts.
-    find system_files/usr/share/workstation-os-image/dotfiles -type f \
-        \( -name 'create_executable_*' -o -name 'executable_*' \) -print | sort
-    # Bundle scripts only (maxdepth 1 skips the vendored Node installer).
-    find tooling/ai/ai-cli-setup -maxdepth 1 -name '*.sh' -print | sort
-)
+# One list, shared with the Shell lint step in .github/workflows/build.yml.
+mapfile -t shell_files < <(tooling/validate/shell-files)
+# The list cannot be empty, and a loop fed by a find that matches nothing passes
+# without running -- which is how the two halves came to disagree unnoticed.
+(( ${#shell_files[@]} > 50 ))
 bash -n "${shell_files[@]}"
-# -x follows sourced files, which is what makes the `# shellcheck source=`
-# directives already scattered through these scripts do anything at all;
-# SCRIPTDIR resolves those relative paths against the sourcing file rather than
-# the invocation directory, since the plugin scripts source their siblings.
+
+# One version, shared with that same step, which runs it as a pinned container.
+# Findings move between shellcheck releases -- 0.9.0 and 0.10.0 report an SC2015
+# on this tree that 0.11.0 does not -- so an unpinned local binary means a rule
+# that passes here and fails in CI, or worse the reverse. A machine whose linter
+# has rolled over stops rather than quietly reporting a different tree: confirm
+# the new version is clean, then move the pin in the same change.
+shellcheck_pin=$(cat tooling/data/shellcheck-version)
+shellcheck_have=$(shellcheck --version | awk '$1 == "version:" { print $2 }')
+[[ $shellcheck_have == "$shellcheck_pin" ]] || {
+    echo "shellcheck $shellcheck_have is not the pin $shellcheck_pin in tooling/data/shellcheck-version" >&2
+    echo "  re-run the lint under $shellcheck_have, then move the pin in the same change" >&2
+    exit 1
+}
+# -x follows sourced files, which is what makes the source= directives already
+# scattered through these scripts do anything at all; SCRIPTDIR resolves those
+# relative paths against the sourcing file rather than the invocation directory,
+# since the plugin scripts source their siblings.
 shellcheck -x --source-path=SCRIPTDIR "${shell_files[@]}"
 
 # Dictation records a complete WAV before uploading it, so it uses the

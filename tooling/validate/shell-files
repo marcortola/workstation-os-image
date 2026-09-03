@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Every shell script this repository owns, one per line, in a stable order.
+#
+# The only copy. tooling/validate/all and the Shell lint step in
+# .github/workflows/build.yml both read it, because the two used to keep their
+# own lists and the CI one was silently the narrower: it had never seen the
+# chezmoi scaffold scripts or the AI bundle, so seventeen dev-flow scripts were
+# linted locally and nowhere else, and nothing said so.
+set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+
+find tooling build_files system_files/usr/bin system_files/usr/libexec -type f \
+    \( -perm /111 -o -name '*.sh' \) -print | sort
+# Both chezmoi executable prefixes: create_executable_* are the create-only
+# personal seeds, executable_* the image-owned scaffold ones. The scaffold
+# half went unchecked until the dev-flow plugin grew to seventeen scripts.
+find system_files/usr/share/workstation-os-image/dotfiles -type f \
+    \( -name 'create_executable_*' -o -name 'executable_*' \) -print | sort
+# Bundle scripts only (maxdepth 1 skips the vendored Node installer).
+find tooling/ai/ai-cli-setup -maxdepth 1 -name '*.sh' -print | sort
