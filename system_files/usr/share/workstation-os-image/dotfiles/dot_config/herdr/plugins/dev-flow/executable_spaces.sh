@@ -7,7 +7,6 @@ herdr_cli() {
 
 plugin_dir=$(cd "$(dirname "$0")" && pwd)
 # shellcheck source=agent-finished.sh
-# shellcheck source=agent-finished.sh
 . "$plugin_dir/agent-finished.sh"
 
 # The parked-work seam is image payload, not part of this plugin, because the

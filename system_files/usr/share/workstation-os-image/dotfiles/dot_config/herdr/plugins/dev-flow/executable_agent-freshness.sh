@@ -10,7 +10,6 @@ set -euo pipefail
 
 plugin_dir=$(cd "$(dirname "$0")" && pwd)
 # shellcheck source=agent-finished.sh
-# shellcheck source=agent-finished.sh
 . "$plugin_dir/agent-finished.sh"
 
 # See lib.sh: a turn that ends leaving background work running is not a finish,
