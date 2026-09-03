@@ -506,14 +506,32 @@ other implementation and the two conflict, so only one can be present.
 ## The herdr Bar Widget
 
 `herdrJobs` is a DMS plugin, sitting in the centre of the bar just after the
-notification button. It carries two counts — spaces that are `blocked` in red
-and `done` in green, each hidden at zero — and opens a popout listing every open
-space with its state, the same rows the `prefix+s` space picker draws. Clicking a
-row focuses that space and raises the herdr window; the popout closes behind it.
+notification button. It is a single icon carrying no numbers, and it opens a
+popout listing every open space with its state, the same rows the `prefix+s`
+space picker draws. Clicking a row focuses that space and raises the herdr
+window; the popout closes behind it.
 
-The counts are `done` rather than the picker's `*` freshness mark, deliberately:
-herdr keeps calling a space `done` until it goes back to work, so the count
-survives until it is dealt with, where the mark expires after
+The glyph is always `smart_toy`. Two channels ride on it, in the picker's
+colours:
+
+| Bar | Meaning |
+|---|---|
+| Red robot | A space is `blocked` — an agent is asking you something |
+| Green robot | A space is `done` — an agent finished and wants a review |
+| Yellow robot | Nothing is waiting on you; an agent is `working` |
+| Plain robot | Idle, or dimmed to 40% when herdr is not running |
+| A yellow dot in the corner | An agent is `working`, whatever the colour says |
+
+How many are waiting does not change what you do next — you open the popout
+either way — so the counts the pill used to carry were dropped. The colour is
+spent on the most urgent state, which is why `working` also gets the dot: it is
+the one state the colour loses whenever something more urgent is true, and
+"someone is waiting on you **and** something is still running" is worth one look
+rather than two.
+
+The `done` state is used rather than the picker's `*` freshness mark,
+deliberately: herdr keeps calling a space `done` until it goes back to work, so
+the signal survives until it is dealt with, where the mark expires after
 `AGENT_FRESH_SECONDS` whether or not anyone looked.
 
 `Mod+S` opens the same popout without the mouse, mirroring herdr's own

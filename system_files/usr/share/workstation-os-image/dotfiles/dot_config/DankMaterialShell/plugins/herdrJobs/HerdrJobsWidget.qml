@@ -26,16 +26,21 @@ PluginComponent {
     property bool polling: false
 
     // blocked and done are attention_rank 0 in spaces.sh, the rows it floats to
-    // the top. The pill counts those and nothing else, but as two numbers: one
-    // agent is asking a question and the other has finished, and folding them
-    // into a single count loses the only distinction that changes what you do.
+    // the top. They are the two ways a space wants a human: one agent is asking
+    // a question, the other has finished and wants a review.
+    //
+    // The pill carries no numbers. How many are waiting does not change what you
+    // do next -- you open the popout either way -- so the bar answers only which
+    // of three things is true: someone is waiting on you, something is running,
+    // or neither.
     //
     // done rather than the picker's `*` mark: herdr keeps saying done until the
-    // space goes back to work, so the count survives until it is dealt with,
+    // space goes back to work, so the signal survives until it is dealt with,
     // where the mark expires after AGENT_FRESH_SECONDS whether or not anyone
     // looked.
     readonly property int blockedCount: rows.filter(r => r.state === "blocked").length
     readonly property int doneCount: rows.filter(r => r.state === "done").length
+    readonly property int workingCount: rows.filter(r => r.state === "working").length
 
     // The picker's colours, in the picker's vocabulary: red wants an answer,
     // green finished, yellow is still going, dim is neither.
@@ -89,70 +94,84 @@ PluginComponent {
         onTriggered: root.refresh()
     }
 
-    // The icon takes the more urgent of the two colours, so the pill reads at a
-    // glance before either number is.
-    readonly property color pillColor: blockedCount > 0 ? Theme.error : (doneCount > 0 ? Theme.success : Theme.surfaceText)
+    // The icon takes the most urgent colour present, in the picker's vocabulary:
+    // red wants an answer, green finished, yellow is still going, plain is idle.
+    readonly property color pillColor: blockedCount > 0 ? Theme.error : (doneCount > 0 ? Theme.success : (workingCount > 0 ? Theme.warning : Theme.surfaceText))
+
+    // The glyph never changes -- the widget is the robot, and a shape that moves
+    // is a second thing to learn. Working rides on top of it instead, as a dot
+    // in the corner, so it survives the colour being spent on blocked or done:
+    // "someone is waiting on you AND something is still running" is one look.
+    readonly property bool showWorkingDot: workingCount > 0
 
     horizontalBarPill: Component {
-        Row {
-            spacing: Theme.spacingXS
+        Item {
+            implicitWidth: horizontalPillIcon.implicitWidth
+            implicitHeight: horizontalPillIcon.implicitHeight
 
             DankIcon {
+                id: horizontalPillIcon
+                anchors.centerIn: parent
                 name: "smart_toy"
                 size: root.iconSize
                 color: root.serverUp ? root.pillColor : Theme.surfaceText
                 opacity: root.serverUp ? 1 : 0.4
-                anchors.verticalCenter: parent.verticalCenter
             }
 
-            StyledText {
-                visible: root.serverUp && root.blockedCount > 0
-                text: root.blockedCount
-                color: Theme.error
-                font.pixelSize: Theme.fontSizeMedium
-                font.weight: Font.Bold
-                anchors.verticalCenter: parent.verticalCenter
-            }
+            // Ringed in the bar's own background so the dot stays a dot against
+            // whichever part of the glyph it lands on.
+            Rectangle {
+                visible: root.serverUp && root.showWorkingDot
+                width: Math.round(root.iconSize * 0.42)
+                height: width
+                radius: width / 2
+                color: Theme.surfaceContainer
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
 
-            StyledText {
-                visible: root.serverUp && root.doneCount > 0
-                text: root.doneCount
-                color: Theme.success
-                font.pixelSize: Theme.fontSizeMedium
-                font.weight: Font.Bold
-                anchors.verticalCenter: parent.verticalCenter
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: parent.width * 0.66
+                    height: width
+                    radius: width / 2
+                    color: Theme.warning
+                }
             }
         }
     }
 
     verticalBarPill: Component {
-        Column {
-            spacing: Theme.spacingXS
+        Item {
+            implicitWidth: verticalPillIcon.implicitWidth
+            implicitHeight: verticalPillIcon.implicitHeight
 
             DankIcon {
+                id: verticalPillIcon
+                anchors.centerIn: parent
                 name: "smart_toy"
                 size: root.iconSize
                 color: root.serverUp ? root.pillColor : Theme.surfaceText
                 opacity: root.serverUp ? 1 : 0.4
-                anchors.horizontalCenter: parent.horizontalCenter
             }
 
-            StyledText {
-                visible: root.serverUp && root.blockedCount > 0
-                text: root.blockedCount
-                color: Theme.error
-                font.pixelSize: Theme.fontSizeSmall
-                font.weight: Font.Bold
-                anchors.horizontalCenter: parent.horizontalCenter
-            }
+            // Ringed in the bar's own background so the dot stays a dot against
+            // whichever part of the glyph it lands on.
+            Rectangle {
+                visible: root.serverUp && root.showWorkingDot
+                width: Math.round(root.iconSize * 0.42)
+                height: width
+                radius: width / 2
+                color: Theme.surfaceContainer
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
 
-            StyledText {
-                visible: root.serverUp && root.doneCount > 0
-                text: root.doneCount
-                color: Theme.success
-                font.pixelSize: Theme.fontSizeSmall
-                font.weight: Font.Bold
-                anchors.horizontalCenter: parent.horizontalCenter
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: parent.width * 0.66
+                    height: width
+                    radius: width / 2
+                    color: Theme.warning
+                }
             }
         }
     }
@@ -165,7 +184,7 @@ PluginComponent {
             id: popout
 
             headerText: "herdr spaces"
-            detailsText: root.serverUp ? (root.rows.length + " open, " + root.blockedCount + " blocked, " + root.doneCount + " done") : "herdr is not running"
+            detailsText: root.serverUp ? (root.rows.length + " open, " + root.blockedCount + " blocked, " + root.doneCount + " done, " + root.workingCount + " working") : "herdr is not running"
             showCloseButton: true
 
             Item {
