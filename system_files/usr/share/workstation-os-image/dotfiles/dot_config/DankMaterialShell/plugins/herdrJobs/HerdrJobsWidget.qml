@@ -41,6 +41,10 @@ PluginComponent {
     readonly property int blockedCount: rows.filter(r => r.state === "blocked").length
     readonly property int doneCount: rows.filter(r => r.state === "done").length
     readonly property int workingCount: rows.filter(r => r.state === "working").length
+    // parked is a turn that ended leaving background work running. herdr calls
+    // that pane idle and is not wrong about the turn; the bar answers about the
+    // work, so it counts beside working and shares its colour.
+    readonly property int parkedCount: rows.filter(r => r.state === "parked").length
 
     // The picker's colours, in the picker's vocabulary: red wants an answer,
     // green finished, yellow is still going, dim is neither.
@@ -51,6 +55,7 @@ PluginComponent {
         case "done":
             return Theme.success;
         case "working":
+        case "parked":
             return Theme.warning;
         default:
             return Theme.surfaceVariantText;
@@ -96,13 +101,13 @@ PluginComponent {
 
     // The icon takes the most urgent colour present, in the picker's vocabulary:
     // red wants an answer, green finished, yellow is still going, plain is idle.
-    readonly property color pillColor: blockedCount > 0 ? Theme.error : (doneCount > 0 ? Theme.success : (workingCount > 0 ? Theme.warning : Theme.surfaceText))
+    readonly property color pillColor: blockedCount > 0 ? Theme.error : (doneCount > 0 ? Theme.success : ((workingCount + parkedCount) > 0 ? Theme.warning : Theme.surfaceText))
 
     // The glyph never changes -- the widget is the robot, and a shape that moves
     // is a second thing to learn. Working rides on top of it instead, as a dot
     // in the corner, so it survives the colour being spent on blocked or done:
     // "someone is waiting on you AND something is still running" is one look.
-    readonly property bool showWorkingDot: workingCount > 0
+    readonly property bool showWorkingDot: (workingCount + parkedCount) > 0
 
     horizontalBarPill: Component {
         Item {
@@ -184,7 +189,7 @@ PluginComponent {
             id: popout
 
             headerText: "herdr spaces"
-            detailsText: root.serverUp ? (root.rows.length + " open, " + root.blockedCount + " blocked, " + root.doneCount + " done, " + root.workingCount + " working") : "herdr is not running"
+            detailsText: root.serverUp ? (root.rows.length + " open, " + root.blockedCount + " blocked, " + root.doneCount + " done, " + root.workingCount + " working, " + root.parkedCount + " parked") : "herdr is not running"
             showCloseButton: true
 
             Item {

@@ -69,6 +69,39 @@ the two states that also mean *and you have not looked yet*, and herdr clears
 `done` itself the moment the pane is viewed, so a badge on `idle` would outlive
 the thing it announces.
 
+### Amendment: a turn can end without the work ending
+
+The rule above has one clause too few, and the gap is not in our reading of
+herdr's states but in the states themselves. herdr's `agent_status` answers
+*is there a foreground turn*. An agent that starts a background task and then
+returns to its prompt has ended the turn and not the work, and it takes the
+`working -> idle` transition above — so the mark fires, and it is wrong.
+
+This is settled upstream and settled against us: `herdrdev/herdr#3468` removed
+the rule that reported a live background shell as `working` and added a
+regression test asserting `idle`. herdr is not wrong about the turn. It has no
+word for the other thing.
+
+So the stamp keeps two writers on one clock. The hook still stamps when the turn
+ends, unchanged and never deferred — `layout-common.sh` reads a *missing* stamp
+as "start clean", so a stamp held back to wait for background work would quietly
+stop the next layout resuming the conversation. `spaces.sh`'s parked sweep
+re-stamps when the background work actually exits, which moves the mark to the
+right moment without ever leaving the checkout unstamped in between. While the
+work runs the row reads `parked` and `is_fresh` is false, so nothing marks early.
+
+The sweep is a poll because nothing emits an event when a background task ends —
+no agent has one, so herdr has none to forward. It is deliberately not a timer:
+the picker rebuilds every 2s and the bar widget polls every 3s, and a third
+scheduler slower than both would buy nothing. The cost is that a row build
+writes, which is why it writes only through `agent_finished_write`.
+
+Detection itself is per agent and cannot be otherwise. The obvious agnostic
+predicate — *the agent is idle and owns a live session-leader descendant* — was
+measured and is false: a pane mid-turn reads `idle` with one session leader for
+the whole span of a foreground tool call. See
+[../subsystems/agent-probes.md](../subsystems/agent-probes.md).
+
 Three consumers, one clock:
 
 | Consumer | Question | Window |

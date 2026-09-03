@@ -30,6 +30,14 @@ AGENT_STATUS_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/workstation/agent-status
 AGENT_FRESH_SECONDS=600
 AGENT_EXPIRED_SECONDS=43200
 
+# A checkout parked on background work is not stamped until that work ends, and
+# a task whose command can never exit would hold it there forever -- the mark
+# would never fire at all, which is worse than firing early. Past this the
+# checkout is treated as unparked once anyway. The re-stamp resets the age, so
+# this nags hourly rather than latching, and it reads the existing stamp rather
+# than starting a clock of its own.
+AGENT_PARKED_NAG_SECONDS=3600
+
 # The checkout path as git itself spells it, so a stamp written from a pane cwd
 # and a row built from `git worktree list` agree on one key.
 agent_checkout_key() {

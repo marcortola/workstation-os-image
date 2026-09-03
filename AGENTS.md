@@ -209,12 +209,27 @@ prefer them over reinventing the shape:
   carrying `changed:false`. The split tab is named `dev`: `focus-tab.sh`
   resolves `main`/`nvim`/`term` as tabs first.
 - herdr times nothing: `agent list` carries `state_change_seq`, a counter, and
-  no clock. Every recency answer comes from one stamp per checkout, written by
-  the `pane.agent_status_changed` hook and read through
+  no clock. Every recency answer comes from one stamp per checkout, read through
   `dev-flow/agent-finished.sh` -- the picker's just-finished mark, its expiry
   window, and whether the dev layout resumes the conversation. Never add a
-  second recency source. The sidebar badge is the same event's herdr token,
-  expired by TTL rather than swept.
+  second recency source. One clock, two writers: the `pane.agent_status_changed`
+  hook stamps when the turn ends, and `spaces.sh`'s parked sweep re-stamps when
+  background work that turn left running actually exits. Never suppress or defer
+  the hook's stamp to wait for that -- `layout-common.sh` reads a missing stamp
+  as "start clean", so a deferred one silently downgrades the next layout from
+  resuming the conversation to starting a new one. The sidebar badge is the same
+  token from either writer, expired by TTL rather than swept.
+- herdr's `idle` means no foreground turn, never no work: upstream removed the
+  rule that reported a live background shell as `working` and added a test
+  guarding it. A parked checkout -- turn over, background work alive -- is
+  detected only by a per-agent probe under
+  `/usr/libexec/workstation-agent-probes/`, listed in
+  `tooling/data/agent-probe-registry`, and an agent with no probe is never
+  parked and behaves exactly as before. The sweep is the picker and widget polls
+  themselves, never a timer, and it is why a row build writes. Never infer
+  parked from the process tree: herdr reports `idle` for the whole span of a
+  foreground tool call, and that call is a setsid session leader exactly like a
+  background one, so the predicate reads true through a live turn (measured).
 - The ship popup is the mechanical half of `/worktree-push`: it refuses a dirty
   tree rather than writing a commit, and never deletes a branch.
 - Both popups that can delete a checkout -- ship and close-workspace -- end in

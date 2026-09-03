@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# Is a Claude Code pane parked -- foreground turn over, background shell alive?
+#
+# Claude Code writes ~/.claude/sessions/<pid>.json per running session, carrying
+# a status field over busy | shell | idle | waiting. `shell` is exactly this
+# question: the turn ended and a background local_bash task is still running.
+# herdr sees the same pane as idle, because the screen it scrapes shows an empty
+# prompt box, which is true and not the whole truth.
+#
+# The join is free: the herdr Claude integration already reports the session id
+# through pane.report_agent_session, so herdr carries it as agent_session.value
+# and this probe matches on it rather than guessing at pids or cwds.
+#
+# The file is undocumented and self-versioned. tooling/audit/agent-probes asserts
+# its shape against the live machine, because that is the failure this cannot
+# gate any other way: the vendor changing the file makes the probe answer "not
+# parked" forever, silently, and everything degrades to the old behaviour with
+# nothing to show for it.
+set -euo pipefail
+
+sessions="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sessions"
+panes=$(cat)
+
+live=$(
+    for f in "$sessions"/*.json; do
+        [ -f "$f" ] || continue
+        line=$(jq -r 'select(.status == "shell")
+                      | [(.pid | tostring), (.sessionId // ""), (.procStart | tostring)]
+                      | @tsv' "$f" 2>/dev/null) || continue
+        [ -n "$line" ] || continue
+        IFS=$'\t' read -r pid sid start <<<"$line"
+        [ -n "$sid" ] || continue
+        # A session file outlives a crashed session, and pids are reused, so the
+        # status is only believed for a process that is still the one that wrote
+        # it. Field 22 of /proc/<pid>/stat is starttime, and field 2 is comm,
+        # which can contain spaces and parentheses -- `npm exec help-s` runs on
+        # this machine -- so the line is cut through its last ) before counting.
+        stat=$(sed 's/.*) //' "/proc/$pid/stat" 2>/dev/null) || continue
+        [ "$(printf '%s' "$stat" | awk '{print $20}')" = "$start" ] || continue
+        printf '%s\n' "$sid"
+    done | jq -Rn '[inputs]'
+)
+
+# `waiting` is deliberately not parked. Nobody here has observed it, and a guess
+# about what it means would be indistinguishable from a bug for as long as it
+# held.
+printf '%s' "$panes" | jq -c --argjson live "$live" \
+    '[ .[] | select((.agent_session.value // "") | IN($live[])) | .pane_id ]'
