@@ -355,6 +355,15 @@ grep -q 'def is_parked' "$dev_flow/executable_spaces.sh"
 grep -q 'colour\["parked"\]' "$dev_flow/executable_spaces.sh"
 grep -q 'case "parked"' "$herdr_widget/HerdrJobsWidget.qml"
 grep -q 'parkedCount' "$herdr_widget/HerdrJobsWidget.qml"
+# The widget's in-flight latch must expire on its own. DMS's Proc fires a
+# command callback only once exit, stdout AND stderr have all been seen, and its
+# timeout path sets exit alone, so a child whose streams never finish -- what
+# suspending the machine does to one in flight -- leaves the callback uncalled
+# forever. A latch cleared only by that callback then stops the widget polling
+# for the rest of the session, reporting herdr down with herdr up, leaving no
+# orphan process and no logged error behind to find it by.
+grep -q 'pollStartedMs' "$herdr_widget/HerdrJobsWidget.qml"
+grep -q 'pollCeilingMs' "$herdr_widget/HerdrJobsWidget.qml"
 
 # The probe against fixtures, which is the half that runs with no live machine.
 # procStart is substituted rather than pinned: it is the starttime of a live
