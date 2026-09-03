@@ -170,14 +170,15 @@ errors on every import.
 
 ### What `up` attaches
 
-Three bind mounts go on every `devcontainer up`, plus lazygit when it exists on
+Four bind mounts go on every `devcontainer up`, plus lazygit when it exists on
 the host:
 
 | Mount | Purpose |
 |---|---|
 | `$HOME/.config/nvim` → `/nvimconf-src` | The host Neovim config; copied into the store on each launch, never written back |
 | `$HOME/.local/share/nvim/lazy` → `/nvim-plugins` | The host's already-cloned plugins, reused instead of re-cloning ~50 repos over the container network |
-| `<per-project store>` → `/nvimdata` | The in-container nvim binary, private Node, Mason servers and compiled treesitter parsers |
+| `~/.local/share/dev-nvim/toolchain` → `/nvimtoolchain` | The nvim binary, `fd` and `rg`, shared by every checkout on the same base image |
+| `<per-project store>` → `/nvimdata` | Private Node, Mason servers and compiled treesitter parsers |
 | host `lazygit` binary + `~/.config/lazygit` | LazyVim's `<leader>gg` only exists where the binary does |
 
 lazygit is mounted rather than downloaded because it is a static Go binary and
@@ -219,7 +220,16 @@ diffing work inside; pushing stays on the host, which holds the credentials.
 The store lives at `~/.local/share/dev-nvim/<12 hex chars>`, where the suffix is
 the first twelve characters of the SHA-256 of the workspace path. Host and
 container both run as uid 1000, so the store is writable from inside and its
-native artefacts match the container's libc.
+native artefacts match the container's libc. Each store also records its
+workspace path in a `.root` file, which is what tells an abandoned store from a
+live one.
+
+**A linked worktree is its own workspace, so it gets its own store.** That is
+the single fact to hold onto here: a store is per *checkout*, not per repository,
+and nothing removed one when the checkout went away. Half the tree measured on
+2026-09-03 belonged to branches that no longer existed. `just dev-nvim-gc`
+reports them and removes them under `--force`; it never touches a store a running
+container has mounted, or one it cannot explain.
 
 First launch provisions it, which takes minutes; every launch after that is
 fast. Provisioning installs a pinned Neovim (0.12.4, checksum-verified against
@@ -228,18 +238,34 @@ when the container has none, `fd` and `ripgrep` for the pickers, and a build
 toolchain via `apt-get` when `cc`/`git` are missing *and* passwordless `sudo` is
 available — otherwise it warns that treesitter may fail rather than dying.
 
+Neovim, `fd` and `rg` are **shared** rather than per-store: they are the same
+bytes in every container on the same base image, so they install once under
+`/nvimtoolchain/<fingerprint>` and the store gets a symlink. The fingerprint is
+only knowable inside the container, which is why the whole `toolchain/` directory
+is mounted and the link is made in there — the launch command still spells
+`/nvimdata/nvim/bin/nvim` and the fingerprint stays in one place. Because the
+destination is shared and the install guards are test-then-act, each artefact is
+staged in a private directory and renamed into place: two cold launches at once
+produce one good copy and one discarded download, never a half-extracted binary.
+
 The store **auto-resets** when the container's base changes. The provisioner
 fingerprints `/etc/os-release`, `ldd --version` and `uname -m`, compares it to
-`/nvimdata/.builtfor`, and on a mismatch wipes the nvim binary, Node and the four
-XDG directories, because those artefacts are libc-bound. To force a clean
-reprovision yourself, delete the store directory.
+`/nvimdata/.builtfor`, and on a mismatch wipes Node and the four XDG directories,
+because those artefacts are libc-bound. The nvim and `bin` entries are symlinks
+by then, so the reset drops the links and the next lines re-point them at the new
+fingerprint's toolchain. To force a clean reprovision yourself, delete the store
+directory.
 
 > A container created *without* these mounts — by the raw `devcontainer` CLI, or
 > by an older `dev` — is happily reused by `devcontainer up` with the mounts
-> still absent. `dev nvim` probes for `/nvimconf-src/init.lua`, `/nvimdata` and
-> `/nvim-plugins` and recreates the container once (`--remove-existing-container`)
-> when any is missing. That is the one case where `dev nvim` throws your
-> container away.
+> still absent. `dev nvim` probes for `/nvimconf-src/init.lua`, `/nvimdata`,
+> `/nvim-plugins` and `/nvimtoolchain`, and recreates the container once
+> (`--remove-existing-container`) when any is missing. That is the one case where
+> `dev nvim` throws your container away.
+>
+> The probe rides inside the provisioning script rather than paying its own
+> `devcontainer exec`, and answers 97 to ask for the recreate. A round trip
+> measured 370-484 ms on every launch, and the probe is a bare `test`.
 
 ### Language scoping
 
@@ -775,11 +801,15 @@ model does not change when you switch tools. The seed paths are inventoried in
   read-only cannot be expressed from the command line at all. The nvim and
   lazygit config mounts are read-only by convention — the provisioner copies
   them into the store and never writes back, but nothing enforces that.
-- **The store reset does not clear `/nvimdata/bin`.** The base-image fingerprint
-  check wipes the nvim binary, Node and the XDG directories, but `fd` and
-  `ripgrep` survive it. `fd` is fetched as the `x86_64-unknown-linux-gnu` build,
-  so a base swapped to a musl image keeps a glibc-linked `fd` that will not run.
-  Delete the store directory to recover.
+- **The shared toolchain is keyed on a fingerprint that does not describe it.**
+  `/nvimtoolchain/<fp>` is keyed on `/etc/os-release`, `ldd --version` and
+  `uname -m`, which says nothing about the pinned Neovim version, so bumping
+  `ver` in the provisioner leaves every existing fingerprint on the old binary —
+  the install guard only asks whether *a* Neovim is there. Remove the toolchain
+  directory to force the new one. The key is also finer than the artefacts need:
+  `fd` is fetched as the `x86_64-unknown-linux-gnu` build and `rg` as the musl
+  one, so a base swapped to musl gets a fresh fingerprint and a fresh `fd` —
+  correct here, but by accident rather than because the key models linkage.
 - **Provisioning assumes x86_64 and Debian.** Neovim, Node, `fd` and `ripgrep`
   are all downloaded as x86_64 tarballs, and the only toolchain fallback is
   `apt-get`. Another architecture, or an RPM/Alpine base missing `cc`, gets no

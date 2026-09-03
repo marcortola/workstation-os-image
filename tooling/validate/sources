@@ -267,7 +267,24 @@ done < <(
     grep -oE '"type=(bind|volume),.*"' "$dev_fish" \
         | sed -E 's/"\(.*\)"/X/; s/\$[A-Za-z_][A-Za-z0-9_]*/X/g; s/^"//; s/"$//'
 )
-(( dev_mounts >= 5 ))
+(( dev_mounts >= 6 ))
+
+# One mechanism, two files: `dev nvim` creates the per-project stores and
+# `nvim-store-gc` removes the abandoned ones, so they have to agree on where the
+# stores live and on the one directory in there that is NOT a store. Disagreeing
+# spellings would not fail anything -- the collector would simply find nothing,
+# or classify the shared toolchain as an orphan and delete it out from under
+# every running container. See docs/design-records/dev-nvim-store.md.
+nvim_gc=tooling/dev/nvim-store-gc
+require_file "$nvim_gc"
+grep -q '"[$]HOME/[.]local/share/dev-nvim/"' "$dev_fish"
+grep -q 'store_root="[$]HOME/[.]local/share/dev-nvim"' "$nvim_gc"
+grep -q 'dev-nvim/toolchain"$' "$dev_fish"
+grep -q '[$]name == toolchain' "$nvim_gc"
+# The store records its own checkout so the collector can be exact rather than
+# hashing candidate paths; without the writer, every new store looks legacy.
+grep -q '>"[$]store/[.]root"' "$dev_fish"
+grep -q '[$]path/[.]root' "$nvim_gc"
 
 # One mechanism, two files: `dev` mounts a linked worktree's common .git, which
 # the CLI honours only where the checkout records a RELATIVE path, so the git

@@ -53,9 +53,23 @@ function dev --description "Run a command in the nearest Dev Container (no args 
     # writable and its native artifacts match the container libc.
     set -l store "$HOME/.local/share/dev-nvim/"(echo -n "$root" | sha256sum | cut -c1-12)
     mkdir -p "$store/data" "$store/state" "$store/cache" "$store/config"
+    # Which checkout this store belongs to, so `just dev-nvim-gc` can tell an
+    # abandoned store from a live one exactly rather than by hashing candidates.
+    echo "$root" >"$store/.root"
+    # The nvim binary, fd and rg are the same bytes in every store (measured:
+    # identical in all 14 copies, across both base-image fingerprints), so they
+    # live once per fingerprint under toolchain/ instead of once per checkout --
+    # which, with a store per worktree, meant re-downloading 15 MB for every new
+    # branch. The whole toolchain/ directory is mounted rather than one
+    # fingerprint's: the fingerprint is only knowable inside the container, and
+    # the boot script links the right one into the store, so the launch command
+    # below still spells /nvimdata/nvim and the fingerprint lives in one place.
+    set -l toolchain "$HOME/.local/share/dev-nvim/toolchain"
+    mkdir -p "$toolchain"
     set -l mounts \
         --mount "type=bind,source=$HOME/.config/nvim,target=/nvimconf-src" \
         --mount "type=bind,source=$HOME/.local/share/nvim/lazy,target=/nvim-plugins" \
+        --mount "type=bind,source=$toolchain,target=/nvimtoolchain" \
         --mount "type=bind,source=$store,target=/nvimdata"
 
     # lazygit is LazyVim's <leader>gg, and LazyVim only creates that keymap
@@ -100,8 +114,11 @@ function dev --description "Run a command in the nearest Dev Container (no args 
     if test "$argv[1]" = nvim
         # A container created earlier WITHOUT these mounts (e.g. by JetBrains
         # Gateway or an older `dev`) is reused by `up` with the mounts absent;
-        # recreate it once so the config/store are actually present.
-        set -l ready 'test -f /nvimconf-src/init.lua -a -d /nvimdata -a -d /nvim-plugins'
+        # recreate it once so the config/store are actually present. The probe
+        # is a bare `test`, so it rides inside the provisioning script below
+        # rather than paying its own `devcontainer exec`: a round trip measured
+        # 370-484 ms on every launch (docs/design-records/dev-nvim-store.md).
+        set -l ready 'test -f /nvimconf-src/init.lua -a -d /nvimdata -a -d /nvim-plugins -a -d /nvimtoolchain'
         # A worktree recorded RELATIVELY also needs the common `.git` mounted,
         # which a container created before that flag lacks. Resolve the pointer
         # with sed rather than git: a base image without git, or one that trips
@@ -111,19 +128,6 @@ function dev --description "Run a command in the nearest Dev Container (no args 
         if test -f "$root/.git"; and string match -qr '^gitdir: [^/]' (head -n1 "$root/.git")
             set ready "$ready && test -e \"\$(sed -n 's/^gitdir: *//p' .git)\""
         end
-        if not devcontainer exec --workspace-folder "$root" $dcflags bash -c "$ready"
-            echo "dev nvim: container is missing a mount; recreating..." >&2
-            set -l relog (mktemp)
-            if not devcontainer up --workspace-folder "$root" $dcflags $mounts \
-                    --remove-existing-container >$relog 2>&1
-                echo "dev nvim: recreating the container failed:" >&2
-                tail -n 20 $relog >&2
-                rm -f $relog
-                return 1
-            end
-            rm -f $relog
-        end
-
         # Provision (idempotent): reset the store if the base image changed
         # (native artifacts are libc-bound), install a pinned+checksummed nvim,
         # a private Node for the node-based LSP servers, a C toolchain when the
@@ -138,8 +142,15 @@ function dev --description "Run a command in the nearest Dev Container (no args 
                 mkdir -p /nvimdata/data /nvimdata/state /nvimdata/cache /nvimdata/config
                 echo "$fp" > /nvimdata/.builtfor
             fi
+            # Shared across every checkout on this base image. The install
+            # guards are test-then-act and the destination is now shared, so
+            # each artifact is staged privately and renamed into place: two cold
+            # launches at once then produce one good copy and one discarded
+            # download, never a half-extracted binary. There is no lock.
+            tc=/nvimtoolchain/$fp
+            mkdir -p "$tc/bin"
             ver=0.12.4
-            if [ ! -x /nvimdata/nvim/bin/nvim ]; then
+            if [ ! -x "$tc/nvim/bin/nvim" ]; then
                 echo "dev nvim: installing Neovim $ver in container" >&2
                 b="https://github.com/neovim/neovim/releases/download/v$ver"
                 curl -fsSL "$b/nvim-linux-x86_64.tar.gz" -o /tmp/nvim.tgz
@@ -148,8 +159,21 @@ function dev --description "Run a command in the nearest Dev Container (no args 
                     got=$(sha256sum /tmp/nvim.tgz | cut -d" " -f1)
                     if [ -n "$want" ] && [ "$want" != "$got" ]; then echo "dev nvim: nvim checksum mismatch" >&2; exit 1; fi
                 fi
-                mkdir -p /nvimdata/nvim && tar xzf /tmp/nvim.tgz -C /nvimdata/nvim --strip-components=1
+                stage=$(mktemp -d "$tc/.nvim.XXXXXX")
+                tar xzf /tmp/nvim.tgz -C "$stage" --strip-components=1
+                if ! mv -T "$stage" "$tc/nvim" 2>/dev/null; then
+                    rm -rf "$stage"
+                    if [ ! -x "$tc/nvim/bin/nvim" ]; then
+                        echo "dev nvim: could not install Neovim into the shared toolchain" >&2
+                        exit 1
+                    fi
+                fi
             fi
+            # A store from before the toolchain was shared holds a real
+            # directory here; replace it with the link rather than nesting into
+            # it. `rm -rf` on the link itself never touches the shared copy.
+            if [ -d /nvimdata/nvim ] && [ ! -L /nvimdata/nvim ]; then rm -rf /nvimdata/nvim; fi
+            ln -sfn "$tc/nvim" /nvimdata/nvim
             if ! command -v node >/dev/null 2>&1 && [ ! -x /nvimdata/node/bin/node ]; then
                 echo "dev nvim: installing Node.js in container (for LSP servers)" >&2
                 nver=22.11.0
@@ -158,16 +182,24 @@ function dev --description "Run a command in the nearest Dev Container (no args 
             fi
             # fd + ripgrep for the file/grep pickers and venv-selector (the slim
             # container bases usually ship neither).
-            if [ ! -x /nvimdata/bin/fd ] || [ ! -x /nvimdata/bin/rg ]; then
-                echo "dev nvim: installing fd + ripgrep in container (pickers)" >&2
-                mkdir -p /nvimdata/bin
+            # One file at a time, each renamed over its final name, so a missing
+            # rg is installed without re-staging a working fd.
+            if [ ! -x "$tc/bin/fd" ]; then
+                echo "dev nvim: installing fd in container (pickers)" >&2
                 fdv=10.2.0
                 curl -fsSL "https://github.com/sharkdp/fd/releases/download/v$fdv/fd-v$fdv-x86_64-unknown-linux-gnu.tar.gz" | tar xz -C /tmp \
-                    && cp "/tmp/fd-v$fdv-x86_64-unknown-linux-gnu/fd" /nvimdata/bin/
+                    && cp "/tmp/fd-v$fdv-x86_64-unknown-linux-gnu/fd" "$tc/bin/.fd.$$" \
+                    && mv -f "$tc/bin/.fd.$$" "$tc/bin/fd"
+            fi
+            if [ ! -x "$tc/bin/rg" ]; then
+                echo "dev nvim: installing ripgrep in container (pickers)" >&2
                 rgv=14.1.1
                 curl -fsSL "https://github.com/BurntSushi/ripgrep/releases/download/$rgv/ripgrep-$rgv-x86_64-unknown-linux-musl.tar.gz" | tar xz -C /tmp \
-                    && cp "/tmp/ripgrep-$rgv-x86_64-unknown-linux-musl/rg" /nvimdata/bin/
+                    && cp "/tmp/ripgrep-$rgv-x86_64-unknown-linux-musl/rg" "$tc/bin/.rg.$$" \
+                    && mv -f "$tc/bin/.rg.$$" "$tc/bin/rg"
             fi
+            if [ -d /nvimdata/bin ] && [ ! -L /nvimdata/bin ]; then rm -rf /nvimdata/bin; fi
+            ln -sfn "$tc/bin" /nvimdata/bin
             if ! command -v cc >/dev/null 2>&1 || ! command -v git >/dev/null 2>&1; then
                 if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
                     echo "dev nvim: installing build toolchain" >&2
@@ -183,7 +215,34 @@ function dev --description "Run a command in the nearest Dev Container (no args 
                 cp -a /lazygitconf-src /nvimdata/config/lazygit
             fi
         '
-        if not devcontainer exec --workspace-folder "$root" $dcflags bash -c "$boot"
+        # The mount probe runs first, inside the same script, and answers 97 --
+        # a status no tool in the body returns, so a `curl`/`tar`/`grep` failure
+        # under `set -e` is never mistaken for "recreate me". `set -e` starts
+        # after it, since a failing probe is an answer rather than an error.
+        # Prepended by literal concatenation, NOT `(string join ...)`: fish
+        # splits command substitution on newlines, which would turn $boot into a
+        # list and flatten the whole script onto one line when it is quoted.
+        set -l boot "$ready || exit 97
+$boot"
+
+        devcontainer exec --workspace-folder "$root" $dcflags bash -c "$boot"
+        set -l provisioned $status
+        if test $provisioned -eq 97
+            echo "dev nvim: container is missing a mount; recreating..." >&2
+            set -l relog (mktemp)
+            if not devcontainer up --workspace-folder "$root" $dcflags $mounts \
+                    --remove-existing-container >$relog 2>&1
+                echo "dev nvim: recreating the container failed:" >&2
+                tail -n 20 $relog >&2
+                rm -f $relog
+                return 1
+            end
+            rm -f $relog
+            if not devcontainer exec --workspace-folder "$root" $dcflags bash -c "$boot"
+                echo "dev nvim: provisioning failed" >&2
+                return 1
+            end
+        else if test $provisioned -ne 0
             echo "dev nvim: provisioning failed" >&2
             return 1
         end

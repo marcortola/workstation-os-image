@@ -53,6 +53,7 @@ before starting long work.
 | [herdr-server-unit.md](herdr-server-unit.md) | Why the herdr server needed a systemd unit of its own, how a one-millisecond SIGTERM race was quietly eating a workspace out of every other reboot, why `KillMode=mixed` is the entire fix, why the recency stamp lost its expiry window in the same change, and the six routes that lost — enabling at login, socket activation, an `ExecStop`, `Restart=always`, keeping the twelve-hour window, and re-deriving pane labels. |
 | [upgrade-download-size.md](upgrade-download-size.md) | Why every `bootc upgrade` re-downloaded 1.4 GB, the four changes that cut it to ~0.8 GB, and the five routes that were measured and lost — rechunking, splitting the packages `RUN`, chasing the layer cache, prefetching, and rescheduling `uupd`. |
 | [akmods.md](akmods.md) | Why the image consumes no out-of-tree kernel modules: the kernel replacement that makes every upstream akmods consumer structurally immune to a version mismatch this image would have had to maintain by hand, what the openrazer request would have bought on hardware it does not support, and the five routes that lost. |
+| [dev-nvim-store.md](dev-nvim-store.md) | Why `dev nvim`'s per-project store reached 2.8 GB with half of it belonging to deleted worktrees, why the fix is a garbage collector and one fewer container round-trip, and the five routes that lost on measurement — fingerprint-keyed sharing, main-repo keying, dropping the language gate, a read-only config mount, and adopting the reference config wholesale. |
 
 ---
 
