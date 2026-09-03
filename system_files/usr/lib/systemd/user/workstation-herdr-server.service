@@ -1,0 +1,66 @@
+[Unit]
+Description=herdr terminal workspace server
+Documentation=https://github.com/marcortola/workstation-os-image
+# The server is normally a child of the foot window the Mod+Shift+T bind opens,
+# which puts it and every pane it owns inside foot-server.service. That unit is
+# KillMode=control-group, so at logout systemd SIGTERMs the server and all of
+# its panes in one broadcast. A pane that handles the signal first looks to
+# herdr like an ordinary pane exit, herdr drops the now-empty workspace, and
+# then persists the pruned state -- measured twice here, once losing a
+# workspace whose only pane died 1.2ms before the server processed its own
+# SIGTERM. Owning the cgroup is what fixes it; see KillMode below.
+PartOf=graphical-session.target
+After=graphical-session.target
+# The environment every pane inherits is this unit's. niri --session imports its
+# own environment into the user manager, and graphical-session.target is only
+# reached after that import, so starting earlier would hand every pane a session
+# without WAYLAND_DISPLAY, NIRI_SOCKET or the Homebrew PATH. Same guard
+# foot-server.service uses.
+ConditionEnvironment=WAYLAND_DISPLAY
+# Every user manager reaches default.target, including the one pam_systemd
+# starts for greetd's `greeter` account, whose home is read-only. Without this
+# the unit fails on every login screen. `!@system` excludes accounts below
+# SYS_UID_MAX.
+ConditionUser=!@system
+
+[Service]
+Type=exec
+# Homebrew provides herdr, and workstation-bootstrap installs it. Until then
+# there is no server to run. As an ExecCondition that is a SKIP; as a non-zero
+# ExecStart it would be a failed unit forever, which tooling/audit/units then
+# reports on every fresh machine.
+ExecCondition=/usr/bin/test -x /home/linuxbrew/.linuxbrew/bin/herdr
+ExecStart=/usr/libexec/workstation-herdr-server
+# THE fix, and the one line that must not be dropped. `man systemd.kill`: "If
+# set to mixed, the SIGTERM signal ... is sent to the main process while the
+# subsequent SIGKILL signal ... is sent to all remaining processes of the unit's
+# control group." The server therefore takes SIGTERM alone, writes session.json
+# with every workspace still in it, and tears down its own panes before exiting
+# -- the log already shows those panes leaving with signal=Hangup ahead of
+# `herdr exiting`, so SIGKILL finds nothing to do. The default, control-group,
+# reproduces the bug verbatim inside this unit. tooling/validate/sources gates
+# it, because a later edit dropping it would fail only at the next reboot.
+KillMode=mixed
+# The measured save is 51ms. The ceiling matters only because
+# /usr/lib/systemd/user/service.d/10-timeout-abort.conf sets
+# TimeoutStopFailureMode=abort for every user service: an overrun is a SIGABRT
+# and a coredump, not a quiet kill. 30s stays well inside the user manager's own
+# 60s stop timeout.
+TimeoutStopSec=30
+# on-failure, not always: `herdr server stop` and `herdr update --handoff` both
+# end the server deliberately and exit 0, and resurrecting it would fight them.
+Restart=on-failure
+RestartSec=2
+# A systemd user unit inherits TERM=linux and no COLORTERM from the user
+# manager, and whatever the server holds is what every pane it spawns inherits.
+# The values match what the server carries today under foot.
+Environment=TERM=xterm-256color
+Environment=COLORTERM=truecolor
+
+[Install]
+# Deliberately NOT listed in 10-workstation-os-image.preset: herdr is launched
+# on purpose, and enabling this would restore every workspace's shells at every
+# login whether or not a terminal is ever opened. The two paths that do start a
+# session -- the Mod+Shift+T bind and workstation-dev --herdr -- start this unit
+# first. Adding the preset line is all it takes to switch to starting at login.
+WantedBy=graphical-session.target

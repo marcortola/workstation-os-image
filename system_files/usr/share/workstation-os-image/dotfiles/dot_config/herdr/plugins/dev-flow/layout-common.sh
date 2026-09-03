@@ -356,18 +356,17 @@ editor_command() {
   printf 'nvim\n'
 }
 
-# Resume the conversation only while it is still the same stretch of work: a
-# checkout whose last agent finish is inside AGENT_EXPIRED_SECONDS reopens with
-# `claude --continue`, an expired one starts clean. Without a stamp there is
-# nothing to continue and `--continue` would fail the pane into a bare shell,
-# so no stamp means a clean start too.
+# A checkout that has ever finished a turn reopens with `claude --continue`;
+# one that has not starts clean, because there is nothing to continue and
+# `--continue` would fail the pane into a bare shell.
+#
+# The stamp is read as a fact, not as a clock: no age window closes a
+# conversation. herdr restores the exact conversation on its own at server
+# start with no age limit of its own, so a window here would only make the two
+# disagree after a reboot -- and a conversation is finished when the checkout
+# is removed, which is a deliberate act with its own popup.
 claude_command() {
-  local age
-  age=$(agent_finished_age "$(agent_checkout_key "$1")") || {
-    printf 'claude\n'
-    return 0
-  }
-  if [ "$age" -lt "$AGENT_EXPIRED_SECONDS" ]; then
+  if agent_finished_age "$(agent_checkout_key "$1")" >/dev/null; then
     printf 'claude --continue\n'
   else
     printf 'claude\n'

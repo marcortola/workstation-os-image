@@ -188,6 +188,16 @@ prefer them over reinventing the shape:
 
 - herdr is launched deliberately (`Mod+Shift+T`, or the project picker), never
   auto-attached from a shell rc: every attached client mirrors the others.
+- The server is `workstation-herdr-server.service`, so it owns a cgroup no pane
+  shares. A client that finds none forks its own inside `foot-server.service`,
+  which is `KillMode=control-group`: at logout systemd SIGTERMs server and panes
+  together, a pane that handles it first reads as an ordinary pane exit, and
+  herdr persists the emptied workspace away. `KillMode=mixed` is the whole fix.
+  The unit is kept out of the preset and started by the two paths that open a
+  session, so the launch stays deliberate, and `tooling/audit/units` reports a
+  server outside it. `ExecStart` cannot name the Homebrew binary -- build-time
+  `systemd-analyze verify` fails a path absent from the layer -- hence the
+  `/usr/libexec` wrapper and the `ExecCondition`. All of it is gated.
 - Keep one default herdr session. The agent-state rollup is per server, so
   named sessions fragment the only thing herdr was adopted for.
 - Run coding agents inside a herdr pane. Outside one the state hook exits 0
@@ -206,19 +216,32 @@ prefer them over reinventing the shape:
   Every step converges rather than builds: reuse a tab that already carries
   the label, find the agent by label and never by position, and never build a
   replacement for a pane `pane move` refused -- a refusal is a SUCCESS reply
-  carrying `changed:false`. The split tab is named `dev`: `focus-tab.sh`
-  resolves `main`/`nvim`/`term` as tabs first.
+  carrying `changed:false`. The split tab is named `dev`: `focus-tab.sh` resolves
+  `main`/`nvim`/`term` as tabs first, and it is also the split layout's only mark
+  that survives a restart, since `session.json` persists a tab's `custom_name`
+  but of a pane only cwd and agent session. `layout-toggle.sh` tests it beside
+  the pane labels, or a reboot rebuilds the default layout over a live split one.
 - herdr times nothing: `agent list` carries `state_change_seq`, a counter, and
   no clock. Every recency answer comes from one stamp per checkout, read through
-  `dev-flow/agent-finished.sh` -- the picker's just-finished mark, its expiry
-  window, and whether the dev layout resumes the conversation. Never add a
-  second recency source. One clock, two writers: the `pane.agent_status_changed`
-  hook stamps when the turn ends, and `spaces.sh`'s parked sweep re-stamps when
-  background work that turn left running actually exits. Never suppress or defer
-  the hook's stamp to wait for that -- `layout-common.sh` reads a missing stamp
-  as "start clean", so a deferred one silently downgrades the next layout from
-  resuming the conversation to starting a new one. The sidebar badge is the same
-  token from either writer, expired by TTL rather than swept.
+  `dev-flow/agent-finished.sh` -- the picker's just-finished mark and the sidebar
+  badge. Never add a second recency source. One clock, two writers: the
+  `pane.agent_status_changed` hook stamps when the turn ends, and `spaces.sh`'s
+  parked sweep re-stamps when background work that turn left running actually
+  exits. Never suppress or defer the hook's stamp to wait for that -- the sidebar
+  badge is the same token from either writer, expired by TTL rather than swept.
+  A remembered pane status belongs to the server that wrote it, so
+  `agent-status-reset.sh` clears them on `[[startup]]`: restored pane ids are the
+  same ids, and a stale `working` makes the first idle after a restore read as a
+  turn that ended while the server was off.
+- The stamp never expires. A checkout leaves the picker by being removed -- the
+  closed rows come from `git worktree list` -- and `claude_command` reads the
+  stamp as a fact: one that exists means `claude --continue`, none means a clean
+  start, since `--continue` without a conversation fails the pane into a bare
+  shell. Never re-add an age window: herdr restores the exact conversation at
+  server start with no age limit, so a window here can only disagree with it
+  after a reboot. That restore is `[session] resume_agents_on_restore`, pinned
+  true in the config seed because it is now load-bearing rather than a
+  convenience.
 - herdr's `idle` means no foreground turn, never no work: upstream removed the
   rule that reported a live background shell as `working` and added a test
   guarding it. A parked checkout -- turn over, background work alive -- is

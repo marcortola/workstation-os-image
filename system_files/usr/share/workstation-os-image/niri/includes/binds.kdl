@@ -192,8 +192,15 @@ binds {
     // One herdr window, launched deliberately. Every attached client mirrors
     // the others, so herdr is never started from the shell rc: a second
     // terminal would be a clone of the first rather than a second context.
+    //
+    // The unit start is what keeps the server out of foot-server.service's
+    // cgroup, where a shared SIGTERM at logout costs a workspace; a client that
+    // finds a server already running attaches to it instead of forking its own.
+    // Ordinary `start` on a running unit is a no-op, and it is deliberately not
+    // conditional: the failure to guard against is the client quietly starting
+    // an unsupervised server, which tooling/audit/units reports after the fact.
     Mod+Shift+T hotkey-overlay-title="Coding Session (herdr)" {
-        spawn-sh "xdg-terminal-exec --app-id=herdr --title=herdr --dir=$HOME -- /home/linuxbrew/.linuxbrew/bin/herdr";
+        spawn-sh "systemctl --user start workstation-herdr-server.service; xdg-terminal-exec --app-id=herdr --title=herdr --dir=$HOME -- /home/linuxbrew/.linuxbrew/bin/herdr";
     }
     // The same list the herdr picker draws on prefix+s, from the desktop: the
     // bar widget's popout. `widget toggle` is DMS's generic bar-widget popout

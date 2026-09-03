@@ -124,5 +124,33 @@ report_last_exit() {
 report_last_exit system "$system_preset"
 report_last_exit user "$user_preset"
 
+# The herdr server has to be in its OWN cgroup, and no build-time check can see
+# whether it is. A client that finds no server forks one as its own child, which
+# lands it inside foot-server.service together with every pane it goes on to
+# spawn; that unit is KillMode=control-group, so at logout systemd SIGTERMs the
+# server and the panes in one broadcast and herdr persists a session with
+# whichever workspaces lost the race already dropped. The unit is not enabled,
+# so this state is one `herdr` typed at a shell away and nothing else reports it.
+report_herdr_cgroup() {
+    local unit=workstation-herdr-server.service pid cgroup
+
+    systemctl --user cat "$unit" >/dev/null 2>&1 || return 0
+    pid="$(pgrep -u "$USER" -x -f '.*/herdr server' | head -1)" || true
+    [[ -n $pid ]] || return 0
+
+    cgroup="$(cat "/proc/$pid/cgroup" 2>/dev/null)" || return 0
+    case "$cgroup" in
+        */"$unit") ;;
+        *)
+            echo "  user herdr server (pid $pid) runs outside $unit;" >&2
+            echo "    it is in ${cgroup##*/}, which kills it alongside its own panes" >&2
+            echo "    at logout -- restart the session through the unit to fix it" >&2
+            status=1
+            ;;
+    esac
+}
+
+report_herdr_cgroup
+
 (( status == 0 )) && echo "  every preset line holds; no image-owned unit has failed."
 exit "$status"

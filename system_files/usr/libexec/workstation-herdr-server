@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ExecStart for workstation-herdr-server.service.
+#
+# The unit exists to own the server's cgroup, so the only thing this script does
+# is exec the Homebrew binary. It exists at all because the ExecStart path
+# cannot be the Homebrew one: build_files/99-check-build.sh runs
+# `systemd-analyze verify` over /usr/lib/systemd/user/workstation-*.service at
+# BUILD time, verify exits 1 on an ExecStart command that is not executable, and
+# Homebrew is unpacked on first boot rather than baked into a layer. The unit's
+# ExecCondition covers the machine that has no herdr yet; this indirection
+# covers the image that has no /home/linuxbrew at all.
+#
+# Kept deliberately thin: anything that runs before the exec runs inside the
+# unit's cgroup and would still be there at shutdown, when the whole point is
+# that the server is the only process systemd signals.
+
+herdr=/home/linuxbrew/.linuxbrew/bin/herdr
+
+exec "$herdr" server

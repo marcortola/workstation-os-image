@@ -68,8 +68,14 @@ require_file docs/README.md
 # -- the recency stamp now has two writers on one clock, and the obvious
 # agent-agnostic predicate for "still busy" was measured false, so an agent that
 # does not know will delete the per-agent probes and rebuild a process-tree walk
-# that reads true through every foreground tool call.
-(( $(wc -l < AGENTS.md) <= 331 ))
+# that reads true through every foreground tool call. Raised to 354 for the
+# herdr server unit, whose three rules are each the opposite of the obvious move:
+# `KillMode=mixed` looks like a stylistic choice and is the entire fix, an
+# ExecStart naming the Homebrew binary looks correct and fails the build, and the
+# recency stamp lost its expiry window rather than gaining one -- an agent tidying
+# up would restore all three and the damage would surface only at the next
+# reboot, one workspace at a time.
+(( $(wc -l < AGENTS.md) <= 354 ))
 
 # README.md is a landing pad into docs/ and nothing else. Capped because it grows
 # back otherwise: it was 855 lines covering fourteen concerns before the handbook
@@ -363,6 +369,59 @@ for wired in executable_spaces.sh executable_agent-freshness.sh; do
 done
 grep -q 'sweep_parked' "$dev_flow/executable_spaces.sh"
 grep -q 'agent_parked_write' "$dev_flow/executable_spaces.sh"
+
+# The herdr server owns its own cgroup, and one directive is the whole reason.
+# Left at systemd's default of control-group, the unit SIGTERMs the server and
+# every pane it owns in one broadcast; a pane that handles it first looks like an
+# ordinary pane exit, so herdr drops the now-empty workspace and then persists
+# the pruned state. Nothing catches that until the next reboot, and what it
+# costs is a workspace, silently -- hence a gate rather than a comment.
+herdr_unit=system_files/usr/lib/systemd/user/workstation-herdr-server.service
+herdr_exec=system_files/usr/libexec/workstation-herdr-server
+require_file "$herdr_unit"
+require_file "$herdr_exec"
+grep -q '^KillMode=mixed$' "$herdr_unit"
+# ExecStart cannot be the Homebrew path: 99-check-build.sh runs
+# `systemd-analyze verify` over these units at build time, and verify exits 1 on
+# an ExecStart command that is not executable in the layer. The ExecCondition is
+# the other half -- a machine with no herdr yet SKIPs instead of failing forever.
+grep -q '^ExecStart=/usr/libexec/workstation-herdr-server$' "$herdr_unit"
+grep -q '^ExecCondition=/usr/bin/test -x /home/linuxbrew/.linuxbrew/bin/herdr$' "$herdr_unit"
+# One mechanism, three files: a client that reaches a running server attaches to
+# it, and a client that does not forks its own back into foot-server.service's
+# cgroup, which is the state this unit exists to leave. Both paths that open a
+# session therefore start the unit first, and neither failure is visible.
+herdr_binds=system_files/usr/share/workstation-os-image/niri/includes/binds.kdl
+herdr_dev=system_files/usr/share/workstation-os-image/dotfiles/private_dot_local/bin/create_executable_workstation-dev
+require_file "$herdr_binds"
+require_file "$herdr_dev"
+for launcher in "$herdr_binds" "$herdr_dev"; do
+    grep -q 'systemctl --user start workstation-herdr-server.service' "$launcher"
+done
+# The stamp is a fact with no expiry: the picker's rows are bounded by
+# `git worktree list` rather than by a clock, and herdr restores a conversation
+# with no age limit of its own, so a second window here could only disagree with
+# it. Re-adding one would silently change what a reboot does.
+# A plain `! grep` is exempt from errexit and would pass silently, so branch.
+if grep -rq 'AGENT_EXPIRED_SECONDS' "$dev_flow"; then
+    echo "the recency stamp grew an expiry window again: $dev_flow" >&2
+    exit 1
+fi
+# The split layout's only restore-surviving mark. session.json persists a tab's
+# custom_name and nothing about a pane beyond cwd and agent session, so without
+# the tab test the toggle rebuilds the default layout over a live split one
+# after every reboot.
+# The single quotes are the point: match the literal shell variable names.
+# shellcheck disable=SC2016
+grep -q 'tab rename "$dev_tab" dev' "$dev_flow/executable_layout-split.sh"
+# shellcheck disable=SC2016
+grep -q 'layout_tab_for_label "$workspace" dev' "$dev_flow/executable_layout-toggle.sh"
+# A remembered pane status belongs to the server that wrote it. Restored pane
+# ids are the same ids, so without this the first idle after a restore reads as
+# a turn that ended while the server was off.
+grep -q '^agent_status_forget_all()' "$dev_flow/agent-finished.sh"
+grep -q 'agent_status_forget_all' "$dev_flow/executable_agent-status-reset.sh"
+grep -q 'agent-status-reset.sh' "$dev_flow/herdr-plugin.toml"
 # One mechanism, two files: lib.sh documents the marker columns and spaces.sh is
 # the only thing that writes them.
 grep -q 'nagged' "$probes/lib.sh"

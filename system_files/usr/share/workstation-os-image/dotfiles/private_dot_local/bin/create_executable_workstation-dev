@@ -109,9 +109,11 @@ herdr_scope_workspace() {
     fi
 }
 
-# The client this script execs into is what starts the server, so poll the API
-# socket rather than guess how long that takes, and give up rather than linger
-# when it never answers.
+# `systemctl start` returns once the server has been exec'd, not once its API
+# socket is listening, so poll the socket rather than guess how long that takes,
+# and give up rather than linger when it never answers. The same waiter still
+# covers the machine where the unit was condition-skipped and the client this
+# script execs into is what starts the server after all.
 herdr_scope_workspace_when_ready() {
     local attempt
 
@@ -163,6 +165,15 @@ if $open_herdr; then
     niri_bin=niri
     command -v niri >/dev/null 2>&1 || niri_bin=/usr/bin/niri
     label="$(basename -- "$project")"
+
+    # Start the server through its own unit before any client can fork one as a
+    # child of this terminal. A server inside foot-server.service shares that
+    # unit's KillMode=control-group, so at logout it and its panes take SIGTERM
+    # together and a workspace whose pane wins that race is dropped from
+    # session.json. `start` on a running unit is a no-op; on a machine without
+    # herdr the unit's ExecCondition skips it and the waiter below still covers
+    # the client-started case.
+    systemctl --user start workstation-herdr-server.service 2>/dev/null || true
 
     # herdr scopes its startup workspace from the cwd only while the restored
     # session has none, and session.json carries workspaces across restarts, so

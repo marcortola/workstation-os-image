@@ -531,6 +531,68 @@ Three rules, each with a failure behind it:
   pane never reaches the sidebar". Outside a pane the state hook exits 0
   silently, so nothing warns you.
 
+### The server is a unit
+
+`workstation-herdr-server.service` runs the server, and the reason is what
+happens at logout rather than what happens at login. Left to itself the server
+is a child of the terminal window that launched it, which puts it and every pane
+it owns inside `foot-server.service` — a unit at systemd's default
+`KillMode=control-group`. At logout systemd therefore SIGTERMs the server and all
+of its panes in one broadcast. herdr handles its own SIGTERM by saving
+`session.json` and then tearing its panes down, but a pane that gets there first
+looks like an ordinary pane exit: herdr drops the workspace that pane was alone
+in, and the save that follows is of the pruned session. Measured twice in
+`herdr-server.log`, once at 1.2ms of margin:
+
+```
+20:28:51.198253Z  session saved ... workspaces=2
+20:29:03.764727Z  pane child exited ... pane_id=46 status="... signal: Some(\"Terminated\")"
+20:29:03.765926Z  server shutdown initiated
+20:29:03.817137Z  session saved ... workspaces=1
+```
+
+`KillMode=mixed` is the entire fix — SIGTERM reaches only the main process, and
+the panes are gone by herdr's own hand before systemd's SIGKILL would apply. The
+unit is bound to `graphical-session.target` and guarded by
+`ConditionEnvironment=WAYLAND_DISPLAY`, because whatever environment the server
+holds is what every pane inherits, and `niri --session` imports that environment
+into the user manager only by the time the target is reached.
+
+It is deliberately **not** in the user preset. Enabling it would restore every
+workspace's shells at every login whether or not a terminal is ever opened, and
+the launch is meant to stay deliberate; instead the two paths that open a
+session — the `Mod+Shift+T` bind and `workstation-dev --herdr` — run
+`systemctl --user start workstation-herdr-server.service` first, and a client
+that finds a server attaches to it rather than forking its own. A bare `herdr`
+typed at a shell still forks one into the wrong cgroup, which is why
+`tooling/audit/units` checks the running server's `/proc/<pid>/cgroup`.
+
+`ExecStart` names `/usr/libexec/workstation-herdr-server`, a two-line wrapper,
+rather than the Homebrew binary. `build_files/99-check-build.sh` runs
+`systemd-analyze verify` over `/usr/lib/systemd/user/workstation-*.service` at
+build time, verify exits 1 on an `ExecStart` command that is not executable, and
+Homebrew is unpacked on first boot rather than baked into a layer. The
+`ExecCondition=/usr/bin/test -x /home/linuxbrew/.linuxbrew/bin/herdr` is the
+other half: a machine without herdr yet skips the unit instead of failing it
+forever.
+
+### What survives a reboot
+
+Workspaces, tabs, panes, their working directories, the layout and the focus —
+herdr's `session.json`, restored at the next server start. Not the processes:
+panes come back as fresh shells in their saved directories. Not the scrollback
+either, since `[experimental] pane_history` is off by default and this image
+leaves it off.
+
+Conversations do come back. herdr records a native session reference per agent
+pane and `[session] resume_agents_on_restore` relaunches them; the seed pins it
+`true` even though that is already the default, because it is the primary resume
+path here rather than a convenience, and an upstream flip would take it away
+with nothing in this repository changing. `claude --continue` from the dev layout
+is the manual fallback for a pane the restore misses.
+
+The window itself does not come back — nothing spawns it at login, by design.
+
 ### The two layouts
 
 There are two, and `prefix+shift+n` is the only key: which one it applies is read

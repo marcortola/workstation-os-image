@@ -58,10 +58,16 @@ command = ["./worktree-setup.sh"]
 # Recency has to be recorded as it happens. herdr reports agent state but never
 # a time -- `agent list` carries a counter, `state_change_seq`, and nothing
 # else -- so this hook is the only clock behind the picker's "just finished"
-# mark, its expiry window, and whether the dev layout resumes the conversation.
+# mark and the sidebar badge.
 [[events]]
 on = "pane.agent_status_changed"
 command = ["./agent-freshness.sh"]
+
+# Must come before anything that could read a status: the hook above decides a
+# finish from a remembered `working`, and every remembered status belongs to the
+# server that just exited.
+[[startup]]
+command = ["./agent-status-reset.sh"]
 
 [[startup]]
 command = ["./adopt-worktrees.sh"]

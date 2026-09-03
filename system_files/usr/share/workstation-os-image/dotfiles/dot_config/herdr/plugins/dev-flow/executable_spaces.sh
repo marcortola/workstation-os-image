@@ -221,7 +221,6 @@ rows_json() {
     --argjson finished "$(agent_finished_map)" \
     --argjson now "$(date +%s)" \
     --argjson fresh_seconds "$AGENT_FRESH_SECONDS" \
-    --argjson expired_seconds "$AGENT_EXPIRED_SECONDS" \
     --argjson parked "$state_parked" \
     --argjson worktrees "$1" '
       # herdr leaves worktree metadata empty on some spaces; their panes still know where they live.
@@ -259,9 +258,6 @@ rows_json() {
         # as the space goes back to work -- the same moment the hook clears the
         # sidebar token.
         def is_fresh: state != "working" and state != "parked" and (finished_at != null) and (($now - finished_at) < $fresh_seconds);
-        # Only a checkout with no space of its own expires. An open space always
-        # shows, however long ago its agent finished.
-        def is_expired: (.opened == false) and (finished_at != null) and (($now - finished_at) > $expired_seconds);
         def marked_state: state + (if is_fresh and state != "" then "*" else "" end);
         def attention_rank: if state == "blocked" or state == "done" then 0 elif state == "working" or state == "parked" then 1 else 2 end;
 
@@ -291,7 +287,6 @@ rows_json() {
               marked_state: marked_state,
               is_parked: is_parked,
               is_fresh: is_fresh,
-              is_expired: is_expired,
               attention_rank: attention_rank })'
 }
 
@@ -323,8 +318,7 @@ space_rows() {
           .checkout,
           .repo,
           (.is_worktree | tostring),
-          .label,
-          (.is_expired | tostring) ]
+          .label ]
       | @tsv'
 }
 
@@ -333,15 +327,10 @@ visible_rows() {
   local cache=$1 query=${2-}
   local view=$cache.view matched best
 
-  # An expired checkout is one nothing finished in for AGENT_EXPIRED_SECONDS. It
-  # is filtered out here rather than in the awk below so that it cannot be the
-  # match the cursor lands on, and so its repo row is not dragged in by it.
-  # ctrl-a writes the marker file that brings them back.
-  if [ -e "$cache.all" ]; then
-    cp "$cache" "$view"
-  else
-    awk -F'\t' '$8 != "true"' "$cache" >"$view"
-  fi
+  # Every row the cache holds is shown. Nothing ages out: a checkout leaves the
+  # list by being removed, and the closed rows come from `git worktree list`, so
+  # the list is bounded by what is on disk rather than by a clock.
+  cp "$cache" "$view"
 
   if [ -n "$query" ]; then
     matched=$(cut -f1,7 "$view" | fzf --filter="$query" --delimiter='\t' --nth=2 | cut -f1) || true
@@ -459,9 +448,8 @@ chosen=$("$0" --rows "$cache" |
   fzf --height 100% --reverse --ansi --disabled --delimiter='\t' --with-nth=2.. --tabstop=1 \
     --listen="$socket" \
     --prompt='space> ' --border-label=' spaces ' \
-    --header='  ^s s close  ^r rescan  ^a expired  * just finished' \
+    --header='  ^s s close  ^r rescan  * just finished' \
     --bind "ctrl-r:reload('$0' --rescan '$cache' '$topology' {q})" \
-    --bind "ctrl-a:execute-silent(if [ -e '$cache.all' ]; then rm -f '$cache.all'; else : >'$cache.all'; fi)+reload('$0' --rows '$cache' {q})" \
     --bind "change:reload('$0' --rows '$cache' {q})+rebind(ctrl-s)+unbind(s)" \
     --bind "load:transform(cat '$cache.cursor' 2>/dev/null)" \
     --bind 'start:unbind(s)' \
