@@ -78,6 +78,10 @@ worktree-init *args:
 intelephense-licence *args:
     ./tooling/dev/intelephense-licence {{ args }}
 
+# Report the `dev nvim` stores whose checkout is gone (dry run without --force).
+dev-nvim-gc *args:
+    ./tooling/dev/nvim-store-gc {{ args }}
+
 # Build and lint the complete bootc image locally.
 build:
     podman build --pull=always \

@@ -1,0 +1,188 @@
+#!/usr/bin/env bash
+# Remove the `dev nvim` per-project stores whose project checkout is gone.
+#
+# `dev nvim` keys its store on sha256 of the workspace root (create_dev.fish,
+# the `set -l store` line), and a linked worktree IS its own root, so every
+# checkout under <repo>__worktrees/<branch> gets a store of its own -- roughly
+# 150-250 MB of Mason packages and compiled treesitter parsers. Nothing removed
+# one when the checkout went away: half the tree measured on 2026-09-03 belonged
+# to worktrees that no longer existed. See docs/design-records/dev-nvim-store.md.
+#
+# A store is only ever removed when its root is provably gone. Two ways to know:
+# stores written after this change carry a `.root` file naming their workspace,
+# which is exact; older ones are matched by hashing every live Dev Container root
+# and treating a store no live root hashes to as orphaned. Anything this script
+# cannot explain -- a name that is not a store hash, a store a running container
+# has mounted -- is reported and kept.
+#
+# Dry run by default. Pass --force to delete.
+set -euo pipefail
+
+# Must stay the same path `dev nvim` builds its store under; gated in
+# tooling/validate/sources.
+store_root="$HOME/.local/share/dev-nvim"
+
+force=0
+declare -a search_dirs=()
+
+usage() {
+    cat <<'EOF'
+Usage: nvim-store-gc [--force] [--projects-dir DIR]...
+
+  --force              Delete the orphaned stores (default: report only).
+  --projects-dir DIR   Where to look for live Dev Container checkouts.
+                       Repeatable. Defaults to ~/projects.
+EOF
+}
+
+while (($#)); do
+    case "$1" in
+    -f | --force) force=1 ;;
+    --projects-dir)
+        [[ -n ${2:-} ]] || {
+            echo "nvim-store-gc: --projects-dir needs a directory" >&2
+            exit 2
+        }
+        search_dirs+=("$2")
+        shift
+        ;;
+    -h | --help)
+        usage
+        exit 0
+        ;;
+    *)
+        echo "nvim-store-gc: unknown argument: $1" >&2
+        usage >&2
+        exit 2
+        ;;
+    esac
+    shift
+done
+
+((${#search_dirs[@]})) || search_dirs=("$HOME/projects")
+
+if [[ ! -d $store_root ]]; then
+    echo "No store directory at $store_root; nothing to collect."
+    exit 0
+fi
+
+# Every live Dev Container root, hashed the way `dev nvim` hashes it. realpath
+# matters: dev.fish resolves symlinks first, so the stores are keyed on the
+# physical /var/home form and the /home one hashes to nothing.
+declare -A live_hash=()
+live_roots=0
+for dir in "${search_dirs[@]}"; do
+    [[ -d $dir ]] || continue
+    while IFS= read -r root; do
+        root="$(realpath "$root")"
+        live_hash["$(printf '%s' "$root" | sha256sum | cut -c1-12)"]="$root"
+        live_roots=$((live_roots + 1))
+    done < <(
+        find "$dir" -mindepth 1 -maxdepth 5 \
+            \( -name node_modules -o -name vendor -o -name .git \) -prune -o \
+            \( -name .devcontainer -type d -o -name .devcontainer.json -type f \) \
+            -printf '%h\n' 2>/dev/null | sort -u
+    )
+done
+
+if ((live_roots == 0)); then
+    # Refusing here is the point: an empty search would classify every store as
+    # orphaned and delete the lot.
+    echo "nvim-store-gc: found no Dev Container checkouts under ${search_dirs[*]}." >&2
+    echo "Pass --projects-dir to say where they live; refusing to guess." >&2
+    exit 1
+fi
+
+# Stores a running container has mounted are never touched, however they
+# classify. Best effort: no docker, no protection, so say which it was.
+declare -A in_use=()
+engine=""
+for candidate in docker podman; do
+    command -v "$candidate" >/dev/null 2>&1 || continue
+    engine="$candidate"
+    while IFS= read -r src; do
+        [[ $src == "$store_root"/* ]] || continue
+        in_use["$(basename "$src")"]=1
+    done < <(
+        "$candidate" ps -q 2>/dev/null |
+            xargs -r "$candidate" inspect --format '{{range .Mounts}}{{.Source}}
+{{end}}' 2>/dev/null
+    )
+    break
+done
+
+declare -a orphans=()
+orphan_bytes=0
+kept_bytes=0
+kept_stores=0
+printf '%-14s  %-9s  %10s  %s\n' STORE STATE SIZE ROOT
+for path in "$store_root"/*; do
+    [[ -e $path ]] || continue
+    name="$(basename "$path")"
+    # A store can hold root-owned content, which makes du exit non-zero after
+    # printing a partial total. Keep the partial rather than letting pipefail
+    # end the sweep, and let the unreadable subtree show up as `unknown` below.
+    readable=1
+    bytes="$(du -sb "$path" 2>/dev/null | cut -f1)" || readable=0
+    bytes="${bytes:-0}"
+
+    state="" root=""
+    if [[ $name == toolchain ]]; then
+        state=shared root="(shared toolchain)"
+    elif [[ -n ${in_use[$name]:-} ]]; then
+        state=in-use root="(mounted by a running container)"
+    elif ((!readable)); then
+        state=unknown root="(unreadable content -- remove by hand)"
+    elif [[ -f $path/.root ]]; then
+        root="$(<"$path/.root")"
+        [[ -d $root ]] && state=live || state=orphan
+    elif [[ $name =~ ^[0-9a-f]{12}$ ]]; then
+        if [[ -n ${live_hash[$name]:-} ]]; then
+            state=live root="${live_hash[$name]}"
+        else
+            state=orphan root="(no live checkout hashes to this store)"
+        fi
+    else
+        state=unknown root="(not a store hash -- remove by hand)"
+    fi
+
+    printf '%-14s  %-9s  %10s  %s\n' \
+        "$name" "$state" "$(numfmt --to=iec "$bytes")" "$root"
+
+    if [[ $state == orphan ]]; then
+        orphans+=("$path")
+        orphan_bytes=$((orphan_bytes + bytes))
+    else
+        kept_bytes=$((kept_bytes + bytes))
+        kept_stores=$((kept_stores + 1))
+    fi
+done
+
+echo
+echo "Live Dev Container roots found: $live_roots under ${search_dirs[*]}"
+[[ -n $engine ]] ||
+    echo "No container engine on PATH: could not check for stores in use."
+printf 'Keeping %s across %d store(s); %d orphaned, %s reclaimable.\n' \
+    "$(numfmt --to=iec "$kept_bytes")" "$kept_stores" \
+    "${#orphans[@]}" "$(numfmt --to=iec "$orphan_bytes")"
+
+((${#orphans[@]})) || exit 0
+
+if ((!force)); then
+    echo
+    echo "Dry run. Re-run with --force to remove the orphaned stores."
+    exit 0
+fi
+
+failed=0
+for path in "${orphans[@]}"; do
+    if rm -rf "$path" 2>/dev/null; then
+        echo "Removed $(basename "$path")"
+    else
+        # A store can hold root-owned content (a container that ran as root
+        # writing into the bind mount), which needs a hand rather than sudo here.
+        echo "nvim-store-gc: could not remove $path (try: sudo rm -rf $path)" >&2
+        failed=1
+    fi
+done
+exit "$failed"
