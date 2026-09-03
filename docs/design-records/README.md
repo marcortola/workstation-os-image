@@ -52,6 +52,7 @@ before starting long work.
 | [herdr-bar-widget.md](herdr-bar-widget.md) | Why the herdr space rollup reached the DMS bar as a Quickshell plugin that computes nothing, the four routes that lost — a cheatsheet provider, a niri bind, a second herdr reader, and an `/etc` install — and the three things about it that fail silently. |
 | [herdr-server-unit.md](herdr-server-unit.md) | Why the herdr server needed a systemd unit of its own, how a one-millisecond SIGTERM race was quietly eating a workspace out of every other reboot, why `KillMode=mixed` is the entire fix, why the recency stamp lost its expiry window in the same change, and the six routes that lost — enabling at login, socket activation, an `ExecStop`, `Restart=always`, keeping the twelve-hour window, and re-deriving pane labels. |
 | [upgrade-download-size.md](upgrade-download-size.md) | Why every `bootc upgrade` re-downloaded 1.4 GB, the four changes that cut it to ~0.8 GB, and the five routes that were measured and lost — rechunking, splitting the packages `RUN`, chasing the layer cache, prefetching, and rescheduling `uupd`. |
+| [akmods.md](akmods.md) | Why the image consumes no out-of-tree kernel modules: the kernel replacement that makes every upstream akmods consumer structurally immune to a version mismatch this image would have had to maintain by hand, what the openrazer request would have bought on hardware it does not support, and the five routes that lost. |
 
 ---
 
