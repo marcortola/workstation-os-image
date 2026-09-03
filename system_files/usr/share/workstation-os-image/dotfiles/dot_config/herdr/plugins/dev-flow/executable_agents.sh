@@ -17,7 +17,10 @@ project_branch_labels() {
   herdr_cli workspace list |
     jq -r '.result.workspaces[] | [.workspace_id, (.worktree.repo_name // .label), (.worktree.checkout_path // "")] | @tsv' |
     while IFS=$'\t' read -r id project checkout; do
-      branch=$([ -n "$checkout" ] && git -C "$checkout" branch --show-current 2>/dev/null || true)
+      branch=
+      if [ -n "$checkout" ]; then
+        branch=$(git -C "$checkout" branch --show-current 2>/dev/null || true)
+      fi
       if [ -n "$branch" ]; then
         printf '%s\t%s[%s]\n' "$id" "$project" "$branch"
       else

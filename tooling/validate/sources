@@ -279,6 +279,22 @@ while read -r dev_call; do
         || { echo "devcontainer call without \$dcflags: $dev_call" >&2; exit 1; }
 done < <(grep -E 'devcontainer (up|exec) --workspace-folder' "$dev_fish")
 
+# One mechanism, two files: the local lint and the CI step must read the same
+# script list and the same shellcheck version, or a rule passes on one side and
+# fails on the other. That is not hypothetical -- the two kept separate lists
+# for long enough that seventeen dev-flow scripts were linted locally and
+# nowhere else, under a comment asserting they could not diverge.
+require_file tooling/validate/shell-files
+require_file tooling/data/shellcheck-version
+[[ -x tooling/validate/shell-files ]]
+grep -q 'tooling/validate/shell-files' tooling/validate/all
+grep -q 'tooling/validate/shell-files' .github/workflows/build.yml
+grep -q 'tooling/data/shellcheck-version' tooling/validate/all
+grep -q 'tooling/data/shellcheck-version' .github/workflows/build.yml
+grep -q -- '-x --source-path=SCRIPTDIR' tooling/validate/all
+grep -q -- '-x --source-path=SCRIPTDIR' .github/workflows/build.yml
+[[ $(cat tooling/data/shellcheck-version) =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+
 # The herdr bar widget spans four files that have to agree, and every way they
 # can disagree is silent: a plugin whose id is missing from the bar config loads
 # and never renders, a bar id with no enablement seed renders nothing, a stray

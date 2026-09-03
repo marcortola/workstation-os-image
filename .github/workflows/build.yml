@@ -128,25 +128,23 @@ jobs:
 
       - name: Shell lint
         run: |
-          mapfile -t files < <(
-            find tooling build_files system_files/usr/bin system_files/usr/libexec -type f \
-              \( -perm /111 -o -name '*.sh' \) -print | sort
-          )
+          # One list and one version, both shared with tooling/validate/all, so
+          # the two runs cannot disagree about what passes. They used to keep
+          # separate lists and separate flags while a comment here claimed they
+          # could not diverge: this list had never seen the chezmoi scaffold
+          # scripts or the AI bundle, and without -x the source= directives
+          # those scripts rely on were inert, so a sourced library resolved
+          # locally and reported SC1091 here.
+          mapfile -t files < <(tooling/validate/shell-files)
+          (( ${#files[@]} > 50 ))
           # Pinned container, like hadolint, actionlint and gitleaks in lint.yml.
           # apt's shellcheck was the last unpinned tool in this workflow, and a
           # silent version rollover here presents as a new finding on an
-          # unchanged tree. v0.9.0 is what noble currently ships, so this is a
-          # no-op today and reproducible tomorrow.
-          #
-          # -x with the same source path as tooling/validate/all, or the
-          # source= directives these scripts carry are inert here and a sourced
-          # library resolves locally while reporting SC1091 in CI.
-          # This does NOT make the two runs identical: the file list below is
-          # narrower than validate/all's, which also lints the chezmoi scaffold
-          # scripts and the AI bundle, and this 0.9.0 pin is not the version a
-          # given machine has. Do not claim they cannot diverge.
+          # unchanged tree. validate/all asserts the same pin against the local
+          # binary, so a rollover on either side stops rather than reporting a
+          # different tree.
           docker run --rm -v "$PWD":/repo:ro -w /repo \
-            docker.io/koalaman/shellcheck:v0.9.0 \
+            "docker.io/koalaman/shellcheck:v$(cat tooling/data/shellcheck-version)" \
             -x --source-path=SCRIPTDIR "${files[@]}"
 
   dms-settings-tests:
