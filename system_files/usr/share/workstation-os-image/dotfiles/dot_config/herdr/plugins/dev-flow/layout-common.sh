@@ -421,3 +421,33 @@ layout_grow_pane() {
 
   layout_set_ratio "$tab" "$(printf '%s' "$parent" | jq -c '.path')" "$ratio"
 }
+
+# Hand a role's command back to a pane that has fallen back to the shell.
+#
+# Focusing `main` or `nvim` is a request to be in the agent or in the editor,
+# and a pane whose process has exited answers with a prompt instead -- the tab
+# is still there, still labelled, and empty. The layouts start those two panes
+# under exactly this rule, so the same predicate decides here: a pane running
+# anything at all is left alone, and only an idle shell is started again. `term`
+# is a shell by design and is never restarted.
+#
+# The command is worked out from the pane's own cwd, so a restarted editor still
+# gets `dev nvim` in a Dev Container project and a restarted agent still resumes
+# the conversation while the checkout's last finish is fresh.
+relaunch_role_pane() {
+  local label=$1 pane=$2 cwd command
+  [ -n "$pane" ] || return 0
+  case $label in
+  main | nvim) ;;
+  *) return 0 ;;
+  esac
+  pane_is_free "$pane" || return 0
+  cwd=$(pane_cwd "$pane")
+  [ -n "$cwd" ] || return 0
+  if [ "$label" = main ]; then
+    command=$(claude_command "$cwd")
+  else
+    command=$(editor_command "$cwd")
+  fi
+  herdr_cli pane run "$pane" "$command" >/dev/null
+}
