@@ -588,6 +588,16 @@ conditional: pressed from a scratch tab they did nothing at all, and silently. F
 resize is restricted to a `down` split, and the vertical split is the one that
 pins `main` to its third.
 
+Arriving at `main` or `nvim` also restarts what should be running there. Those
+two destinations are a request to be in the agent or in the editor, and a pane
+whose process has exited answers with a prompt instead — the tab is still there,
+still labelled, and empty. `relaunch_role_pane` hands it its command again under
+the rule the layouts already build under: a pane running anything at all is left
+alone, and only an idle shell is started. The command comes from the pane's own
+cwd, so the editor comes back as `dev nvim` in a Dev Container project and the
+agent resumes the conversation while the checkout's last finish is still fresh.
+`term` is a shell by design and is never restarted.
+
 #### One key, and why it never duplicates
 
 The default layout builds its tabs with `tab create` and the split one its panes
