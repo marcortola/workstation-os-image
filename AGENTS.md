@@ -142,6 +142,12 @@ prefer them over reinventing the shape:
   `dms/binds.kdl`.
   `tooling/audit/niri-binds` fails on a shadowed bind, since `niri validate`
   does not.
+- niri CLONES the pointing-device sections of `input` across includes rather
+  than merging them, so `dms.kdl` deliberately omits `dms/input.kdl`: included
+  after ours it hands DMS the whole touchpad and mouse and drops
+  `accel-profile`, `click-method` and `dwt`, none of which DMS can restore.
+  `keyboard` merges and was never at risk. `99-check-build.sh` gates those
+  three properties and the `mouse` section, since `accel-profile` is shared.
 - The `herdrJobs` bar widget and the `prefix+s` space picker are two views of
   one list: both render `spaces.sh --json`. Never add a second row builder and
   never recompute state or the just-finished mark in QML. The id must agree
