@@ -78,4 +78,3 @@ bolt                        # thunderbolt: /sys/bus/thunderbolt/devices/domain0 
 NetworkManager-tui          # nmtui
 nm-connection-editor        # GUI for the two configured WireGuard VPNs
 openssh-askpass             # GUI ssh passphrase prompts for apps with no tty
-input-remapper              # was installed and configured on the old image
