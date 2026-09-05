@@ -41,3 +41,5 @@ systemMonitorCustomColor
 # rejects any overlay key absent from that same schema, so a key outside
 # SettingsSpec is unreachable by both paths. tooling/validate/all asserts every
 # line here still exists in the schema, which is what surfaced them.
+# They remain machine-bound and would have to be denied again if this repo ever
+# captured the session or cache stores.
