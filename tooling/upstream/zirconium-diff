@@ -29,7 +29,14 @@ while (( $# )); do
         # Bare --accept means upstream HEAD. A specific commit uses the
         # --accept=REF form, so the parser never has to guess whether the next
         # word is a ref or the next option.
-        --accept) accept=HEAD ;;
+        #
+        # origin/HEAD, never HEAD: the cache is a normal clone whose working
+        # HEAD stays wherever `git clone` left it, and `git fetch` does not
+        # move it. Resolving HEAD made the first accept after a clone correct
+        # and every later one silently re-stamp the same commit -- which is a
+        # claim that a range was reviewed, written by the one command that is
+        # supposed to prove it was.
+        --accept) accept=origin/HEAD ;;
         --accept=*)
             accept=${1#--accept=}
             [[ -n $accept ]] || { echo "--accept= needs a ref" >&2; exit 2; }
