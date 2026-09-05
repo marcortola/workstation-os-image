@@ -18,8 +18,31 @@ DMS_SETTINGS_FILE="$workdir/settings.json" \
 WORKSTATION_DMS_SETTINGS_OVERLAY="$overlay" \
     "$repo_root/system_files/usr/bin/workstation-apply-dms-settings" >/dev/null
 /usr/bin/jq -S . "$live" > "$workdir/live.json"
+"$repo_root/tooling/dms/defaults" > "$workdir/defaults.json"
 
-if ! cmp -s "$workdir/settings.json" "$workdir/live.json"; then
+# DMS 1.6 stores settings.json as a diff against the spec defaults, so an
+# overlay entry whose value IS the default can never appear in the live file.
+# The merge above re-adds it and a raw comparison then reports drift that no
+# documented action clears: capture cannot offer the key and apply is undone
+# by the next save. Those entries are dropped from the comparison and named
+# instead -- they are dead pins, not drift. The exclusion is narrow on
+# purpose: it applies only while the key is ABSENT from live. Present with any
+# value, it is compared exactly as before, so a real edit is never hidden.
+/usr/bin/jq -n \
+    --slurpfile overlay "$overlay" \
+    --slurpfile defaults "$workdir/defaults.json" \
+    --slurpfile live "$workdir/live.json" '
+    [ $overlay[0] | keys[] as $k
+      | select($live[0] | has($k) | not)
+      | select($defaults[0] | has($k))
+      | select($overlay[0][$k] == $defaults[0][$k])
+      | $k ]
+' > "$workdir/dead-pins.json"
+/usr/bin/jq -S --slurpfile drop "$workdir/dead-pins.json" \
+    'delpaths([$drop[0][] | [.]])' "$workdir/settings.json" > "$workdir/merged.json"
+mapfile -t dead_pins < <(/usr/bin/jq -r '.[]' "$workdir/dead-pins.json")
+
+if ! cmp -s "$workdir/merged.json" "$workdir/live.json"; then
     echo "Live DMS preferences differ from the captured defaults."
     echo "  Run 'just dms-capture' to keep reviewed UI changes, or"
     echo "  run 'just dms-apply' to explicitly restore captured defaults."
@@ -28,7 +51,23 @@ else
     echo "Captured DMS preferences match the live settings."
 fi
 
-mapfile -t candidates < <("$repo_root/tooling/dms/capture" --list)
+if (( ${#dead_pins[@]} > 0 )); then
+    printf 'Overlay entries DMS cannot store, because they equal its defaults (%d):\n' \
+        "${#dead_pins[@]}"
+    printf '  %s\n' "${dead_pins[@]}"
+    echo "  Informational. Drop them with 'just dms-capture --remove' if the"
+    echo "  intent was to pin a value rather than to restate a default."
+fi
+
+# Assert the input, not the exit status. Fed by process substitution this
+# loop passed silently whenever the schema read failed -- printing "no
+# uncaptured deviations" from a scan that never ran, which is exactly the
+# moment a DMS upgrade makes new deviations most likely.
+"$repo_root/tooling/dms/capture" --list > "$workdir/candidates" || {
+    echo "Could not enumerate DMS capture candidates; the deviation scan did not run." >&2
+    exit 2
+}
+mapfile -t candidates < "$workdir/candidates"
 uncaptured=()
 for line in "${candidates[@]}"; do
     [[ $line == *'[new]'* ]] && uncaptured+=("$line")

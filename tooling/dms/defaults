@@ -18,13 +18,33 @@ const fs = require("fs");
 const vm = require("vm");
 
 const path = process.argv[2];
-const source = fs.readFileSync(path, "utf8").replace(/^\.pragma[^\n]*\n/, "");
+// QML directives are not JavaScript. DMS 1.6 added `.import` beside the
+// long-standing `.pragma`, indented, so the old anchored single-directive
+// strip stopped matching and node died on a SyntaxError. Both are stripped
+// multiline and whitespace-tolerant. Dropping the import is sound rather
+// than convenient: the module it binds is referenced only inside SPEC's
+// setter, which nothing below evaluates.
+const source = fs
+  .readFileSync(path, "utf8")
+  .replace(/^\s*\.pragma[^\n]*\n/gm, "")
+  .replace(/^\s*\.import[^\n]*\n/gm, "");
 const context = {};
 vm.runInNewContext(source, context, { filename: path });
 
 const defaults = {};
 for (const [key, spec] of Object.entries(context.SPEC)) {
   if (spec.persist !== false) defaults[key] = spec.def;
+}
+// Assert coverage, not success. A future directive, a renamed export or a
+// truncated read would otherwise emit `{}` and every caller would read that
+// as "no keys differ" -- a clean bill of health from a parse that failed.
+const count = Object.keys(defaults).length;
+if (count < 100) {
+  process.stderr.write(
+    `DMS settings schema parsed to only ${count} keys; expected hundreds. ` +
+      `The spec at ${path} has probably changed shape.\n`,
+  );
+  process.exit(2);
 }
 process.stdout.write(`${JSON.stringify(defaults, null, 2)}\n`);
 NODE
