@@ -7,6 +7,11 @@ input {
     touchpad {
         tap
         natural-scroll
+        // niri applies dwt unconditionally from the config, so an absent
+        // `dwt` is OFF rather than "libinput's default". It has to live here
+        // because dms/input.kdl, which used to supply it, is no longer
+        // included -- see the comment in the dotfiles dms.kdl seed.
+        dwt
         accel-profile "adaptive"
         click-method "clickfinger"
     }
