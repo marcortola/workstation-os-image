@@ -11,4 +11,19 @@ include optional=true "dms/wpblur.kdl"
 include optional=true "dms/outputs.kdl"
 include optional=true "dms/cursor.kdl"
 include optional=true "dms/windowrules.kdl"
-include optional=true "dms/input.kdl"
+
+// dms/input.kdl is deliberately NOT included, and it is the one fragment left
+// out. DMS regenerates it from NiriService.qml on every shell start and always
+// emits `mouse` and `touchpad`. niri merges most sections across includes, but
+// not these: niri-config's `impl MergeWith<InputPart> for Input` puts keyboard
+// under `merge!` and touchpad, mouse and trackpoint under `merge_clone!`, which
+// clones the later definition over the earlier one whole -- the same way niri
+// treats struts and preset-column-widths. config.kdl includes this file after
+// the image's own config, so including it discarded the touchpad accel-profile
+// and click-method and the mouse accel-profile that niri/includes/input.kdl
+// ships, and DMS's generator cannot express click-method at all. `keyboard` is
+// merged rather than cloned, and DMS emits it only once a keyboard value is
+// set, so that half was never at risk. Pointing devices have one owner here and
+// it is the image, which is why includes/input.kdl also carries the `dwt` this
+// fragment used to supply. The cost is that the DMS Niri input tabs write a
+// file nothing reads. build_files/99-check-build.sh gates the two halves.

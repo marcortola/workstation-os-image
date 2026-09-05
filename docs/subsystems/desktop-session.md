@@ -131,10 +131,23 @@ Three owners, one load order, and a silent failure mode if you get it wrong.
 | DMS fragments | `~/.config/niri/dms/*.kdl` | DMS, generated at runtime | DMS, whenever a setting changes |
 | Personal overrides | `~/.config/niri/local.kdl` | You | Nothing — seeded create-only |
 
-The shim is where image ownership stops. `dms.kdl` is ours and lists the nine
-`dms/*.kdl` fragments as `include optional=true`, so a fresh account parses
-before DMS has ever run; the fragments themselves are DMS's, and the audit only
-compares the shim.
+The shim is where image ownership stops. `dms.kdl` is ours and lists eight of
+the nine `dms/*.kdl` fragments as `include optional=true`, so a fresh account
+parses before DMS has ever run; the fragments themselves are DMS's, and the
+audit only compares the shim.
+
+`dms/input.kdl` is the ninth, and it is deliberately left out. niri merges most
+sections across includes, but not the pointing-device ones: `touchpad`, `mouse`
+and `trackpoint` are cloned from the later definition rather than merged, and
+`dms.kdl` is included after the image's own config. One include therefore hands
+DMS's generated block the whole touchpad and mouse and drops the
+`accel-profile`, `click-method` and `dwt` that `niri/includes/input.kdl` ships
+-- and DMS's generator cannot write `click-method` at all, so nothing on the
+machine could put it back. `niri validate` calls the result valid, so
+`build_files/99-check-build.sh` gates the two halves instead: the image's
+`input.kdl` must still set those three properties, and the shim must not include
+the fragment. The cost is that the DMS Niri input tabs write a file nothing
+reads.
 
 The entrypoint is three includes, in this order:
 
@@ -424,8 +437,10 @@ virtual terminal and you hop between them:
    `niri-session`, which it simply execs; it refuses if `WAYLAND_DISPLAY` or
    `DISPLAY` is already set.
 3. Move between sessions with `Ctrl+Alt+F1` and `Ctrl+Alt+F3`, or press
-   `Ctrl+Alt+U` to jump straight to the other running session. The power menu's
-   **Switch User** entry lists the same sessions.
+   `Ctrl+Alt+U` to jump straight to the other running session. DMS's power menu
+   has no **Switch User** entry: `switchuser` is absent from upstream's default
+   `powerMenuActions`, and this image no longer pins that key. `Ctrl+Alt+U` is
+   the supported route.
 
 `Ctrl+Alt+U` runs `/usr/libexec/workstation-switch-user`, which walks
 `loginctl list-sessions`, skips the current session and anything whose `Class` is

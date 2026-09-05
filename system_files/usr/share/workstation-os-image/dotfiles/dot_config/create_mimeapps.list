@@ -164,6 +164,7 @@ x-content/video-bluray=org.videolan.VLC-openbd.desktop
 x-scheme-handler/mailto=com.google.Chrome.desktop
 text/x-markdown=io.typora.Typora.desktop
 application/vnd.ms-word.document.macroenabled.12=org.libreoffice.LibreOffice.writer.desktop
+x-scheme-handler/jetbrains=jetbrainsd.desktop
 
 [Added Associations]
 application/xhtml+xml=com.google.Chrome.desktop;

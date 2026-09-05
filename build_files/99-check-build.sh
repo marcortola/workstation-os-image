@@ -245,6 +245,29 @@ done < <(grep -hoE 'spawn "[^"]+"' \
     /usr/share/workstation-os-image/niri/includes/*.kdl 2>/dev/null \
     | sed 's/spawn "//; s/"$//' | sort -u)
 
+# --- the DMS input fragment cannot shadow the image's pointing devices ----
+# niri merges most sections across includes, but not these: niri-config's
+# `impl MergeWith<InputPart> for Input` puts keyboard under `merge!` and
+# touchpad, mouse and trackpoint under `merge_clone!`, which clones the later
+# definition over the earlier one whole. config.kdl includes dms.kdl AFTER
+# workstation.kdl, so one `include "dms/input.kdl"` hands DMS's generated block
+# the entire touchpad and mouse and silently drops the properties below -- and
+# DMS's generator never writes click-method at all, so nothing on the machine
+# could put it back. `niri validate` reports the result as valid, which is why
+# this is a gate rather than a parse check. Assert the properties, not the
+# section: a touchpad block emptied of them would pass a `touchpad {` match
+# while leaving the gate nothing to protect.
+require_file /usr/share/workstation-os-image/niri/includes/input.kdl
+require_file /usr/share/workstation-os-image/dotfiles/dot_config/niri/dms.kdl
+for prop in accel-profile click-method dwt; do
+    grep -E "^[[:space:]]*${prop}\b" \
+        /usr/share/workstation-os-image/niri/includes/input.kdl >/dev/null \
+        || fail "includes/input.kdl no longer sets $prop; the dms/input.kdl gate has nothing left to protect"
+done
+grep -E '"dms/input\.kdl"' \
+    /usr/share/workstation-os-image/dotfiles/dot_config/niri/dms.kdl >/dev/null \
+    && fail "dms.kdl includes dms/input.kdl: niri clones pointing-device sections, so DMS would replace the image's touchpad and mouse wholesale"
+
 # --- signature verification is actually configured ------------------------
 # Three pieces, and the third is the one that silently breaks the other two:
 # a key, a policy entry that names it, and a registries.d entry telling
