@@ -266,6 +266,13 @@ for prop in accel-profile click-method dwt; do
         /usr/share/workstation-os-image/niri/includes/input.kdl >/dev/null \
         || fail "includes/input.kdl no longer sets $prop; the dms/input.kdl gate has nothing left to protect"
 done
+# The property loop alone cannot see the mouse: accel-profile appears in both
+# sections, so the touchpad's copy satisfies it even when the whole mouse block
+# is deleted. Assert that section by name -- it is the one device whose only
+# property is shared with another.
+grep -E '^[[:space:]]*mouse \{' \
+    /usr/share/workstation-os-image/niri/includes/input.kdl >/dev/null \
+    || fail "includes/input.kdl no longer configures a mouse; the accel-profile match now comes from touchpad alone"
 grep -E '"dms/input\.kdl"' \
     /usr/share/workstation-os-image/dotfiles/dot_config/niri/dms.kdl >/dev/null \
     && fail "dms.kdl includes dms/input.kdl: niri clones pointing-device sections, so DMS would replace the image's touchpad and mouse wholesale"
