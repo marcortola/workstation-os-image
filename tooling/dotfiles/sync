@@ -13,6 +13,11 @@ copy_default() {
     install -D -m 0644 "$source" "$dest/$target"
 }
 
+# The baked scaffold list is a projection of the manifest, not of live state, so
+# it is refreshed here rather than captured: the image reads it on a machine
+# where tooling/data/ does not exist.
+"$repo_root/tooling/dotfiles/scaffold-list"
+
 while IFS='|' read -r kind live_path source_path pattern; do
     [[ -z $kind || $kind == \#* ]] && continue
     case "$kind" in

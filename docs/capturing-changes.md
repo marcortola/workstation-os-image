@@ -211,7 +211,7 @@ still reads as an ordinary `[tracked]` row. This is never noise.
 **New items not tracked at all.** `Portable DMS deviations are not captured (N)`
 in the audit, and the `[new]` rows of `just dms-capture --list`. List them.
 
-Severity in the image-managed section is not uniform. `Managed Niri scaffolding`
+Severity in the image-managed section is not uniform. `Managed image scaffolding`
 is critical and fails the audit; `DMS clipboard preferences` is informational,
 because it covers UI-owned state, and fails only under
 `tooling/audit/dotfiles --strict`. Report the informational line as

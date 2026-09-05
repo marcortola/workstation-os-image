@@ -141,6 +141,17 @@ foot --check-config -c "$HOME/.config/foot/foot.ini"
 cp -a system_files/usr/share/workstation-os-image/dotfiles/. "$tmp/"
 chezmoi managed -S "$tmp" > "$tmp/managed"
 
+# Every target the apply wrapper forces must actually be managed by the source
+# tree it forces them from, or `chezmoi apply --force <target>` fails on a name
+# no source entry answers to.
+scaffold_seen=0
+while IFS= read -r scaffold_target; do
+    [[ -z $scaffold_target || $scaffold_target == \#* ]] && continue
+    grep -Fqx "$scaffold_target" "$tmp/managed"
+    scaffold_seen=$((scaffold_seen + 1))
+done < system_files/usr/share/workstation-os-image/scaffold-targets
+(( scaffold_seen > 0 ))
+
 for target in \
     .config/foot/foot.ini \
     .config/foot/workstation.ini \

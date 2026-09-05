@@ -183,9 +183,13 @@ DMS silently overrides binds in the system binds.kdl (1).
 ```
 
 The image-owned scaffolding is also audited on the machine:
-`tooling/audit/dotfiles` diffs the live `config.kdl` and `dms.kdl` against the
-installed image defaults under the label `Managed Niri scaffolding`, at
-**critical** severity. Divergence there fails `just audit`.
+`tooling/audit/dotfiles` diffs every `scaffold` entry of
+`tooling/data/dotfiles.manifest` — `config.kdl` and `dms.kdl` among them —
+against the installed image defaults under the label
+`Managed image scaffolding`, at **critical** severity. Divergence there fails
+`just audit`. It is worth reading as "chezmoi has stopped writing this" before
+reading it as "someone edited this": see
+[scaffold-force-apply.md](../design-records/scaffold-force-apply.md).
 
 The system config is partly vendored from Zirconium's `zdots`; the NOTICE in that
 directory records exactly which files and against which upstream commit. See
