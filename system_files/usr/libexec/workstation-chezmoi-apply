@@ -8,6 +8,7 @@
 set -uo pipefail
 
 src=/usr/share/workstation-os-image/dotfiles
+scaffold=/usr/share/workstation-os-image/scaffold-targets
 dir="${XDG_CONFIG_HOME:-$HOME/.config}/workstation-os-image/chezmoi"
 legacy="${XDG_CONFIG_HOME:-$HOME/.config}/zirconium/chezmoi"
 
@@ -32,10 +33,71 @@ fi
 
 [[ -e $dir/chezmoi.toml ]] || : > "$dir/chezmoi.toml"
 
+status=0
+
+# Image-owned scaffolding -- the niri config, the herdr dev-flow plugin, the DMS
+# bar widget, the Mod+Slash cheatsheet -- is forced.
+#
+# `yes s` below is right for a seed the user owns and wrong for one the image
+# owns. A scaffold target written out of band -- a hand copy while developing
+# the plugin, a restored backup -- no longer matches chezmoi's entry state, so
+# it is skipped on this boot and on every boot after it, silently, while its
+# siblings keep updating. That is not hypothetical: it left a three-day-old
+# spaces.sh beside a current agent-finished.sh, the old script read a constant
+# the new library had dropped, `set -u` aborted it, and the space picker and the
+# bar widget both reported herdr as not running while herdr was running.
+#
+# --force cannot overwrite a create_ entry (measured, chezmoi 2.72.0: a
+# create_-prefixed source left a modified target alone under --force while a
+# plain source was rewritten). The two create-only scaffold seeds therefore stay
+# the runtime's -- dank-colors.ini, which matugen rewrites on a theme change,
+# and plugin_settings.json, which DMS owns for every other plugin -- and this
+# pass can take the whole scaffold list instead of a hand-picked subset that
+# would drift from the manifest.
+#
+# It is scoped rather than blanket because --force does reset a managed
+# directory's mode: measured, an unscoped run put ~/.local back to 0700 from the
+# 0755 it had been chmod'd to, and the mode on ~/.config/opencode is what the
+# migration note above exists to protect.
+#
+# The list is generated from tooling/data/dotfiles.manifest by
+# tooling/dotfiles/scaffold-list and gated in tooling/validate/sources; it is
+# baked because tooling/data/ never reaches a layer.
+apply_scaffold() {
+    local -a targets=()
+    local target
+    # A loop fed by a missing file iterates zero times and returns success, so
+    # the file is asserted rather than tested for content.
+    if [[ ! -r $scaffold ]]; then
+        echo "missing $scaffold: image scaffolding was not forced" >&2
+        return 1
+    fi
+    while IFS= read -r target; do
+        [[ -z $target || $target == \#* ]] && continue
+        targets+=("$HOME/$target")
+    done < "$scaffold"
+    if (( ${#targets[@]} == 0 )); then
+        echo "no targets in $scaffold: image scaffolding was not forced" >&2
+        return 1
+    fi
+    chezmoi apply --force --no-tty --keep-going -S "$src" --verbose \
+        --config "$dir/chezmoi.toml" "${targets[@]}"
+}
+
 if [[ ${1:-} == --init ]]; then
-    exec chezmoi apply -S "$src" --config "$dir/chezmoi.toml"
+    chezmoi apply -S "$src" --config "$dir/chezmoi.toml" || status=$?
+else
+    # `yes s` skips any target the user has edited since chezmoi last wrote it.
+    # --keep-going so one bad entry does not strand the rest.
+    sh -c "yes s | chezmoi apply --no-tty --keep-going -S '$src' --verbose --config '$dir/chezmoi.toml'" || status=$?
 fi
 
-# `yes s` skips any target the user has edited since chezmoi last wrote it.
-# --keep-going so one bad entry does not strand the rest.
-exec sh -c "yes s | chezmoi apply --no-tty --keep-going -S '$src' --verbose --config '$dir/chezmoi.toml'"
+# After the full apply, never before it. Handed explicit targets chezmoi does not
+# create their parent directories -- it fails each one with `stat ...: no such
+# file or directory` -- so a first provisioning ran this 32 times against a home
+# that had no .config yet and left the unit failed for the life of the account.
+# Ordered second the pass has nothing to create: the apply above has already
+# made every directory, and all this corrects is the targets it skipped.
+apply_scaffold || status=$?
+
+exit "$status"

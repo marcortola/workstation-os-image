@@ -88,7 +88,7 @@ below are the convergence half.
 | `workstation-microsoft-fonts.service` | `default.target` | Installs the user font set into `~/.local/share/fonts`: Caskaydia Mono (Nerd Fonts), iA Writer Mono, Font Awesome, and the Microsoft core fonts under `Microsoft/`. Passes `--accept-microsoft-eula` on your behalf, which the script otherwise refuses to run without. |
 | `workstation-flatpak-wayland.service` | `default.target` | Sets the global Flatpak override that makes Electron and Chromium Flatpaks native Wayland clients, re-asserted every login. |
 | `workstation-x11-clipsync.service` | `graphical-session.target` | Long-running: mirrors the XWayland clipboard into the Wayland one. |
-| `workstation-chezmoi-update.timer` | `timers.target` | Reapplies the dotfile seeds 5 minutes after boot and daily thereafter, skipping any target you have edited. |
+| `workstation-chezmoi-update.timer` | `timers.target` | Reapplies the dotfile seeds 5 minutes after boot and daily thereafter, skipping any target you have edited. Image-owned scaffolding is the exception: the paths in `/usr/share/workstation-os-image/scaffold-targets` are forced, because nothing but the image is supposed to write them. |
 | `workstation-invoice-bookmarks.timer` | `timers.target` | Monthly bookmark refresh; nothing to do with convergence. |
 
 The ordering between the first four is load-bearing, not incidental. The

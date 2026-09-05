@@ -112,6 +112,12 @@ prefer them over reinventing the shape:
   DMS settings seed is the deliberate exception; it is UI-owned after first run.
 - A loop fed by process substitution passes when its input is missing, so assert
   the input exists. Assert coverage, not success.
+- A `scaffold` manifest entry is force-applied, not skipped: a live edit to one
+  is reverted at the next apply, and audit drift on one usually means chezmoi
+  stopped writing it rather than that someone edited it. `yes s` in
+  `workstation-chezmoi-apply` protects user-owned seeds and is what froze the
+  herdr plugin for three days while reporting success. The force list is a
+  generated projection of the manifest; never hand-write a second one.
 - A vendored repo needs `gpgcheck=1`, `gpgkey=file://`, an `https` source and an
   `includepkgs` allowlist. All four are gated.
 - Session environment belongs in `/usr/lib/environment.d`, never
@@ -350,5 +356,5 @@ both kinds:
 - New items not tracked at all.
 
 The informational line (DMS clipboard preferences) covers UI-owned state;
-`Managed Niri scaffolding` is critical. Never report only the uncaptured count
+`Managed image scaffolding` is critical. Never report only the uncaptured count
 and treat tracked-value divergence as noise.

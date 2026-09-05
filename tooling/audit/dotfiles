@@ -64,8 +64,28 @@ show_diff() {
     fi
 }
 
-show_diff "Managed Niri scaffolding" critical \
-    "$HOME/.config/niri/config.kdl" "$HOME/.config/niri/dms.kdl"
+# Every scaffold entry, not the two niri files this used to name. Scaffolding is
+# image-owned, so any divergence is either a hand edit that will be reverted on
+# the next apply or -- the case that went unseen for three days -- a target
+# chezmoi has stopped writing at all, frozen at an old version while its
+# siblings advance. Both are critical, and neither is visible anywhere else:
+# `workstation-chezmoi-apply` reports "Finished" after skipping a target.
+manifest="$repo_root/tooling/data/dotfiles.manifest"
+scaffold_targets=()
+if [[ -f $manifest ]]; then
+    while IFS='|' read -r kind live_path _; do
+        [[ $kind == scaffold ]] || continue
+        scaffold_targets+=("$HOME/$live_path")
+    done < "$manifest"
+fi
+# Assert coverage, not success: a loop fed by a missing or renamed manifest
+# iterates zero times, and `chezmoi diff` with no arguments diffs everything.
+if (( ${#scaffold_targets[@]} == 0 )); then
+    printf 'No scaffold entries found in %s.\n' "$manifest" >&2
+    status=2
+else
+    show_diff "Managed image scaffolding" critical "${scaffold_targets[@]}"
+fi
 # The DMS-generated niri fragments and settings.json are deliberately NOT
 # shipped as chezmoi sources -- DMS regenerates them at runtime, and shipping a
 # source for them is what let a lost state database silently rewrite live

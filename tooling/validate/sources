@@ -74,8 +74,13 @@ require_file docs/README.md
 # ExecStart naming the Homebrew binary looks correct and fails the build, and the
 # recency stamp lost its expiry window rather than gaining one -- an agent tidying
 # up would restore all three and the damage would surface only at the next
-# reboot, one workspace at a time.
-(( $(wc -l < AGENTS.md) <= 354 ))
+# reboot, one workspace at a time. Raised to 360 for the scaffold force pass,
+# which reverses the direction of the whole dotfile mechanism for one manifest
+# kind: everywhere else a live edit wins and the image yields, and an agent that
+# does not know scaffolding is the exception will read a critical audit line as
+# "someone edited this" when it means "chezmoi stopped writing this", and will
+# reach for the skip that caused the failure rather than the force that fixed it.
+(( $(wc -l < AGENTS.md) <= 360 ))
 
 # README.md is a landing pad into docs/ and nothing else. Capped because it grows
 # back otherwise: it was 855 lines covering fourteen concerns before the handbook
@@ -219,6 +224,26 @@ jq -e '.autoMode.environment == null' \
     system_files/usr/share/workstation-os-image/dotfiles/dot_claude/create_settings.json >/dev/null
 jq -e '.autoMode.environment == null' \
     tooling/ai/ai-cli-setup/config/claude/settings.json >/dev/null
+
+# Image-owned scaffolding, one mechanism across four files. The manifest says
+# which targets the image owns; the generated list is the only copy of that
+# fact on the machine, because tooling/data/ never reaches a layer; the apply
+# wrapper forces exactly what the list names; and the audit reports what has
+# diverged. A scaffold entry missing from the list gets `yes s` instead, so the
+# first out-of-band write to it freezes it at that version on every boot
+# afterwards with nothing failing -- which is how a two-day-old spaces.sh came
+# to abort on a constant its current library no longer defined, and report herdr
+# as not running while herdr was running.
+tooling/dotfiles/scaffold-list --check
+scaffold_list=system_files/usr/share/workstation-os-image/scaffold-targets
+chezmoi_apply=system_files/usr/libexec/workstation-chezmoi-apply
+require_file "$scaffold_list"
+require_file "$chezmoi_apply"
+grep -qx 'scaffold=/usr/share/workstation-os-image/scaffold-targets' "$chezmoi_apply"
+grep -q 'chezmoi apply --force --no-tty --keep-going' "$chezmoi_apply"
+# The audit reads the manifest itself rather than the baked list, so gate that
+# it still selects by kind instead of naming paths again.
+grep -q 'kind == scaffold' tooling/audit/dotfiles
 
 # Worktree untracked-file propagation: every creation path (herdr, Claude Code,
 # the post-checkout hook) reaches the same committed .worktreeinclude through

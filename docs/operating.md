@@ -394,6 +394,13 @@ start it now:
 systemctl --user start workstation-chezmoi-update.service
 ```
 
+This asymmetry does **not** apply to `scaffold` manifest entries. Those are
+image-owned, and `/usr/libexec/workstation-chezmoi-apply` forces the paths named
+in `/usr/share/workstation-os-image/scaffold-targets` on every run — an edit to
+one of them is reverted rather than preserved, and a target that has diverged is
+repaired rather than skipped forever. See
+[scaffold-force-apply.md](design-records/scaffold-force-apply.md).
+
 For DMS the equivalent is `wjust dms-apply`, above.
 [capturing-changes.md](capturing-changes.md) covers the capture direction; this
 is the same asymmetry seen from the other side.
