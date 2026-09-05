@@ -271,6 +271,18 @@ The fixture is deliberately minimal, and its own comment says why: a new
 assertion against a real schema key has to add that key here first, which keeps
 the fixture honest instead of letting it drift into a second schema.
 
+It models the file's *form* as well as its contents. A QML JS resource is not
+JavaScript: the real `SettingsSpec.js` opens with `.pragma library` and, since
+DMS 1.6.0, `.import "./SpecUtil.js" as Util`, and `tooling/dms/defaults` has to
+blank the first and resolve the second before node will evaluate it. The fixture
+carries both directives and imports `tooling/fixtures/dms-spec-util.js`, whose
+`cloneDef` one fixture default actually calls — so CI proves the import is
+resolved rather than merely stripped. It is not decoration: a parser that
+handled only `.pragma` shipped and stayed invisible to CI while `just validate`
+and `just audit` were red on the real schema, and the crash silently emptied the
+`capture --list` feed that `tooling/audit/dms-settings` reads, so the audit
+reported "No uncaptured portable DMS deviations" over zero rows.
+
 ---
 
 ## Shared helpers
@@ -279,6 +291,7 @@ the fixture honest instead of letting it drift into a second schema.
 |---|---|
 | `tooling/lib/dotfiles.sh` | the mapping between a `create_`-prefixed chezmoi seed and its live file. Sourced by five scripts including `tooling/dotfiles/sync`, `tooling/dotfiles/validate-manifest` and `tooling/audit/personal-config`, so one resolver backs capture, audit and validation alike, and a gate cannot disagree with the tool it is gating |
 | `tooling/fixtures/dms-settings-spec.js` | the stand-in DMS schema described above |
+| `tooling/fixtures/dms-spec-util.js` | the stand-in for DMS's `SpecUtil.js`, so the fixture can carry a real `.import` for `tooling/dms/defaults` to resolve |
 
 ---
 
