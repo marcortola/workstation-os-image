@@ -8,7 +8,7 @@
     "change or recorded why it was declined. Never bump it to silence the diff."
   ],
   "repository": "https://github.com/zirconium-dev/zirconium",
-  "reviewed_commit": "c04dc6c48b98381cb522b5f366c778e27dfaedfe",
-  "reviewed_date": "2026-08-28",
-  "reviewed_by": "the base-swap audit that closed nine unported gaps"
+  "reviewed_commit": "5f1d1d4841f484ae8a0bb2aea7bd42c426bf76ca",
+  "reviewed_date": "2026-09-05",
+  "reviewed_by": "the review that blocked `dms greeter uninstall`"
 }

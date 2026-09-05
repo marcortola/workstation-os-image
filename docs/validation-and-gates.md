@@ -116,7 +116,7 @@ actually enabled a unit, whether a sed matched anything.
 | Launcher hygiene | `btop.desktop`, `foot-server.desktop` and `org.fcitx.Fcitx5.desktop` are gone, and the fcitx5 entries Fedora hides keep `NoDisplay=true` |
 | Install defaults | `/usr/lib/bootc/install/00-workstation.toml` still selects btrfs, so `bootc install to-disk` reproduces this machine's filesystem |
 | Session environment | `50-workstation-input-method.conf` carries the four IM variables, `GTK_IM_MODULE` stays empty, and the font drop-in exists |
-| DMS CLI policy | `greeter install`, `greeter enable` and `setup` are in `blocked_commands`, because `dms greeter install` clobbered image-owned `/etc/greetd/config.toml` once already |
+| DMS CLI policy | `greeter install`, `greeter enable`, `greeter uninstall` and `setup` are in `blocked_commands`, **and dms actually refuses each of them** -- probed as `nobody` with `/run/ostree-booted` faked, since dms consults the policy only on a system it judges immutable and refuses to run as root before it reads it at all. `dms greeter install` clobbered image-owned `/etc/greetd/config.toml` once already and `greeter uninstall` disables greetd outright. The standalone `dms-greeter` binary, which the deprecation warning now points users at, is probed too |
 | Config validators | `dockerd --validate` on the factory `daemon.json`, `keyd check` on the factory `default.conf` |
 | Namespace | no image-owned file references `/usr/share/zirconium` and the tree does not exist |
 

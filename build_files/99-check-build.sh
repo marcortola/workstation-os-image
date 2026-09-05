@@ -483,16 +483,56 @@ grep -Fxq 'GTK_IM_MODULE=' /usr/lib/environment.d/50-workstation-input-method.co
     || fail "GTK_IM_MODULE must stay empty so GTK uses text-input-v3 rather than the legacy module"
 require_file /usr/lib/environment.d/60-workstation-fonts.conf
 
-# --- DMS cannot be talked into reinstalling the greeter ----------------------
-# /etc/greetd/config.toml is image-owned and was clobbered by `dms greeter
-# install` once already. dms reads this policy from /usr/share/dms first, which
-# keeps /etc free for a local override.
+# --- DMS cannot be talked into installing or removing the greeter -----------
+# /etc/greetd/config.toml is image-owned and `dms greeter install` clobbered it
+# once already. `greeter uninstall` goes further -- it disables greetd outright,
+# so the cost of one stray command is the next boot's graphical login. dms reads
+# this policy from /usr/share/dms first, which keeps /etc free for a local
+# override.
 require_file /usr/share/dms/cli-policy.json
-for blocked in "greeter install" "greeter enable" "setup"; do
-    jq -e --arg c "$blocked" '.blocked_commands | index($c)' \
-        /usr/share/dms/cli-policy.json >/dev/null \
+policy_commands=$(jq -r '.blocked_commands[]' /usr/share/dms/cli-policy.json)
+for blocked in "greeter install" "greeter enable" "greeter uninstall" "setup"; do
+    grep -Fx "$blocked" >/dev/null <<<"$policy_commands" \
         || fail "the DMS CLI policy no longer blocks '$blocked'"
 done
+
+# Assert the refusal, not the file. dms consults the policy only once it has
+# decided the system is immutable, and it decides that from /run/ostree-booted
+# -- which no container has, so a gate that merely read the JSON would keep
+# passing on an image where the mechanism had stopped working. dms also refuses
+# to run as root before it reads the policy at all, hence the drop to nobody.
+# The output is captured rather than piped: a blocked command exits non-zero,
+# and under `pipefail` that would sink a pipeline whose grep had matched.
+dms_refuses() {
+    local out
+    out=$(HOME=/tmp setpriv --reuid=65534 --regid=65534 --clear-groups \
+        "$@" </dev/null 2>&1 || true)
+    grep -F 'Detected immutable system' >/dev/null <<<"$out"
+}
+
+: >/run/ostree-booted
+
+# Negative control: a probe that answered "refused" to everything would say
+# nothing about the list above.
+! dms_refuses dms version \
+    || fail "the DMS CLI refuses even 'dms version'; the policy probes prove nothing"
+
+while read -r blocked; do
+    read -r -a blocked_argv <<<"$blocked"
+    dms_refuses dms "${blocked_argv[@]}" \
+        || fail "the DMS CLI policy lists '$blocked' but does not enforce it"
+done <<<"$policy_commands"
+
+# `dms greeter` is deprecated in favour of the standalone dms-greeter binary,
+# which reads the same two policy files. Blocking only the deprecated spelling
+# would leave open the path DMS now tells users to take.
+dms_greeter_uninstall=$(HOME=/tmp setpriv --reuid=65534 --regid=65534 \
+    --clear-groups dms-greeter uninstall </dev/null 2>&1 || true)
+grep -E 'Detected immutable system|Unknown option: uninstall' >/dev/null \
+    <<<"$dms_greeter_uninstall" \
+    || fail "dms-greeter uninstall is neither blocked by the CLI policy nor absent"
+
+rm -f /run/ostree-booted
 
 # --- config validators ---------------------------------------------------
 dockerd --validate --config-file=/usr/share/factory/etc/docker/daemon.json
