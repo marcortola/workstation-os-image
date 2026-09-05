@@ -74,8 +74,12 @@ require_file docs/README.md
 # ExecStart naming the Homebrew binary looks correct and fails the build, and the
 # recency stamp lost its expiry window rather than gaining one -- an agent tidying
 # up would restore all three and the damage would surface only at the next
-# reboot, one workspace at a time.
-(( $(wc -l < AGENTS.md) <= 354 ))
+# reboot, one workspace at a time. Raised to 360 for niri `input` ownership,
+# where the omission IS the mechanism: `dms.kdl` lists every DMS fragment but
+# one, so the rule is invisible in the file it governs and an agent tidying the
+# list would add `dms/input.kdl` back and silently delete the touchpad and mouse
+# tuning, with `niri validate` still exiting 0.
+(( $(wc -l < AGENTS.md) <= 360 ))
 
 # README.md is a landing pad into docs/ and nothing else. Capped because it grows
 # back otherwise: it was 855 lines covering fourteen concerns before the handbook

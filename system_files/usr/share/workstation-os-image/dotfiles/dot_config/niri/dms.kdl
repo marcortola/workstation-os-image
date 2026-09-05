@@ -11,4 +11,14 @@ include optional=true "dms/wpblur.kdl"
 include optional=true "dms/outputs.kdl"
 include optional=true "dms/cursor.kdl"
 include optional=true "dms/windowrules.kdl"
-include optional=true "dms/input.kdl"
+
+// dms/input.kdl is deliberately NOT included. DMS 1.6 writes it from
+// NiriService.qml on every shell start, unconditionally, and niri does not
+// merge pointing-device subsections -- it replaces them, the same way it
+// treats struts and preset-column-widths. Since this file is included after
+// the image's own config, including it silently discarded the touchpad
+// accel-profile and click-method and the mouse accel-profile that
+// niri/includes/input.kdl ships, and would take the keyboard section too the
+// first time anyone opened Settings > Niri. Pointing devices have one owner
+// here and it is the image; the cost is that the DMS Niri input tabs write a
+// file nothing reads. build_files/99-check-build.sh gates the two halves.

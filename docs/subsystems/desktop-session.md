@@ -182,6 +182,30 @@ DMS silently overrides binds in the system binds.kdl (1).
   or release the key with 'dms keybinds remove niri <key>'.
 ```
 
+**`input` is worse than binds, and is handled differently.** Binds merge and the
+last definition of a key wins, so reclaiming one key is possible. Device
+subsections of `input` do not merge at all — niri replaces `touchpad`, `mouse`
+and their siblings wholesale, the same rule it applies to `struts` and
+`preset-column-widths`. There is no per-setting reclaim, only whole-section
+ownership.
+
+DMS 1.6 began writing `~/.config/niri/dms/input.kdl` from `NiriService.qml` at
+every shell start, with no user action, seeded from its own defaults. Included
+after the system config it replaced the image's `touchpad` and `mouse` sections
+outright, so `accel-profile "adaptive"`, `click-method "clickfinger"` and the
+mouse `accel-profile "flat"` became dead config while `niri validate` kept
+exiting 0. The `keyboard` section was next, gated upstream only behind whether
+anyone had opened **Settings → Niri**.
+
+So pointing devices have exactly one owner here and it is the image:
+`dms.kdl` does not include `dms/input.kdl`. DMS still writes the file; nothing
+reads it, which means the Settings → Niri input tabs are inert. That is the
+deliberate trade — two owners for a section that cannot merge is the bug, and
+`click-method` has no DMS equivalent at all, so accepting DMS's version would
+have lost clickfinger permanently. `build_files/99-check-build.sh` fails the
+build if the include comes back while `includes/input.kdl` still ships those
+sections, and fails it too if the sections disappear and leave the gate inert.
+
 The image-owned scaffolding is also audited on the machine:
 `tooling/audit/dotfiles` diffs the live `config.kdl` and `dms.kdl` against the
 installed image defaults under the label `Managed Niri scaffolding`, at

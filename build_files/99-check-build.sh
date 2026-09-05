@@ -245,6 +245,37 @@ done < <(grep -hoE 'spawn "[^"]+"' \
     /usr/share/workstation-os-image/niri/includes/*.kdl 2>/dev/null \
     | sed 's/spawn "//; s/"$//' | sort -u)
 
+# --- DMS does not own the pointing devices --------------------------------
+# niri MERGES most sections across includes but REPLACES the device
+# subsections of `input` -- the same rule it applies to struts and
+# preset-column-widths. dms.kdl is included after the image's config, so any
+# `input` fragment DMS generates wins outright rather than filling gaps.
+# DMS 1.6 started writing dms/input.kdl unconditionally at every shell start,
+# which silently dropped the touchpad accel-profile and click-method and the
+# mouse accel-profile shipped here. The fix is that the include is absent; the
+# gate is that it stays absent for as long as the image ships those sections,
+# because the failure is invisible -- `niri validate` accepts either way and
+# the only symptom is a touchpad that behaves differently than configured.
+niri_dms_seed=/usr/share/workstation-os-image/dotfiles/dot_config/niri/dms.kdl
+niri_input=/usr/share/workstation-os-image/niri/includes/input.kdl
+require_file "$niri_dms_seed"
+require_file "$niri_input"
+mapfile -t niri_input_sections < <(
+    sed -n '/^input {/,/^}/p' "$niri_input" \
+        | grep -oE '^[[:space:]]+(keyboard|touchpad|mouse|trackpoint|trackball|tablet|touch) \{' \
+        | tr -d ' {'
+)
+# Assert the input, not the result. Read from a process substitution this list
+# is empty on any refactor of input.kdl, and an empty list has nothing to
+# conflict with, so the gate would report success by finding nothing to check.
+printf '%s\n' "${niri_input_sections[@]}" | grep -Fx touchpad >/dev/null \
+    || fail "$niri_input no longer configures a touchpad; the dms/input.kdl gate is now inert"
+printf '%s\n' "${niri_input_sections[@]}" | grep -Fx mouse >/dev/null \
+    || fail "$niri_input no longer configures a mouse; the dms/input.kdl gate is now inert"
+if grep -qE '^[[:space:]]*include.*"dms/input\.kdl"' "$niri_dms_seed"; then
+    fail "$niri_input owns input sections (${niri_input_sections[*]}) but $niri_dms_seed includes dms/input.kdl, which replaces them"
+fi
+
 # --- signature verification is actually configured ------------------------
 # Three pieces, and the third is the one that silently breaks the other two:
 # a key, a policy entry that names it, and a registries.d entry telling

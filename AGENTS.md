@@ -136,6 +136,12 @@ prefer them over reinventing the shape:
   `dms/binds.kdl`.
   `tooling/audit/niri-binds` fails on a shadowed bind, since `niri validate`
   does not.
+- niri REPLACES the device subsections of `input` rather than merging them, so
+  `dms.kdl` deliberately omits `dms/input.kdl`: DMS 1.6 writes that fragment at
+  every shell start and, included after ours, it silently dropped the touchpad
+  `accel-profile` and `click-method` and the mouse `accel-profile`. The cost is
+  that the Settings > Niri input tabs write a file nothing reads. Gated in
+  `99-check-build.sh`, which also fails if the sections leave `input.kdl`.
 - The `herdrJobs` bar widget and the `prefix+s` space picker are two views of
   one list: both render `spaces.sh --json`. Never add a second row builder and
   never recompute state or the just-finished mark in QML. The id must agree

@@ -104,6 +104,7 @@ actually enabled a unit, whether a sed matched anything.
 | Homebrew | `/usr/share/homebrew.tar.zst` is non-empty and `brew-setup.service` shipped |
 | Fonts | `fc-list` resolves FiraCode Nerd Font Mono, which both `fonts.conf` and the DMS mono setting name; and the Cambria substitution holds end to end — the Caladea package, its `30-0-` alias rule under `/etc/fonts/conf.d`, the font files in `fc-list`, and `fc-match Cambria` actually landing on Caladea |
 | niri spawn targets | every `spawn "..."` in the shipped includes resolves to an executable — `niri validate` never checks this, which is how `spawn "zocr"` survived a base swap |
+| niri input ownership | the `dms.kdl` seed does not include `dms/input.kdl` while `includes/input.kdl` still ships a `touchpad` and a `mouse` section. niri replaces device subsections rather than merging them and DMS 1.6 writes that fragment unprompted, so including it is a silent takeover that `niri validate` accepts |
 | Signature configuration | the signing pubkey shipped and is a public key, `policy.json` defaults to `reject`, the scope entry is `sigstoreSigned` against that key path, the ublue-os entry survived and the key it names resolves, and `registries.d` is scoped and sets `use-sigstore-attachments: true` |
 | Accounts left `/etc` | `/etc/passwd` holds only root, `/etc/group` only root and wheel, greetd/greeter/wsdd reached `/usr/lib/passwd`, those plus docker reached `/usr/lib/group`, no shadow-utils leftovers shipped |
 | RPM trust anchors | the six vendored keys are on disk under `/etc/pki/rpm-gpg` |
