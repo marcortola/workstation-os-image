@@ -75,13 +75,29 @@ gitleaks dir . --no-banner --redact
 tooling/validate/sources
 
 tooling/dms/validate-overlay
-jq -n -e \
-    --slurpfile defaults <(tooling/dms/defaults) \
-    --rawfile denied tooling/data/dms-settings-denylist '
-    ($denied | split("\n")
-      | map(sub("[[:space:]]*#.*$"; "") | select(length > 0))) as $keys
-    | $keys | all(. as $key | $defaults[0] | has($key))
-' >/dev/null
+# Every denylist key must still exist in the installed spec: a key that no
+# longer exists cannot be captured, so denying it is dead policy that hides a
+# real upstream move. The offenders are printed by name -- this assertion used
+# to emit a bare `false` and the reader had to re-derive the list by hand,
+# which is how DMS 1.6 relocating nine keys read as an unexplained failure.
+# The defaults are materialised first so a failure of the reader is a failure
+# here, rather than an empty stream that satisfies `all` vacuously.
+dms_defaults=$(tooling/dms/defaults)
+stale_denied=$(
+    jq -rn \
+        --argjson defaults "$dms_defaults" \
+        --rawfile denied tooling/data/dms-settings-denylist '
+        ($denied | split("\n")
+          | map(sub("[[:space:]]*#.*$"; "") | select(length > 0)))
+        | map(select(. as $key | $defaults | has($key) | not))
+        | .[]
+    '
+)
+[[ -z $stale_denied ]] || {
+    echo "tooling/data/dms-settings-denylist names keys the installed DMS spec no longer has:" >&2
+    printf '  %s\n' "$stale_denied" >&2
+    exit 1
+}
 
 tooling/dms/test
 

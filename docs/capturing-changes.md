@@ -195,7 +195,8 @@ shipped, which is whatever was captured at build time.
 
 Enumerate the divergent items. Never report the audit's summary counts as the
 answer — a count tells the reader nothing they can act on. There are two
-independent signals and a complete answer reports both.
+independent drift signals and a complete answer reports both. The audit also
+prints one informational list that is not drift.
 
 **Tracked items whose live value diverged from their captured baseline.**
 `tooling/audit/personal-config` walks the manifest and labels each file
@@ -210,6 +211,13 @@ still reads as an ordinary `[tracked]` row. This is never noise.
 
 **New items not tracked at all.** `Portable DMS deviations are not captured (N)`
 in the audit, and the `[new]` rows of `just dms-capture --list`. List them.
+
+**Overlay entries DMS cannot store.** `Overlay entries DMS cannot store,
+because they equal its defaults (N)` in the audit. Informational, never drift:
+DMS writes `settings.json` as a diff against its own defaults, so a pin whose
+value IS the default can never appear in the live file and no capture or apply
+will ever clear it. Drop them with `just dms-capture --remove` if the intent
+was to pin a value rather than to restate a default.
 
 Severity in the image-managed section is not uniform. `Managed image scaffolding`
 is critical and fails the audit; `DMS clipboard preferences` is informational,

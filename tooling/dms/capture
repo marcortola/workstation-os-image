@@ -120,15 +120,24 @@ else
         --slurpfile defaults "$workdir/defaults.json" \
         --slurpfile tracked "$overlay" \
         --slurpfile denied "$workdir/denied.json" '
-        (($live[0] | to_entries[]) as $entry
-        | $entry.key as $key
+        # Candidates are live keys UNION tracked keys, not live keys alone.
+        # DMS 1.6 writes settings.json as a diff against the defaults, so a
+        # tracked key whose live value has returned to the default is simply
+        # absent from the file. Driving the list off live entries made those
+        # keys unreachable -- invisible to --list and therefore to --remove --
+        # while the drift audit still merged them and reported drift with no
+        # candidate to act on. An absent key reads as its default, tested for
+        # presence rather than with `//` so false and 0 survive.
+        ((($live[0] | keys) + ($tracked[0] | keys) | unique)[] as $key
         | select($key != "configVersion")
         | select($defaults[0] | has($key))
         | select($denied[0] | index($key) | not)
-        | select($entry.value != $defaults[0][$key] or ($tracked[0] | has($key)))
+        | (if $live[0] | has($key) then $live[0][$key]
+           else $defaults[0][$key] end) as $current
+        | select($current != $defaults[0][$key] or ($tracked[0] | has($key)))
         | {
             key: $key,
-            current: $entry.value,
+            current: $current,
             default: $defaults[0][$key],
             tracked: ($tracked[0] | has($key))
           })
