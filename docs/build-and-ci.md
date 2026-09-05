@@ -186,7 +186,7 @@ can be inserted without renumbering the ones after it.
 | `50-services.sh` | final | Explicitly disables `rpm-ostreed-automatic.timer`, `brew-update.timer`, `brew-upgrade.timer` and `dnf-makecache.timer`, then runs `systemctl preset` and `systemctl --global preset` on the unit names read out of the two preset files. |
 | `60-metadata.sh` | final | Writes `VARIANT_ID`, `NAME` and `PRETTY_NAME` into `/usr/lib/os-release` from `image.env`. `PRETTY_NAME` is rebuilt as `"$OS_NAME $VERSION"` so the brand is added without discarding the base's per-deployment version. `ID` stays `fedora` (load-bearing) and `LOGO` stays `fedora-logo-icon` (it keeps a Zirconium branch in DMS dead). |
 | `90-cleanup.sh` | final | Deletes every repo the build added, bakes the sorted NEVRA `package-manifest.txt`, relocates build-created accounts out of `/etc/passwd` and `/etc/group` into `/usr/lib`, reconciles the rpmdb journals with the base-db copy, and clears the dnf caches. |
-| `99-check-build.sh` | final | 29 gate sections that assert the build's *decisions* took effect — which repo a package came from, whether a preset actually enabled a unit, whether a `sed` matched anything. Mutates nothing. |
+| `99-check-build.sh` | final | 29 gate sections that assert the build's *decisions* took effect — which repo a package came from, whether a preset actually enabled a unit, whether a `sed` matched anything. Mutates nothing that survives it — the DMS policy probe creates and removes `/run/ostree-booted`, because dms consults the policy only on a system it judges immutable. |
 
 `50-services.sh` derives its preset arguments rather than repeating them,
 reading the `enable` lines out of
