@@ -2,29 +2,20 @@
 # runtime, device-specific, sensitive, path-bound, or require nested review.
 # A narrow sanitized value may remain in the overlay after explicit review.
 # Keep one exact top-level SettingsSpec key per line.
-activeDisplayProfile
 barConfigs
-browserUsageHistory
 connectedFrameBarStyleBackups
 desktopClockDisplayPreferences
 desktopClockCustomColor
 desktopWidgetGroups
 desktopWidgetInstances
 desktopWidgetPositions
-desktopWidgetGridSettings
 displayProfiles
 enabledGpuPciIds
-filePickerUsageHistory
 frameScreenPreferences
-greeterSyncBaseline
-greeterSyncPending
 greeterWallpaperPath
-hyprlandOutputSettings
-lastAppliedIconTheme
 lockScreenVideoPath
 lockScreenWallpaperPath
 matugenTargetMonitor
-niriOutputSettings
 screenPreferences
 selectedGpuIndex
 showOnLastDisplay
@@ -37,3 +28,16 @@ systemMonitorCustomColor
 #                             has a dedicated validator for its shape.
 #   customThemeFile        -- templated with ${HOME} and the theme itself ships
 #                             as a create_ seed, so it is portable by construction.
+
+# Moved out of SettingsSpec at DMS config v15, so they can no longer reach
+# settings.json and no longer belong on a list whose contract is "one exact
+# top-level SettingsSpec key per line". SettingsStore.js names them in
+# SESSION_MOVED_KEYS (niriOutputSettings, hyprlandOutputSettings,
+# activeDisplayProfile, activeDisplayProfileModes, desktopWidgetGridSettings,
+# greeterSyncPending, greeterSyncBaseline, lastAppliedIconTheme -> session.json)
+# and CACHE_MOVED_KEYS (browserUsageHistory, filePickerUsageHistory ->
+# cache.json). Nothing is unguarded by their removal: tooling/dms/capture only
+# offers a key tooling/dms/defaults reports, and tooling/dms/validate-overlay
+# rejects any overlay key absent from that same schema, so a key outside
+# SettingsSpec is unreachable by both paths. tooling/validate/all asserts every
+# line here still exists in the schema, which is what surfaced them.

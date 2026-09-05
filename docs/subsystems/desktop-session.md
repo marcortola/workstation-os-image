@@ -437,8 +437,10 @@ virtual terminal and you hop between them:
    `niri-session`, which it simply execs; it refuses if `WAYLAND_DISPLAY` or
    `DISPLAY` is already set.
 3. Move between sessions with `Ctrl+Alt+F1` and `Ctrl+Alt+F3`, or press
-   `Ctrl+Alt+U` to jump straight to the other running session. The power menu's
-   **Switch User** entry lists the same sessions.
+   `Ctrl+Alt+U` to jump straight to the other running session. DMS's power menu
+   has no **Switch User** entry: `switchuser` is absent from upstream's default
+   `powerMenuActions`, and this image no longer pins that key. `Ctrl+Alt+U` is
+   the supported route.
 
 `Ctrl+Alt+U` runs `/usr/libexec/workstation-switch-user`, which walks
 `loginctl list-sessions`, skips the current session and anything whose `Class` is

@@ -1,7 +1,6 @@
 {
   "acLockTimeout": 3600,
   "acMonitorTimeout": 3600,
-  "acSuspendTimeout": 0,
   "animationSpeed": 4,
   "barConfigs": [
     {
@@ -102,11 +101,9 @@
   "firstDayOfWeek": 1,
   "fontFamily": "Noto Sans",
   "launcherLogoColorOverride": "surface",
-  "launcherLogoMode": "apps",
   "launcherLogoSizeOffset": 12,
   "launcherStyle": "spotlight",
   "lockBeforeSuspend": true,
-  "loginctlLockIntegration": true,
   "maxFprintTries": 3,
   "monoFontFamily": "FiraCode Nerd Font Mono",
   "networkPreference": "wifi",
@@ -120,14 +117,6 @@
       "pattern": "Insync",
       "urgency": "default"
     }
-  ],
-  "powerMenuActions": [
-    "reboot",
-    "logout",
-    "poweroff",
-    "lock",
-    "suspend",
-    "restart"
   ],
   "runningAppsCurrentWorkspace": false,
   "showCpuTemp": false,
