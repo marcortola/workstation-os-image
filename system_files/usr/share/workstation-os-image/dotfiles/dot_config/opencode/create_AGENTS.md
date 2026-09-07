@@ -64,6 +64,7 @@ Do not stop for:
 
 ## Tools
 
+- "Use Playwright MCP" means the `playwright-cli` command. This workstation ships no Playwright MCP server on purpose: `playwright-cli` attaches to the already-running Flatpak Chrome over CDP and writes snapshots to disk instead of injecting an accessibility tree into context on every step. Read any request for Playwright, `playwright-mcp`, or MCP browser automation as a request for `playwright-cli` — start with `playwright-cli open <url>` — and never add or install a Playwright MCP server.
 - Run independent tool calls in parallel.
 - Never guess a tool argument or pass a placeholder. Look it up.
 - Edit files, lint, and run tests without asking.

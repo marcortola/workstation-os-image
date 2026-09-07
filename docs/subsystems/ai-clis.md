@@ -117,6 +117,15 @@ The payoff is that no second browser is layered into the image: Chrome is alread
 there as a Flatpak, and Playwright cannot launch a Flatpak directly, so the image
 starts it and lets the CLI connect.
 
+That decision is invisible from inside a chat session, so it is written down where
+the models read rather than left to be rediscovered. All three global context seeds --
+`.claude/CLAUDE.md`, `.codex/AGENTS.md` and `.config/opencode/AGENTS.md` -- carry one
+`## Tools` rule saying that "Use Playwright MCP" means the `playwright-cli` command,
+and that a Playwright MCP server is never to be added or installed. Asking any of the
+three CLIs for Playwright, `playwright-mcp`, or MCP browser automation therefore
+reaches the wrapper above. The rule is captured `copy`-kind with the rest of those
+files and projected into the portable bundle by `just ai-bundle`.
+
 ---
 
 ## The four tools
