@@ -768,16 +768,29 @@ only one already contained in its base. `merge-state.sh` decides that from
 `git cherry` after a fetch (so a squash merge reads as merged, which
 `git branch --merged` never does) plus the PR state, and it answers `unknown`
 rather than `merged` whenever a check could not run. A merged branch is offered
-on its own separate answer; anything else is kept, with the `git branch -D` line
-printed for you.
+on one answer that covers the local branch and the one on origin together;
+anything else is kept, with both commands printed for you.
 
-`origin/<branch>` is a third answer and a stricter one: it is offered only when
-a merged PR says so. `git cherry` agreeing is not enough there — it proves the
-patch reached the base, not that a branch other people can see is finished with
-— and a repository with delete-on-merge has usually removed it already. Whether
-origin still has the branch is asked of origin, never read off the
-`origin/<branch>` tracking ref, which survives locally until someone prunes and
-would answer yes for a branch deleted months ago.
+Both sides or neither, deliberately. The first version asked about `origin` in a
+separate, stricter question needing a merged PR, and the reasoning was sound as
+far as it went — `git cherry` proves the patch reached the base, not that a
+branch other people can see is finished with. What it missed is that deleting
+the local half is what makes the remote half unreachable: no popup can see a
+branch whose checkout is gone. Eight branches were sitting in exactly that state
+when it was measured. Whether origin still has the branch is asked of origin,
+never read off the `origin/<branch>` tracking ref, which survives locally until
+someone prunes and would answer yes for a branch deleted months ago.
+
+`dev-flow/cleanup-residue.sh` is the sweep for everything the popups cannot
+reach, because a popup only ever runs on a space you are closing: a checkout
+removed by `/worktree-remove`, by `git worktree remove`, or over the socket
+leaves its branch behind with nothing to trigger the cleanup. Three passes, all
+prompting, all defaulting to no — residue directories inside a `__worktrees`
+parent that the repository no longer lists, branches on origin nothing is using,
+and local branches with no remote at all. `--dry-run` prints and touches
+nothing; `--remotes`, `--locals` and `--all` choose the later passes. It refuses
+a branch any worktree still has checked out, which is what protects a main
+checkout parked on a feature branch.
 
 The other half is ownership. Docker here is rootful, so a compose service with
 no `user:` writes `vendor/`, `var/cache` and friends into the checkout as root.

@@ -20,6 +20,7 @@
 .config/herdr/plugins/dev-flow/agent-freshness.sh
 .config/herdr/plugins/dev-flow/agent-status-reset.sh
 .config/herdr/plugins/dev-flow/agents.sh
+.config/herdr/plugins/dev-flow/cleanup-residue.sh
 .config/herdr/plugins/dev-flow/checkout-remove.sh
 .config/herdr/plugins/dev-flow/close-workspace.sh
 .config/herdr/plugins/dev-flow/equalize-panes.sh

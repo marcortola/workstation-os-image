@@ -407,9 +407,12 @@ for sourcing in executable_checkout-remove.sh executable_worktree-ship.sh; do
     grep -qF '. "$plugin_dir/merge-state.sh"' "$dev_flow/$sourcing"
 done
 [[ $(grep -rlc 'refs/remotes/origin/HEAD' "$dev_flow" | wc -l) -eq 1 ]]
-[[ $(grep -rl 'branch -D' "$dev_flow" | wc -l) -eq 1 ]]
-grep -q 'branch -D' "$dev_flow/executable_checkout-remove.sh"
-[[ $(grep -rl 'sudo rm -rf' "$dev_flow" | wc -l) -eq 1 ]]
+# Two callers now, and the pair is the assertion: the popup that removes the
+# checkout in front of you, and the sweep that covers everything no popup can
+# reach. Naming both keeps the original point -- a third one cannot appear
+# quietly -- while allowing the second that was added on purpose.
+[[ $(grep -rl 'branch -D' "$dev_flow" | sort | tr '\n' ' ') == "$dev_flow/executable_checkout-remove.sh $dev_flow/executable_cleanup-residue.sh " ]]
+[[ $(grep -rl 'sudo rm -rf' "$dev_flow" | sort | tr '\n' ' ') == "$dev_flow/executable_checkout-remove.sh $dev_flow/executable_cleanup-residue.sh " ]]
 # Deleting a branch on the remote is the one action here that reaches a
 # repository other people share, so it is allowed exactly one caller, and that
 # caller is reachable only from the merged verdict that also deletes the local
@@ -420,8 +423,7 @@ grep -q 'branch -D' "$dev_flow/executable_checkout-remove.sh"
 # makes the remote side invisible. `delete_remote` is asserted to have exactly
 # one assignment so that a later edit cannot reintroduce a second, weaker path
 # to the same push.
-[[ $(grep -rl 'push origin --delete' "$dev_flow" | wc -l) -eq 1 ]]
-grep -q 'push origin --delete' "$dev_flow/executable_checkout-remove.sh"
+[[ $(grep -rl 'push origin --delete' "$dev_flow" | sort | tr '\n' ' ') == "$dev_flow/executable_checkout-remove.sh $dev_flow/executable_cleanup-residue.sh " ]]
 # shellcheck disable=SC2016 # literal fragment of the guarded script
 grep -qF '[ "$verdict" = merged ]' "$dev_flow/executable_checkout-remove.sh"
 [[ $(grep -c 'delete_remote=yes' "$dev_flow/executable_checkout-remove.sh") -eq 1 ]]

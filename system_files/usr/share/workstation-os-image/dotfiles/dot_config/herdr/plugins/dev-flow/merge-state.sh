@@ -18,6 +18,34 @@
 # Every failure answers `unknown`, never `merged`. The caller deletes a branch on
 # a merged verdict, so a check that could not run must never produce one.
 
+# Which worktree, if any, has this branch checked out. The question every caller
+# that deletes a branch actually needs: git refuses to delete a checked-out
+# branch anyway, and "a local branch exists" is not the same question -- a branch
+# nothing holds is exactly what a sweep is looking for.
+checked_out_at() {
+    git -C "$1" worktree list --porcelain |
+        awk -v b="branch refs/heads/$2" '/^worktree /{w=$2} $0==b{print w; exit}'
+}
+
+# How many commits are in $3 but not in $2, by patch id, or `unknown` when the
+# comparison could not run at all. `unknown` is never 0: a check that could not
+# run must not read as "already merged" to a caller about to delete something.
+branch_unmerged_count() {
+    local cherry
+    if [ -z "$2" ] || ! cherry=$(git -C "$1" cherry "$2" "$3" 2>/dev/null); then
+        printf 'unknown'
+        return
+    fi
+    # grep -c exits 1 on no matches, which is the answer 0, not a failure.
+    printf '%s' "$(printf '%s\n' "$cherry" | grep -c '^+' || true)"
+}
+
+# Everything in the branch is already in the base. Strictly boolean, so an
+# `unknown` count answers no rather than yes.
+branch_is_spent() {
+    [ "$(branch_unmerged_count "$1" "$2" "$3")" = 0 ]
+}
+
 # The base as it exists on the remote. Shipping needs this one: a PR cannot be
 # opened against a branch origin does not have.
 merge_base_remote() {
@@ -58,7 +86,7 @@ merge_base() {
 # `read` would otherwise lose the field boundaries.
 merge_state() {
     local repo=$1 branch=$2
-    local base ref cherry unmerged verdict work pr_number pr_state remote
+    local base ref unmerged verdict work pr_number pr_state remote
 
     base=$(merge_base "$repo")
 
@@ -106,12 +134,7 @@ merge_state() {
         fi
     fi
 
-    if [ -z "$ref" ] || ! cherry=$(git -C "$repo" cherry "$ref" "$branch" 2>/dev/null); then
-        unmerged=unknown
-    else
-        # grep -c exits 1 on no matches, which is the answer 0, not a failure.
-        unmerged=$(printf '%s\n' "$cherry" | grep -c '^+' || true)
-    fi
+    unmerged=$(branch_unmerged_count "$repo" "$ref" "$branch")
 
     if [ "$pr_state" = MERGED ] || [ "$unmerged" = 0 ]; then
         verdict=merged

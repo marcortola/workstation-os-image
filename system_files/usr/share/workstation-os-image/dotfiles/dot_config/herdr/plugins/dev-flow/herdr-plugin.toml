@@ -49,6 +49,16 @@ title = "Open worktrees of every repo"
 contexts = ["workspace"]
 command = ["./adopt-worktrees.sh"]
 
+# The counterpart to adopt-worktrees, and the only action here that deletes
+# anything. Unbound on purpose: it prompts per item and defaults to no, but it
+# reaches every repository at once rather than the space in front of you, which
+# is not something a key should be one slip away from.
+[[actions]]
+id = "cleanup-residue"
+title = "Sweep checkouts and branches nothing is using"
+contexts = ["workspace"]
+command = ["./cleanup-residue.sh"]
+
 # The second propagation net for a herdr-created checkout; the committed
 # .worktreeinclude and the post-checkout hook remain the first.
 [[events]]
