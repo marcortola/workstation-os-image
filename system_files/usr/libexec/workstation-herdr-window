@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# The Mod+Shift+T bind: raise the coding session, or open it when it is not up.
+#
+# Every attached herdr client mirrors the others, so a second window is a second
+# view of one session rather than a second context. Spawning unconditionally
+# therefore answered a second press with a clone beside the first. When a client
+# is already on screen the whole job is to focus it.
+#
+# Both binds that hold a client are matched: this one opens a window as `herdr`,
+# the project picker (workstation-dev --herdr) as `dev-terminal`. Unlike the
+# picker's own lookup there is no window to exclude -- this runs from the
+# compositor rather than from a terminal of its own.
+
+# A niri keybind runs this with a minimal PATH, so do not trust it.
+jq_bin=jq
+command -v jq >/dev/null 2>&1 || jq_bin=/usr/bin/jq
+niri_bin=niri
+command -v niri >/dev/null 2>&1 || niri_bin=/usr/bin/niri
+
+# Start the server through its own unit before any client can fork one as a
+# child of the terminal below. A server inside foot-server.service shares that
+# unit's KillMode=control-group, so at logout it and its panes take SIGTERM
+# together and a workspace whose pane wins that race is dropped from
+# session.json. `start` on a running unit is a no-op, and it is deliberately not
+# conditional on the focus lookup below: the failure to guard against is a
+# client quietly starting an unsupervised server, which tooling/audit/units
+# reports only after the fact.
+systemctl --user start workstation-herdr-server.service 2>/dev/null || true
+
+window=$(
+    "$niri_bin" msg -j windows 2>/dev/null |
+        "$jq_bin" -r '[.[] | select(.app_id == "herdr" or .app_id == "dev-terminal")
+                          | .id] | first // empty'
+) || window=
+
+# A window that exists is the answer whether or not raising it succeeds; falling
+# through on a failed focus would put a clone beside the window it failed to
+# raise, which is the case this script exists to prevent.
+if [[ -n $window ]]; then
+    "$niri_bin" msg action focus-window --id "$window" >/dev/null 2>&1 || true
+    exit 0
+fi
+
+exec xdg-terminal-exec --app-id=herdr --title=herdr --dir="$HOME" \
+    -- /home/linuxbrew/.linuxbrew/bin/herdr

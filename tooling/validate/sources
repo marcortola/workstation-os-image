@@ -433,13 +433,25 @@ grep -q '^ExecCondition=/usr/bin/test -x /home/linuxbrew/.linuxbrew/bin/herdr$' 
 # it, and a client that does not forks its own back into foot-server.service's
 # cgroup, which is the state this unit exists to leave. Both paths that open a
 # session therefore start the unit first, and neither failure is visible.
+#
+# The Mod+Shift+T half is the helper rather than the bind: the bind spawns it
+# and nothing else, so the assertion follows the systemctl call into the file
+# that now makes it. The bind is still gated -- on naming the helper -- because
+# a bind that went back to spawning a terminal directly would satisfy neither.
 herdr_binds=system_files/usr/share/workstation-os-image/niri/includes/binds.kdl
+herdr_window=system_files/usr/libexec/workstation-herdr-window
 herdr_dev=system_files/usr/share/workstation-os-image/dotfiles/private_dot_local/bin/create_executable_workstation-dev
 require_file "$herdr_binds"
+require_file "$herdr_window"
 require_file "$herdr_dev"
-for launcher in "$herdr_binds" "$herdr_dev"; do
+grep -q 'spawn "/usr/libexec/workstation-herdr-window"' "$herdr_binds"
+for launcher in "$herdr_window" "$herdr_dev"; do
     grep -q 'systemctl --user start workstation-herdr-server.service' "$launcher"
 done
+# Both launch binds can hold a client, so both app-ids have to be matched or the
+# key opens a clone beside the picker's window -- the exact case this helper
+# exists to prevent, and one that only shows up with a picker window already up.
+grep -q 'app_id == "herdr" or .app_id == "dev-terminal"' "$herdr_window"
 # The stamp is a fact with no expiry: the picker's rows are bounded by
 # `git worktree list` rather than by a clock, and herdr restores a conversation
 # with no age limit of its own, so a second window here could only disagree with

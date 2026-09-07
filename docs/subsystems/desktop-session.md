@@ -225,7 +225,7 @@ page owns; the key list is not.
 | --- | --- | --- |
 | `Mod+Slash` | `dms ipc call keybinds toggle workstation` | The generated cheatsheet, in DMS's searchable modal. See below. |
 | `Mod+T` | `xdg-terminal-exec` | A plain Foot window. |
-| `Mod+Shift+T` | `herdr` in a terminal with `--app-id=herdr` | The coding multiplexer. Launched deliberately, never from a shell rc, because every attached client mirrors the others: a second window would be a clone of the first, not a second context. |
+| `Mod+Shift+T` | `/usr/libexec/workstation-herdr-window` | The coding multiplexer, in a terminal with `--app-id=herdr`. Launched deliberately, never from a shell rc, because every attached client mirrors the others: a second window would be a clone of the first, not a second context. For the same reason the key raises a client that is already up -- either app-id -- instead of opening one beside it. |
 | `Mod+Shift+P` | `workstation-dev --herdr` with `--app-id=dev-terminal` | Project picker; hands the chosen repository to herdr. See [dev-environment.md](dev-environment.md). |
 | `Mod+Shift+D` | `lazydocker` with `--app-id=lazydocker` | |
 | `Mod+F` | `nautilus` | |

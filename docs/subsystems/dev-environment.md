@@ -150,6 +150,14 @@ closes behind it. Both launch binds are matched because both can hold a client:
 answers with nothing to focus — no window open, or no compositor at all — the
 lookup fails and the picker falls through to `exec`ing a client as before.
 
+`Mod+Shift+T` answers the same way, through
+`/usr/libexec/workstation-herdr-window`: it starts the server unit, asks niri
+for a window with either app-id, and raises it — only with nothing to raise does
+it `exec` a terminal. It excludes nothing, because it runs from the compositor
+rather than from a terminal of its own. A window that exists ends the script
+whether or not raising it succeeded; falling through on a failed focus would put
+the clone beside the window it could not raise.
+
 ---
 
 ## `dev nvim`: Neovim Inside the Container
