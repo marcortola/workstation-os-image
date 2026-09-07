@@ -81,7 +81,20 @@ PluginComponent {
             return;
         root.polling = true;
         root.pollStartedMs = Date.now();
-        Proc.runCommand("herdrJobs.rows", ["sh", "-c", "exec " + root.devFlow + "/spaces.sh --json"], (stdout, exitCode) => {
+        // No id, so Proc mints a private entry for this call and drops it when
+        // the process ends. A fixed id is a mailbox, not a namespace: Proc keeps
+        // one {command, callback} slot per id, overwrites it on every call, and
+        // resolves entry.callback when the process exits rather than the one
+        // that launched it. DMS builds one bar window per screen and one plugin
+        // root per bar, so a second monitor is a second copy of this widget
+        // polling the same id -- whoever called last takes both results, the
+        // other is never called back, the latch above can only expire, and that
+        // copy holds rows [] and serverUp false with herdr running throughout.
+        // It is the wrong answer the latch exists to prevent, reached from the
+        // other side, and it survives until a screen is added or removed.
+        // KeyboardLayoutName.qml, the one bar widget DMS ships that shells out,
+        // passes null here for the same reason.
+        Proc.runCommand(null, ["sh", "-c", "exec " + root.devFlow + "/spaces.sh --json"], (stdout, exitCode) => {
             root.polling = false;
             // spaces.sh exits non-zero with no server, which is how "no spaces"
             // stays distinguishable from "herdr is not running".

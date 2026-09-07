@@ -91,7 +91,7 @@ process environment, not assumed.
 
 ## What Is Silent About It
 
-Three things, all worth knowing before the next change touches this.
+Four things, all worth knowing before the next change touches this.
 
 **Nothing lints QML.** `tooling/validate/all` shellchecks scripts, compiles the
 Neovim Lua seeds and parses every tracked JSON file. There is no `qmllint` on
@@ -118,6 +118,23 @@ a directory that does not exist yet never fires when it appears. On a fresh
 account there is no gap — chezmoi runs at `graphical-session-pre.target` and
 `dms.service` starts after `graphical-session.target` — but on a machine that
 already existed, one `dms ipc call plugin-scan scan` is required, once.
+
+
+**The plugin root exists once per bar, not once per plugin.** `DankBar.qml` wraps
+its window in `Variants { model: Quickshell.screens.filter(...) }`, so a second
+monitor is a second `DankBarWindow`, a second `WidgetHost`, and a second live
+copy of this widget — each running its own 3s timer. That is fine until two
+copies address the same `Proc` command id. `Proc` keeps one `{command,
+callback}` slot per id, overwrites it on every call, and resolves the callback
+when the process exits rather than the one that launched it, so the copy that
+called last collects both results and the other is never called back at all. It
+then sits on `rows: []` and `serverUp: false` — the popout reading "herdr is not
+running" on one screen while the other lists every space, with herdr up
+throughout. Nothing logs it, and `pollCeilingMs` cannot rescue it: 15000 is a
+multiple of the 3000ms tick, so the starved copy retries on the same phase and
+loses the same race. Passing `null` as the id is the fix and DMS's own
+convention for a bar widget that shells out; the failure appears only when a
+screen is added, which is why it can hide for months on a laptop.
 
 ---
 
