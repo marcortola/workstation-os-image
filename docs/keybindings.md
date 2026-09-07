@@ -238,7 +238,7 @@ without the prefix.
 |---|---|
 | `s` | Space picker — projects and branches, whatever needs you first |
 | `shift+w` | New branch worktree, with the tab layout ready |
-| `shift+x` | Close a space, showing anything uncommitted before it does |
+| `shift+x` | Close a space, showing anything uncommitted — and the branch's merge state — before it does |
 | `shift+o` | Open an existing worktree |
 | `shift+u` | Adopt every repository's worktrees as spaces, in one pass |
 | `shift+m` | Ship the branch: push, open the PR, merge it when checks pass |
@@ -252,8 +252,20 @@ old one. Inside the picker, `ctrl+r` rescans for worktrees created elsewhere and
 `ctrl+a` shows the expired rows.
 
 `shift+m` is the mechanical half of shipping. It refuses a dirty tree rather
-than writing a commit and never deletes a branch; `/worktree-push` is the half
-that needs judgement.
+than writing a commit; `/worktree-push` is the half that needs judgement.
+
+`shift+x` and `shift+m` end in the same removal, which shows the checkout, what
+is uncommitted in it, whether the branch is already in its base, and whether
+anything inside is owned by another user — a rootful container writes `vendor/`
+and `var/cache` as root, and git can neither see nor delete that, so removal
+there needs `sudo` and the popup says so rather than failing at it. A branch is
+offered for deletion only when the merge check says it has landed; anything
+else keeps it and prints the command. The branch on `origin` is a third answer
+and a stricter test — it is offered only when a merged PR says the work landed,
+never on `git cherry` agreeing, because that proves the patch is in the base and
+not that a shared branch is finished with. `/worktree-remove` is still what
+handles an unmerged branch, a checkout with no open space, and the nvim session
+file.
 
 `shift+n` reads which layout is applied and gives you the other one, so the
 first press on a bare workspace builds the three tabs and every press after it

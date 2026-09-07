@@ -463,7 +463,7 @@
       },
       {
         "key": "shift+x",
-        "desc": "Close a space, showing anything uncommitted before it does",
+        "desc": "Close a space, showing anything uncommitted — and the branch's merge state — before it does",
         "subcat": "Projects"
       },
       {

@@ -85,7 +85,18 @@ require_file docs/README.md
 # it governs and an agent tidying the list would add `dms/input.kdl` back and
 # silently delete the touchpad and mouse tuning, with `niri validate` still
 # exiting 0.
-(( $(wc -l < AGENTS.md) <= 366 ))
+# Raised to 390 for the removal tail, the one place in this repository where an
+# agent can destroy work that does not come back -- `sudo rm -rf` and
+# `branch -D` -- and where both rules read as mistakes to anyone tidying up: the
+# `--force` retry that looks correct answers a refusal that is not the one being
+# hit, and the branch has to be deleted BEFORE the checkout it belongs to, which
+# looks like the wrong order right until the workspace close takes the popup
+# with it. The remote half is there for the same reason: it is the only action
+# in this repository that changes a repository other people share, and the rule
+# that keeps it safe -- one answer covering both sides, never the local half
+# alone -- reads as careless to anyone who has not seen what deleting the local
+# half on its own leaves behind.
+(( $(wc -l < AGENTS.md) <= 390 ))
 
 # README.md is a landing pad into docs/ and nothing else. Capped because it grows
 # back otherwise: it was 855 lines covering fourteen concerns before the handbook
@@ -378,6 +389,48 @@ jq -e --arg id "$herdr_widget_id" \
 grep -q 'spaces.sh --json' "$herdr_widget/HerdrJobsWidget.qml"
 grep -q 'focus-space.sh' "$herdr_widget/HerdrJobsWidget.qml"
 grep -q '"--json"' "$dev_flow/executable_spaces.sh"
+
+# Removing a checkout spans three scripts and the manifest, and every way they
+# can disagree is silent or destructive. merge-state.sh is sourced, not run, so
+# a missing manifest entry ships two popups that die at their first line on a
+# fresh machine. A second base resolver makes the branch a PR is opened against
+# and the branch the removal checks it against two different answers. A second
+# `branch -D` is a branch deleted without the merge check that earns it, and a
+# second `sudo rm -rf` is that command without the guard proving its argument is
+# a checkout.
+require_file "$dev_flow/merge-state.sh"
+grep -q '^scaffold|\.config/herdr/plugins/dev-flow/merge-state\.sh|' tooling/data/dotfiles.manifest
+for sourcing in executable_checkout-remove.sh executable_worktree-ship.sh; do
+    # The single quotes are the point: these are lines of another script being
+    # matched, not expressions to expand here.
+    # shellcheck disable=SC2016
+    grep -qF '. "$plugin_dir/merge-state.sh"' "$dev_flow/$sourcing"
+done
+[[ $(grep -rlc 'refs/remotes/origin/HEAD' "$dev_flow" | wc -l) -eq 1 ]]
+[[ $(grep -rl 'branch -D' "$dev_flow" | wc -l) -eq 1 ]]
+grep -q 'branch -D' "$dev_flow/executable_checkout-remove.sh"
+[[ $(grep -rl 'sudo rm -rf' "$dev_flow" | wc -l) -eq 1 ]]
+# Deleting a branch on the remote is the one action here that reaches a
+# repository other people share, so it is allowed exactly one caller, and that
+# caller is reachable only from the merged verdict that also deletes the local
+# branch: one answer, both sides, or neither. Requiring GitHub's `MERGED` for
+# the remote half instead is what the first version did, and it is what left
+# eight remote branches whose checkout and local branch were both already gone --
+# reachable by no popup and no sweep, because deleting the local side is what
+# makes the remote side invisible. `delete_remote` is asserted to have exactly
+# one assignment so that a later edit cannot reintroduce a second, weaker path
+# to the same push.
+[[ $(grep -rl 'push origin --delete' "$dev_flow" | wc -l) -eq 1 ]]
+grep -q 'push origin --delete' "$dev_flow/executable_checkout-remove.sh"
+# shellcheck disable=SC2016 # literal fragment of the guarded script
+grep -qF '[ "$verdict" = merged ]' "$dev_flow/executable_checkout-remove.sh"
+[[ $(grep -c 'delete_remote=yes' "$dev_flow/executable_checkout-remove.sh") -eq 1 ]]
+# The guard itself: root is only ever pointed at a directory inside a
+# `__worktrees` parent, under $HOME, that is not the repository root.
+# shellcheck disable=SC2016 # literal fragments of the guarded script
+for guard in '__worktrees}" = "$parent"' '"$resolved" = "$repo"' '"$home"/}" = "$resolved"'; do
+    grep -qF "$guard" "$dev_flow/executable_checkout-remove.sh"
+done
 
 # A checkout parked on background work spans five files that have to agree, and
 # every way they can disagree is silent: herdr calls the pane idle either way,

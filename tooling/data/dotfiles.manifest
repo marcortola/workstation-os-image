@@ -79,6 +79,7 @@ scaffold|.config/herdr/plugins/dev-flow/layout-split.sh|dot_config/herdr/plugins
 scaffold|.config/herdr/plugins/dev-flow/layout-toggle.sh|dot_config/herdr/plugins/dev-flow/executable_layout-toggle.sh|-
 scaffold|.config/herdr/plugins/dev-flow/layout.sh|dot_config/herdr/plugins/dev-flow/executable_layout.sh|-
 scaffold|.config/herdr/plugins/dev-flow/lazygit.sh|dot_config/herdr/plugins/dev-flow/executable_lazygit.sh|-
+scaffold|.config/herdr/plugins/dev-flow/merge-state.sh|dot_config/herdr/plugins/dev-flow/merge-state.sh|-
 scaffold|.config/herdr/plugins/dev-flow/navigate.sh|dot_config/herdr/plugins/dev-flow/executable_navigate.sh|-
 scaffold|.config/herdr/plugins/dev-flow/spaces.sh|dot_config/herdr/plugins/dev-flow/executable_spaces.sh|-
 scaffold|.config/herdr/plugins/dev-flow/urls.sh|dot_config/herdr/plugins/dev-flow/executable_urls.sh|-

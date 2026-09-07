@@ -5,8 +5,14 @@
 # both need judgement, and they stay with the /worktree-push agent command; this
 # covers the tail that needs none -- push, open the PR, and let GitHub merge it
 # when the checks pass. It refuses on a dirty tree rather than inventing a
-# commit, and it never deletes a branch.
+# commit, and it never deletes a branch itself: the shared checkout-remove.sh it
+# ends in offers that, and only for a branch already in the base -- which an
+# armed auto-merge is not yet, so shipping normally leaves the branch alone.
 set -euo pipefail
+
+plugin_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=merge-state.sh
+. "$plugin_dir/merge-state.sh"
 
 herdr_cli() {
     "${HERDR_BIN_PATH:-herdr}" "$@"
@@ -41,16 +47,10 @@ start_cwd=${HERDR_ACTIVE_PANE_CWD:-$PWD}
 repo=$(git -C "$start_cwd" rev-parse --show-toplevel 2>/dev/null) || die 'not a git checkout'
 branch=$(git -C "$repo" symbolic-ref --quiet --short HEAD) || die 'detached HEAD, nothing to ship'
 
-# Never hardcode main: the base is whatever origin points its HEAD at.
-base=$(git -C "$repo" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||')
-if [ -z "$base" ]; then
-    for candidate in main master trunk; do
-        if git -C "$repo" rev-parse --verify --quiet "refs/remotes/origin/$candidate" >/dev/null; then
-            base=$candidate
-            break
-        fi
-    done
-fi
+# Never hardcode main: the base is whatever origin points its HEAD at. One
+# resolver for both popups, so the branch this ships to and the branch the
+# removal checks it against can never be two different answers.
+base=$(merge_base_remote "$repo")
 [ -n "$base" ] || die 'no base branch on origin'
 [ "$branch" != "$base" ] || die "already on $base, nothing to ship"
 
@@ -162,10 +162,9 @@ printf '%s\n' "$pr_url"
 
 # Offer to remove the checkout now that the PR is in. checkout-remove.sh decides
 # whether this workspace even holds a linked worktree, and without --close-plain
-# it leaves a plain one alone: shipping from the main repo must not close it.
-# The branch survives either way -- /worktree-remove owns branch deletion,
-# because it is the one that checks whether the merge actually landed.
+# it leaves a plain one alone: shipping from the main repo must not close it. It
+# runs its own merge check there and offers the branch only if that says the
+# work has landed, which after an armed auto-merge it has not yet.
 workspace=${HERDR_ACTIVE_WORKSPACE_ID:-${HERDR_WORKSPACE_ID:-}}
 [ -n "$workspace" ] || exit 0
-plugin_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 "$plugin_dir/checkout-remove.sh" "$workspace"

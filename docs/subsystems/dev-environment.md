@@ -743,7 +743,7 @@ from any pane. Checkouts land beside the repository at
 | Key | Effect |
 |---|---|
 | `prefix+shift+w` | Popup: prompt for a branch, validate it with `git check-ref-format`, create the worktree and apply the dev layout |
-| `prefix+shift+x` | Popup: show the checkout and any uncommitted work, confirm, then remove it. The branch is never deleted |
+| `prefix+shift+x` | Popup: show the checkout, any uncommitted work, the branch's merge state and anything inside owned by another user, confirm, then remove it. The branch goes only if it has already landed, on a separate answer |
 | `prefix+s` | Space picker: live workspaces plus on-disk worktrees that have no workspace yet, grouped by repository and sorted so a blocked or finished agent rises to the top |
 | `prefix+shift+u` | Open every linked worktree of every repository as a workspace. Also runs at server start |
 
@@ -760,8 +760,34 @@ which is why the previously pinned `sidebar_width = 36` is gone and herdr's
 default 26 is enough. The sidebar also starts collapsed, which takes two keys,
 not one: `sidebar_collapsed_mode = "hidden"` only chooses how a collapsed sidebar
 draws, and `sidebar_start_collapsed = true` is what decides it begins that way.
-`Ctrl+G` `b` brings it back. Removal never touches the branch, deliberately: herdr does
-not delete branches and neither does the popup.
+`Ctrl+G` `b` brings it back.
+
+Removal is the part with teeth, and both popups share it —
+`dev-flow/checkout-remove.sh`. herdr never deletes a branch; the popup does, but
+only one already contained in its base. `merge-state.sh` decides that from
+`git cherry` after a fetch (so a squash merge reads as merged, which
+`git branch --merged` never does) plus the PR state, and it answers `unknown`
+rather than `merged` whenever a check could not run. A merged branch is offered
+on its own separate answer; anything else is kept, with the `git branch -D` line
+printed for you.
+
+`origin/<branch>` is a third answer and a stricter one: it is offered only when
+a merged PR says so. `git cherry` agreeing is not enough there — it proves the
+patch reached the base, not that a branch other people can see is finished with
+— and a repository with delete-on-merge has usually removed it already. Whether
+origin still has the branch is asked of origin, never read off the
+`origin/<branch>` tracking ref, which survives locally until someone prunes and
+would answer yes for a branch deleted months ago.
+
+The other half is ownership. Docker here is rootful, so a compose service with
+no `user:` writes `vendor/`, `var/cache` and friends into the checkout as root.
+All of it is gitignored, so `git status` sees nothing — and `git worktree
+remove` deletes the admin dir even when it could not delete the tree, which
+leaves a directory git no longer lists and a `--force` retry that cannot help.
+The popup probes `! -uid $(id -u)` before it removes anything, and when it hits,
+removes with `sudo rm -rf` plus a `git worktree prune` instead. That same path
+cleans up a checkout an older removal already broke. The full reasoning is in
+[../design-records/checkout-removal.md](../design-records/checkout-removal.md).
 
 The `ga` and `gd` fish functions this replaced are gone.
 

@@ -266,14 +266,38 @@ prefer them over reinventing the shape:
   foreground tool call, and that call is a setsid session leader exactly like a
   background one, so the predicate reads true through a live turn (measured).
 - The ship popup is the mechanical half of `/worktree-push`: it refuses a dirty
-  tree rather than writing a commit, and never deletes a branch.
+  tree rather than writing a commit, and never deletes a branch of its own --
+  only the shared tail below does, and only for a branch already in the base,
+  which an armed auto-merge is not yet.
 - Both popups that can delete a checkout -- ship and close-workspace -- end in
   the shared `dev-flow/checkout-remove.sh`, which owns the linked-worktree
   probe, the dirty display and the confirmation. A clean tree is removed
   without `--force` so git can still refuse; a dirty one takes a second answer,
   about losing the work rather than about removing a directory. Never give
-  either popup its own copy of that tail again, and never teach it to delete a
-  branch: that needs the merge check, which is `/worktree-remove`'s.
+  either popup its own copy of that tail again.
+- Rootful containers write into a checkout as root; git can neither see that
+  (gitignored) nor delete it, and `git worktree remove` drops the admin dir even
+  when the tree removal failed, so a `--force` retry answers a refusal that is
+  not the one being hit and six unlistable directories piled up. The tail probes
+  `! -uid $(id -u)` BEFORE removing, takes `sudo rm -rf` plus a prune when it
+  hits, and keeps `--force` for the refusal it does fit. Point `sudo rm -rf`
+  only at a resolved path under `$HOME`, not the repo root, directly inside a
+  `*__worktrees` parent -- resolved on both sides, since `$HOME` is `/home/marc`
+  while every real path is `/var/home/marc`.
+- The branch goes only on a `merged` verdict from `dev-flow/merge-state.sh`
+  (`git cherry` after a fetch, so a squash counts, plus the PR state), behind
+  its own answer, detached and deleted BEFORE the checkout because the removal
+  closes the workspace and can take the popup with it. `unknown` keeps it; an
+  unmerged branch and the nvim session file stay `/worktree-remove`'s.
+  `origin/<branch>` takes stricter evidence than the local one -- a merged PR,
+  never `git cherry` alone, since a patch reaching the base does not prove a
+  shared branch is finished with -- and `merge_state` answers whether origin
+  still has it by asking origin, never by reading the tracking ref. Its PR
+  fields are `-` rather than empty: tab is IFS whitespace, so an empty field
+  shifts every later one left in `read`. One base resolver, one `branch -D`, one
+  `push origin --delete`, one `sudo rm -rf`, and a manifest entry for the sourced
+  `merge-state.sh` -- all gated. See
+  [design record](docs/design-records/checkout-removal.md).
 
 ### Worktrees
 
