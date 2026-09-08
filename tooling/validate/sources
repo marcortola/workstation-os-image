@@ -619,6 +619,120 @@ grep -q "icons/hicolor/scalable/apps" "$datagrip_bootstrap"
 grep -q "$datagrip_icon.svg\"" "$datagrip_bootstrap" \
     || { echo "$datagrip_desktop names icon $datagrip_icon, which $datagrip_bootstrap never installs" >&2; exit 1; }
 
+# One mechanism, three files: the browser automation path. Every way it breaks
+# is silent, which is why each of these is a gate rather than a comment.
+#
+# The npm cache pin first. $HOME is /home/<user> while /home is a symlink to
+# var/home, and npm reaching its cache through that symlink makes arborist
+# prepend one more `var/` component to every tree path on each reify --
+# unbounded, and invisible until an `npx <pkg>@latest` costs 51 s of pinned CPU.
+# Measured before the pin: an 18.8 MB package-lock.json, 5014 entries, a
+# 6588-character key, ~41 s of the run across path.normalizeString, path.resolve and path.relative.
+#
+# It is a systemd user-environment generator and not a chezmoi seed for
+# ~/.npmrc, which was written first and reverted: npm writes that file itself on
+# `npm login` and `npm config set`, so a manifest entry would put a
+# credential-bearing file under tooling/audit/personal-config's byte-exact
+# live-vs-rendered comparison, and tooling/dotfiles/sync is an empty case for
+# the template kind -- leaving `copy`, which commits the token, as the only
+# apparent way to clear the drift. Gated negatively for that reason.
+npm_gen=system_files/usr/lib/systemd/user-environment-generators/70-workstation-npm-cache
+require_file "$npm_gen"
+require_file tooling/data/dotfiles.manifest
+[[ -x $npm_gen ]] \
+    || { echo "$npm_gen is not executable; systemd will not run it" >&2; exit 1; }
+if grep -q 'npmrc' tooling/data/dotfiles.manifest; then
+    echo "tooling/data/dotfiles.manifest tracks an npmrc: npm writes credentials there" >&2
+    exit 1
+fi
+# Comments stripped throughout: this file argues its own design at length in
+# prose that repeats every term the gates match, so an unstripped grep passes on
+# the explanation after the code beneath it has changed. Two gates in this block
+# were caught doing exactly that by the mutation suite.
+npm_gen_code=$(grep -vE '^[[:space:]]*#' "$npm_gen")
+grep -q 'npm_config_cache=' <<<"$npm_gen_code" \
+    || { echo "$npm_gen emits no npm_config_cache assignment" >&2; exit 1; }
+grep -q 'readlink -m' <<<"$npm_gen_code" \
+    || { echo "$npm_gen must resolve the home path; \$HOME is the symlinked one here" >&2; exit 1; }
+if grep -qE '/home/[a-z]|/var/home/[a-z]' <<<"$npm_gen_code"; then
+    echo "$npm_gen hardcodes a home path; it must resolve one at runtime" >&2
+    exit 1
+fi
+
+# The other two are one teardown path split across two files. `playwright-cli
+# close` cannot end a CDP-attached browser on its own -- playwright-core builds
+# the attach's browserProcess as a pair of transport closers -- so the wrapper
+# has to reach the helper, and the helper identifies the browser by its own
+# per-boot profile path, which is the only handle that works: flatpak moves the
+# app into its own transient scope, so killing `flatpak run`'s bwrap left 16
+# processes alive with the CDP port still answering.
+#
+# --die-with-parent is the flag that looks like the fix and is a regression. It
+# does repair the ancestry, but it binds the app to the INVOKING SHELL: Chrome
+# then dies the instant the helper exits, so the browser no longer survives
+# between subcommands and every one of them relaunches it. Both halves measured.
+# Gated negatively because the failure is silent -- teardown still works, and
+# only the reuse this file exists for quietly stops happening.
+pw_wrapper=system_files/usr/bin/playwright-cli
+pw_chrome=system_files/usr/libexec/workstation-playwright-chrome
+require_file "$pw_wrapper"
+require_file "$pw_chrome"
+# Comment lines stripped first: the file documents the flag at length precisely
+# so nobody re-adds it, and the gate must read the code, not the warning.
+if grep -vE '^[[:space:]]*#' "$pw_chrome" | grep -q -- '--die-with-parent'; then
+    echo "$pw_chrome passes --die-with-parent: Chrome will not survive the script's own exit" >&2
+    exit 1
+fi
+# Every gate below reads code with the comments stripped. Both files argue their
+# own design at length in prose that repeats the exact terms being matched, so an
+# unstripped grep goes green on the explanation after the code beneath it has
+# changed -- four of these were doing precisely that.
+pw_chrome_code=$(grep -vE '^[[:space:]]*#' "$pw_chrome")
+pw_wrapper_code=$(grep -vE '^[[:space:]]*#' "$pw_wrapper")
+grep -qE 'curl .*--max-time' <<<"$pw_chrome_code" \
+    || { echo "$pw_chrome CDP probe needs --max-time; --connect-timeout does not bound the response" >&2; exit 1; }
+# A cmdline SUBSTRING match also hits any process merely mentioning the profile
+# path, the caller's own shell included; three were killed that way. The kill
+# must test an exact argv element out of /proc.
+# shellcheck disable=SC2016
+grep -q '/proc/\$pid/cmdline' <<<"$pw_chrome_code" \
+    || { echo "$pw_chrome must match an exact argv element from /proc, not a cmdline substring" >&2; exit 1; }
+# The single quotes are the point: match the literal variable name in the helper.
+# shellcheck disable=SC2016
+grep -q 'user-data-dir=\$profile_dir' <<<"$pw_chrome_code" \
+    || { echo "$pw_chrome must identify the browser by its profile path to stop it" >&2; exit 1; }
+# The helper's half of the mechanism. Without these two, deleting the --stop
+# branch leaves every wrapper gate green while `playwright-cli close` silently
+# becomes `launch another browser` -- measured, 15 processes and a live endpoint.
+grep -q -- '== --stop' <<<"$pw_chrome_code" \
+    || { echo "$pw_chrome does not answer the --stop that $pw_wrapper sends it" >&2; exit 1; }
+grep -q '^stop_chrome()' <<<"$pw_chrome_code" \
+    || { echo "$pw_chrome defines no stop_chrome" >&2; exit 1; }
+grep -q -- '--stop' <<<"$pw_wrapper_code" \
+    || { echo "$pw_wrapper never stops the browser it starts" >&2; exit 1; }
+grep -q 'workstation-playwright-chrome' <<<"$pw_wrapper_code" \
+    || { echo "$pw_wrapper does not reach $pw_chrome" >&2; exit 1; }
+# The subcommand is the first non-flag argument. Testing $1 matched only the bare
+# form, so every `-s=NAME close` skipped the teardown and every `-s=NAME open`
+# fell through to upstream and launched a downloaded chromium.
+grep -q 'close-all' <<<"$pw_wrapper_code" \
+    || { echo "$pw_wrapper does not translate close-all, so it leaves the browser running" >&2; exit 1; }
+# Positive, because the ways to reintroduce the bug do not share a shape: the
+# dispatch must be on the resolved subcommand, whatever the surrounding syntax.
+# shellcheck disable=SC2016
+grep -q 'case "\$subcommand" in' <<<"$pw_wrapper_code" \
+    || { echo "$pw_wrapper does not dispatch on a resolved subcommand; \$1 misses every -s=NAME invocation" >&2; exit 1; }
+if grep -qE '\$\{1:-\}' <<<"$pw_wrapper_code"; then
+    echo "$pw_wrapper still reads \$1 directly, which misses every -s=NAME invocation" >&2
+    exit 1
+fi
+# A bare `pkill -f` on that pattern also matches the shell that invoked the
+# script, which killed exactly that during development.
+if grep -qE '^\s*pkill -f' <<<"$pw_chrome_code"; then
+    echo "$pw_chrome uses a bare pkill -f, which can match its own caller" >&2
+    exit 1
+fi
+
 # --- every tracked structured config file parses -----------------------------
 # A malformed greeter/settings.json fails at the login screen, which is the one
 # place on this machine where a bad file is genuinely expensive to discover.
@@ -649,6 +763,7 @@ done < <(git ls-files '*.json' '*.toml' '*.yml' '*.yaml')
 while IFS= read -r f; do
     head -1 "$f" | grep -qxE '#!/usr/bin/env bash|#!/bin/sh' \
         || { echo "unexpected shebang in $f: $(head -1 "$f")" >&2; exit 1; }
-done < <(find system_files/usr/bin system_files/usr/libexec -type f)
+done < <(find system_files/usr/bin system_files/usr/libexec system_files/usr/lib \
+    -type f \( -perm /111 -o -name '*.sh' \))
 
 echo "Repo-only source gates passed."

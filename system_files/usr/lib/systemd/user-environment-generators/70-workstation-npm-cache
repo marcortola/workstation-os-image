@@ -1,0 +1,49 @@
+#!/bin/sh
+# Point npm's cache at the REAL home path for the whole graphical session.
+#
+# /home is a symlink to var/home on this layout while $HOME stays /home/<user>,
+# and npm reaching its cache through that symlink makes @npmcli/arborist
+# recompute the tree's relative paths on every reify and prepend one more `var/`
+# component each time. A dist-tag spec forces that reify on every run -- npm
+# cannot prove a cached tree satisfies `latest` -- so each `npx -y <pkg>@latest`
+# added three entries and one path level to that package's _npx lockfile.
+# Measured before this: 18.8 MB, 5014 entries, a 6588-character key, and 51 s of
+# pinned CPU per playwright-cli subcommand, ~41 s of it across
+# path.normalizeString, path.resolve and path.relative. The same command against
+# a clean lock: 0.99 s. A second
+# package, help-scout-mcp-server, had reached 12921 entries the same way.
+#
+# A generator rather than the two obvious homes:
+#
+#   * /usr/lib/environment.d cannot express this. The value is the resolved home,
+#     and environment.d does only ${VAR} expansion -- `~` and ${HOME} both expand
+#     to the symlinked path, which is precisely the bug.
+#   * A chezmoi seed for ~/.npmrc is worse than it looks. npm writes that file
+#     itself (`npm login`, `npm config set`), so a manifest entry puts a
+#     credential-bearing file under the audit's byte-exact live-vs-rendered
+#     comparison; `just sync` is an empty case for the template kind, so the
+#     drift it reports has no documented remedy short of switching the entry to
+#     `copy` -- which commits the token to a public repository.
+#
+# The environment variable also outranks any ~/.npmrc the user already has
+# (npm's precedence: CLI flags, then environment, then npmrc files), so this
+# corrects an account that already carries a wrong value rather than losing to
+# it. Scope is the systemd user manager and everything it spawns, which is the
+# session: niri, every terminal, and every AI CLI and MCP server started from
+# one. A bare ssh login is outside it and keeps npm's default.
+set -eu
+
+home="${HOME:-}"
+[ -n "$home" ] || home="$(getent passwd "$(id -u)" 2>/dev/null | cut -d: -f6)"
+[ -n "$home" ] || exit 0
+
+# -m, not -f. `readlink -f` requires every component but the last to exist, and
+# the base's /home is a compat symlink to a var/home that does not exist inside
+# the image at all -- so -f returned empty there and this generator exited 0
+# without emitting anything, which is the silent no-op the rest of this file
+# exists to avoid. -m canonicalises without touching the filesystem, so it is
+# correct both on a live account and for a home that has not been created yet.
+real="$(readlink -m "$home" 2>/dev/null)" || exit 0
+[ -n "$real" ] || exit 0
+
+printf 'npm_config_cache=%s/.npm\n' "$real"
