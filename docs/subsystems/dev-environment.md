@@ -601,6 +601,41 @@ that finds a server attaches to it rather than forking its own. A bare `herdr`
 typed at a shell still forks one into the wrong cgroup, which is why
 `tooling/audit/units` checks the running server's `/proc/<pid>/cgroup`.
 
+Owning that cgroup cuts both ways, and the unit pins two more directives because
+of it. Every pane is now a process of this unit, so systemd's default
+`OOMPolicy=stop` means the kernel OOM killer picking *any* process in *any* pane
+— a build, a JVM, a test run, a browser renderer — stops the server. The workspace
+layout survives that: `KillMode=mixed` saves `session.json` and
+`Restart=on-failure` brings it back, measured at eight workspaces saved and
+restored across an eleven-second gap. What does not survive is everything
+*running* in those panes, SIGKILLed on account of one process elsewhere on the
+machine losing a memory race. It happened twice, on 2026-09-07 and 2026-09-08.
+`OOMPolicy=continue` leaves the victim to be reaped by its own parent as an
+ordinary child exit, with the unit still active and `Restart=` never firing. It
+covers everything except the main process — which stays an unlikely victim on
+size rather than priority, since every process here including the server inherits
+`oom_score_adj=200` and the kernel then picks by RSS.
+
+`ManagedOOMPreference=avoid` addresses the second route, which the first cannot
+prevent. `/usr/lib/systemd/user/slice.d/10-oomd-per-slice-defaults.conf` puts
+`ManagedOOMMemoryPressure=kill` at 80% on every user slice, and systemd-oomd
+selects a whole **cgroup** rather than a process — so one selection here SIGKILLs
+every pane at once, and `OOMPolicy` only decides what state the unit lands in
+afterwards. Two limits: the xattr is honoured on the memory-pressure path
+(this cgroup and the monitored ancestor share an owner) but not on the swap path,
+which the man page restricts to root-owned cgroups; and oomd also monitors
+`user@1000.service`, where the candidate is `app.slice` itself. So `avoid`
+deprioritises herdr within `app.slice`'s candidate set rather than removing it
+from every path. `omit` was rejected because this is the largest cgroup in the
+slice, and exempting it only redirects oomd onto much smaller neighbours —
+`foot-server.service` among them, which has `Restart=no`.
+
+Both are gated in `tooling/validate/sources`, and `tooling/audit/units` also
+reads them from the *running* unit, because a booted deployment can lag the
+repository — which is precisely the state the 2026-09-08 incident happened in.
+[../design-records/herdr-oom-blast-radius.md](../design-records/herdr-oom-blast-radius.md)
+is the record.
+
 `ExecStart` names `/usr/libexec/workstation-herdr-server`, a two-line wrapper,
 rather than the Homebrew binary. `build_files/99-check-build.sh` runs
 `systemd-analyze verify` over `/usr/lib/systemd/user/workstation-*.service` at

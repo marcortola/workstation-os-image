@@ -210,6 +210,14 @@ prefer them over reinventing the shape:
   server outside it. `ExecStart` cannot name the Homebrew binary -- build-time
   `systemd-analyze verify` fails a path absent from the layer -- hence the
   `/usr/libexec` wrapper and the `ExecCondition`. All of it is gated.
+- That same cgroup makes every pane a process of the unit, so it also pins
+  `OOMPolicy=continue` and `ManagedOOMPreference=avoid`. Without the first,
+  systemd's default `stop` SIGKILLs the work running in every pane when the
+  kernel OOM killer picks any process in any one of them -- the layout survives,
+  the running work does not. Without the second, systemd-oomd can select the whole
+  cgroup under memory pressure, which `OOMPolicy` cannot prevent, only decide the
+  state after. Both are gated, and `tooling/audit/units` reads them from the live
+  unit because a deployment can lag the repo.
 - Keep one default herdr session. The agent-state rollup is per server, so
   named sessions fragment the only thing herdr was adopted for.
 - Run coding agents inside a herdr pane. Outside one the state hook exits 0

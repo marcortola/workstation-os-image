@@ -152,5 +152,67 @@ report_herdr_cgroup() {
 
 report_herdr_cgroup
 
+# The unit file can carry the policy while the booted deployment does not, and
+# that is not hypothetical: the 2026-09-08 incident happened on a machine whose
+# four ostree deployments all predated the fix, with the relevant commit already
+# in the repository. A source gate proves the repository; only this proves the
+# machine. Owning the pane cgroup means systemd's default OOMPolicy=stop SIGKILLs
+# the work in every pane when the OOM killer picks any process in any one of
+# them, and ManagedOOMPreference is the separate systemd-oomd half.
+#
+# An empty read is a finding, not a pass. `systemctl show -p <unknown>` prints an
+# empty line and exits 0, so a property this manager does not know would
+# otherwise report clean -- which is exactly the lagging-deployment case being
+# looked for. Both properties come from one `show` call so a failure on the first
+# cannot silently skip the second.
+report_herdr_oom_policy() {
+    local unit=workstation-herdr-server.service policy preference dropin
+
+    systemctl --user cat "$unit" >/dev/null 2>&1 || return 0
+
+    policy=""
+    preference=""
+    while IFS='=' read -r key value; do
+        case "$key" in
+            OOMPolicy) policy=$value ;;
+            ManagedOOMPreference) preference=$value ;;
+        esac
+    done < <(systemctl --user show "$unit" -p OOMPolicy -p ManagedOOMPreference 2>/dev/null)
+
+    if [[ $policy != continue ]]; then
+        echo "  user herdr server has OOMPolicy=${policy:-<unreadable>}, not continue;" >&2
+        echo "    one OOM-killed process in any pane SIGKILLs the work in every other" >&2
+        echo "    pane -- rebuild and boot the image to fix it" >&2
+        status=1
+    fi
+
+    if [[ $preference != avoid ]]; then
+        echo "  user herdr server has ManagedOOMPreference=${preference:-<unreadable>}, not avoid;" >&2
+        echo "    systemd-oomd may select this cgroup under memory pressure and" >&2
+        echo "    SIGKILL every pane at once -- rebuild and boot the image to fix it" >&2
+        status=1
+    fi
+
+    # `systemctl show` merges drop-ins, so a local one under $HOME makes the two
+    # checks above pass no matter what the booted image ships -- it hides the
+    # drift they exist to find. The pre-image copy of this fix is exactly such a
+    # file, and it has to be deleted once the image carries the unit.
+    while read -r dropin; do
+        [[ -n $dropin ]] || continue
+        case "$dropin" in
+            "$HOME"/* | /var/home/*)
+                echo "  user $unit is shadowed by a local drop-in:" >&2
+                echo "    $dropin" >&2
+                echo "    it merges into every systemctl show, so the checks above" >&2
+                echo "    cannot see what the booted image actually carries -- delete it" >&2
+                echo "    once the image ships these directives" >&2
+                status=1
+                ;;
+        esac
+    done < <(systemctl --user show "$unit" -p DropInPaths --value 2>/dev/null | tr ' ' '\n')
+}
+
+report_herdr_oom_policy
+
 (( status == 0 )) && echo "  every preset line holds; no image-owned unit has failed."
 exit "$status"

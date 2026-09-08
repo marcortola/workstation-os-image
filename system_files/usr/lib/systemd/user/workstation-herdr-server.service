@@ -41,6 +41,39 @@ ExecStart=/usr/libexec/workstation-herdr-server
 # reproduces the bug verbatim inside this unit. tooling/validate/sources gates
 # it, because a later edit dropping it would fail only at the next reboot.
 KillMode=mixed
+# Owning the cgroup has a second consequence, and systemd's default answers it
+# the wrong way. Every pane is a process of this unit, so `OOMPolicy=stop` -- the
+# default -- stops the server whenever the kernel OOM killer picks ANY process in
+# ANY pane: a build, a JVM, a test run, a browser renderer. The workspace LAYOUT
+# survives that (KillMode=mixed above saves session.json, Restart=on-failure
+# brings it back -- measured, workspaces=8 saved and restored across an 11s gap);
+# what does not survive is everything running in every pane, SIGKILLed on account
+# of one process elsewhere on the machine losing a memory race. Measured twice,
+# 2026-09-07 22:13 and 2026-09-08 14:51. Under `continue` the victim is reaped by
+# its own parent as an ordinary child exit, the unit stays active with
+# Result=success, and Restart= never fires -- verified on a throwaway transient
+# unit, not read off the man page. It does not cover the main process: if the
+# server itself is the victim the unit still dies, by the ordinary main-process
+# path. That stays unlikely on RSS, not on priority -- every process here,
+# server included, inherits oom_score_adj=200 from the user manager, so the
+# kernel's badness score is dominated by size and a ~10MB server loses to an
+# 11GB build.
+OOMPolicy=continue
+# The other route to the same loss, which OOMPolicy governs only after the fact:
+# the man page is explicit that it applies to systemd-oomd, but only to "the
+# state of the unit after systemd-oomd kills a cgroup associated with it".
+# /usr/lib/systemd/user/slice.d/10-oomd-per-slice-defaults.conf puts
+# ManagedOOMMemoryPressure=kill at 80% on every user slice, and oomd selects a
+# whole CGROUP rather than a process -- so one selection here SIGKILLs every pane
+# at once. This cgroup is a leaf with memory.oom.group=0, which is what oomd
+# considers eligible. `avoid` is honoured on the memory-pressure path because
+# this cgroup and the monitored ancestor (app.slice) share an owner; on the SWAP
+# path the man page requires root ownership, which a uid-1000 user unit cannot
+# have, so it is a no-op there. It deprioritises rather than exempts -- `omit`
+# was rejected because this is the largest cgroup in app.slice by a wide margin,
+# and exempting the biggest consumer only redirects oomd onto much smaller
+# neighbours, foot-server.service among them, which has Restart=no.
+ManagedOOMPreference=avoid
 # The measured save is 51ms. The ceiling matters only because
 # /usr/lib/systemd/user/service.d/10-timeout-abort.conf sets
 # TimeoutStopFailureMode=abort for every user service: an overrun is a SIGABRT

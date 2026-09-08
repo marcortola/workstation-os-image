@@ -96,7 +96,18 @@ require_file docs/README.md
 # that keeps it safe -- one answer covering both sides, never the local half
 # alone -- reads as careless to anyone who has not seen what deleting the local
 # half on its own leaves behind.
-(( $(wc -l < AGENTS.md) <= 390 ))
+# Raised to 398 for the herdr unit's two OOM directives, the fourth and fifth
+# rules about this unit that read as the opposite of the obvious move. `OOMPolicy` is
+# the one systemd default in the file that is actively wrong here -- everywhere
+# else `stop` on an OOM kill is what you want, and it is wrong only because this
+# unit deliberately owns a cgroup full of the user's own work rather than a
+# worker it can afford to lose. And the pair is not one rule twice: an agent who
+# understands the first will conclude the second is redundant, because
+# "OOMPolicy already handles OOM" is true of the kernel killer and false of
+# systemd-oomd, which selects a cgroup rather than a process and so cannot be
+# governed by a per-process policy at all. Deleting either one costs every open
+# workspace, at a moment when the machine is already failing for another reason.
+(( $(wc -l < AGENTS.md) <= 398 ))
 
 # README.md is a landing pad into docs/ and nothing else. Capped because it grows
 # back otherwise: it was 855 lines covering fourteen concerns before the handbook
@@ -483,6 +494,16 @@ herdr_exec=system_files/usr/libexec/workstation-herdr-server
 require_file "$herdr_unit"
 require_file "$herdr_exec"
 grep -q '^KillMode=mixed$' "$herdr_unit"
+# Owning that cgroup makes every pane a process of this unit, which turns
+# systemd's default `OOMPolicy=stop` into "one OOM-killed build SIGKILLs the work
+# in every other pane" -- measured twice, 2026-09-07 and 2026-09-08. The oomd half
+# is a second, independent route: systemd-oomd selects a whole cgroup, so
+# OOMPolicy cannot cover it, and every user slice already carries
+# ManagedOOMMemoryPressure=kill at 80%. Both are one line, both read as noise to
+# anyone tidying the unit, and neither failure appears until the machine is
+# already out of memory -- hence gates rather than comments.
+grep -q '^OOMPolicy=continue$' "$herdr_unit"
+grep -q '^ManagedOOMPreference=avoid$' "$herdr_unit"
 # ExecStart cannot be the Homebrew path: 99-check-build.sh runs
 # `systemd-analyze verify` over these units at build time, and verify exits 1 on
 # an ExecStart command that is not executable in the layer. The ExecCondition is
