@@ -177,7 +177,7 @@
       },
       {
         "key": "Ctrl+G m",
-        "desc": "main, where claude runs",
+        "desc": "Next agent — cycles the checkout's agent tabs",
         "subcat": "Tabs and panes"
       },
       {
@@ -231,8 +231,8 @@
         "subcat": "Agents"
       },
       {
-        "key": "Ctrl+G alt+o",
-        "desc": "opencode in a pane",
+        "key": "Ctrl+G alt+a",
+        "desc": "Add an agent to this checkout",
         "subcat": "Agents"
       },
       {
@@ -400,8 +400,8 @@
         "subcat": "Agents and tools"
       },
       {
-        "key": "alt+o",
-        "desc": "opencode in a pane",
+        "key": "alt+a",
+        "desc": "Add an agent to this checkout — claude, codex or opencode",
         "subcat": "Agents and tools"
       },
       {
@@ -488,7 +488,7 @@
       },
       {
         "key": "m/n/t",
-        "desc": "Jump to main, nvim, term — tabs, or panes in the split layout",
+        "desc": "Next agent, then nvim, term — tabs, or panes in the split layout",
         "subcat": "Tabs"
       },
       {

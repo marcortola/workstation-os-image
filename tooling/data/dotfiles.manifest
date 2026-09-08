@@ -64,6 +64,7 @@ copy|.config/herdr/config.toml|dot_config/herdr/create_config.toml|-
 # discovers it from the linked directory, so every file must land together.
 scaffold|.config/herdr/plugins/dev-flow/herdr-plugin.toml|dot_config/herdr/plugins/dev-flow/herdr-plugin.toml|-
 scaffold|.config/herdr/plugins/dev-flow/adopt-worktrees.sh|dot_config/herdr/plugins/dev-flow/executable_adopt-worktrees.sh|-
+scaffold|.config/herdr/plugins/dev-flow/agent-add.sh|dot_config/herdr/plugins/dev-flow/executable_agent-add.sh|-
 scaffold|.config/herdr/plugins/dev-flow/agent-finished.sh|dot_config/herdr/plugins/dev-flow/agent-finished.sh|-
 scaffold|.config/herdr/plugins/dev-flow/agent-freshness.sh|dot_config/herdr/plugins/dev-flow/executable_agent-freshness.sh|-
 scaffold|.config/herdr/plugins/dev-flow/agent-status-reset.sh|dot_config/herdr/plugins/dev-flow/executable_agent-status-reset.sh|-

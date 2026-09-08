@@ -126,7 +126,7 @@ project twice no longer stacks duplicate workspaces. The compare is exact and
 matches the repository basename, so it never captures a worktree workspace,
 which the `dev.flow` popup labels with the branch slug.
 
-Either path then applies the default dev layout — `main` running the agent, plus
+Either path then applies the default dev layout — the agent's tab, plus
 `nvim` and `term`. The `dev.flow` plugin applies it only for a herdr-created
 worktree or from `prefix+shift+n`, and a workspace opened from the picker got
 neither. The picker calls `layout.sh` rather than `layout-toggle.sh`, because
@@ -560,10 +560,9 @@ Three rules, each with a failure behind it:
   mirrors every other one, so a second terminal would echo the first.
 - **Keep one default session.** The agent-state rollup is per server, so named
   sessions fragment the one thing herdr was adopted for.
-- **Run coding agents inside a herdr pane.** The config's own comment on the
-  bound `prefix+alt+o` opencode pane says it plainly: "an agent outside a herdr
-  pane never reaches the sidebar". Outside a pane the state hook exits 0
-  silently, so nothing warns you.
+- **Run coding agents inside a herdr pane.** `prefix+alt+a` is what puts one
+  there; an agent outside a herdr pane never reaches the sidebar, because the
+  state hook exits 0 silently and nothing warns you.
 
 ### The server is a unit
 
@@ -657,8 +656,9 @@ Conversations do come back. herdr records a native session reference per agent
 pane and `[session] resume_agents_on_restore` relaunches them; the seed pins it
 `true` even though that is already the default, because it is the primary resume
 path here rather than a convenience, and an upstream flip would take it away
-with nothing in this repository changing. `claude --continue` from the dev layout
-is the manual fallback for a pane the restore misses.
+with nothing in this repository changing. The dev layout's own resume — `claude
+--continue`, `codex resume --last`, chosen per agent by `agent_command` — is the
+manual fallback for a pane the restore misses.
 
 The window itself does not come back — nothing spawns it at login, by design.
 
@@ -680,18 +680,18 @@ asking inside the agent's tab made the answer depend on finding the agent first,
 which a split workspace whose agent pane had exited could not do. So the first
 press on a bare workspace builds, and every press after it alternates.
 
-The default is three tabs, `main` running the agent plus `nvim` and `term`. The
-alternative is a single `dev` tab holding all three:
+The default is three tabs: the agent's, named after the agent it runs, plus
+`nvim` and `term`. The alternative is a single `dev` tab holding all three:
 
 ```
 +----------+---------------------------+
 |          |           nvim            |
-|   main   +---------------------------+
+|  claude  +---------------------------+
 |   33%    |      term (a sliver)      |
 +----------+---------------------------+
 ```
 
-`main` keeps its third of the width whatever you are working in; the right-hand
+The agent keeps its third of the width whatever you are working in; the right-hand
 column is the editor's at rest and the terminal takes it on `prefix+t`. The three
 ratios are named constants at the top of
 `system_files/usr/share/workstation-os-image/dotfiles/dot_config/herdr/plugins/dev-flow/layout-common.sh`,
@@ -712,15 +712,21 @@ once its last pane leaves.
 `prefix+m`, `prefix+n` and `prefix+t` answer in both layouts. `focus-tab.sh`
 looks for a tab of that label first and falls back to a pane of that label
 anywhere in the workspace, which is why the split tab is called `dev` — a tab
-named `main` would be found first and the key would never reach the pane inside
-it. The fallback used to search only the focused tab, which made these three keys
-conditional: pressed from a scratch tab they did nothing at all, and silently. Focusing
-`nvim` or `term` also hands them the column, and focusing `main` does not: the
-resize is restricted to a `down` split, and the vertical split is the one that
-pins `main` to its third.
+named after a label would be found first and the key would never reach the pane
+inside it. The fallback used to search only the focused tab, which made these
+three keys conditional: pressed from a scratch tab they did nothing at all, and
+silently. Focusing `nvim` or `term` also hands them the column, and focusing an
+agent does not: the resize is restricted to a `down` split, and the vertical
+split is the one that pins the agent to its third.
 
-Arriving at `main` or `nvim` also restarts what should be running there. Those
-two destinations are a request to be in the agent or in the editor, and a pane
+`prefix+m` is not a label lookup at all. A checkout can hold several agents, so
+it asks `agent_slots_of` for every agent tab and pane in tab-bar order and moves
+to the one after whichever tab holds the focus, wrapping at the end — from the
+editor or the terminal it goes to the first. With one agent that is exactly what
+the key always did.
+
+Arriving at an agent or at `nvim` also restarts what should be running there.
+Those destinations are a request to be in that agent or in the editor, and a pane
 whose process has exited answers with a prompt instead — the tab is still there,
 still labelled, and empty. `relaunch_role_pane` hands it its command again under
 the rule the layouts already build under: a pane running anything at all is left
@@ -728,6 +734,51 @@ alone, and only an idle shell is started. The command comes from the pane's own
 cwd, so the editor comes back as `dev nvim` in a Dev Container project and the
 agent resumes the conversation while the checkout's last finish is still fresh.
 `term` is a shell by design and is never restarted.
+
+#### Several agents in one checkout
+
+A checkout holds as many agents as you give it, one tab each, and the tab is
+labelled with the agent's own name — `claude`, `codex`, `opencode`. The label is
+the whole record. It is what the tab bar shows, what every lookup in
+`layout-common.sh` matches exactly, and what `agent_command` turns back into a
+command line, so nothing keeps a slot-to-agent map that could fall out of step.
+herdr persists a tab's `custom_name` in `session.json`, which makes the set of
+agents in a checkout survive a server restart without any state of ours.
+
+`prefix+alt+a` adds one. It offers the kinds not already in the workspace and
+skips any whose binary is missing, then builds the tab and starts it exactly as
+the layouts do — `tab create`, then `pane run` with `agent_command`. One slot per
+kind, which is what keeps the label unique and every lookup an equality test; two
+of the same agent would need numbered slots and a map back to the kind.
+
+Both dev layouts are about the *primary* agent only — the first agent tab, the
+editor and the shell. Further agents are tabs neither layout touches, which is
+what lets a second agent survive `prefix+shift+n` and why neither builder needed
+a fourth ratio.
+
+Two rules keep the old shape working. A tab still labelled `main` is read as an
+agent slot, so a workspace laid out before the rename keeps its anchor rather
+than getting a second agent tab built beside the running one; `layout.sh` renames
+it to whatever herdr reports in it on the way through, so it survives one run.
+And `claim_agent_tabs` takes over a tab running an agent under the editor's or
+the terminal's name — starting `codex` by hand in the `term` tab is how a second
+agent got into a checkout before there was a key for it, and the split layout
+then adopted it as the terminal and folded a live agent into the sliver under the
+editor.
+
+Resume is per agent because the recency stamp is. `agent-finished.sh` keys it on
+the checkout *and* the agent, so `agent_command` answers `claude --continue`,
+`codex resume --last` or a clean start for the right one — keyed on the checkout
+alone, a codex finish put `claude --continue` into a checkout claude had never
+run in, which fails that pane into a bare shell. opencode always starts clean: it
+keeps every session in one SQLite database rather than per project, and whether
+its `--continue` is scoped to the directory is not established here, so resuming
+another checkout's conversation is the risk not worth taking.
+
+The space picker and the bar widget still show one row per checkout, carrying
+herdr's own rollup of the agents in it; the row's just-finished mark takes the
+newest of that checkout's stamps. Which agent wants you is `prefix+a`, the agent
+picker, which has always listed one row per pane.
 
 #### One key, and why it never duplicates
 
@@ -749,10 +800,11 @@ twice:
 
 - The builders ran unconditionally, so a second press stacked a second pair.
 - The agent's tab was taken as whichever tab came first. With the agent pane
-  exited, that was the editor's tab: it was renamed `main`, given a second
-  Neovim beside it, and left with no agent at all. Both layouts now find it by
-  label — the tab called `main`, or the pane called `main` inside the tab called
-  `dev` — and build a new one when the workspace has genuinely lost it.
+  exited, that was the editor's tab: it was renamed as the agent's, given a
+  second Neovim beside it, and left with no agent at all. Both layouts now find
+  it by label — a tab named after an agent, or a pane named after one inside the
+  tab called `dev` — and build a new one when the workspace has genuinely lost
+  it.
 - `pane move` answers a refusal with a *success* response carrying
   `changed: false` and a `reason` of `same_tab` or `zoomed_tab`, while `pane` —
   required on every answer — still reports the unchanged tab. Reading the tab id
@@ -856,7 +908,7 @@ model does not change when you switch tools. The seed paths are inventoried in
   vendored against a herdr that reported each foreground process as `argv0`;
   0.8.2 reports `name`/`argv`/`cmdline`, `jq`'s `test` aborts on the resulting
   null, and the probes answered "not a shell" and "not vim" for every pane. The
-  cost was invisible: `layout.sh` never started the agent in its `main` tab and
+  cost was invisible: `layout.sh` never started the agent in its own tab and
   `ctrl+hjkl` never reached Neovim or fzf, both without an error. `layout.sh` now
   asks whether the shell is the foreground process group — a comparison with no
   process names in it, which also rides through the `direnv hook fish` fish runs

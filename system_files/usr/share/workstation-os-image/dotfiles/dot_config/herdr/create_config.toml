@@ -84,13 +84,17 @@ focus_pane_down = "prefix+down"
 focus_pane_up = "prefix+up"
 focus_pane_right = "prefix+right"
 
-# OpenCode in a pane rather than its own bare foot window: an agent outside a
-# herdr pane never reaches the sidebar.
+# Another agent for the checkout in front of you, in a tab named after it.
+# Replaces the bare `opencode` pane this key used to open: that pane carried no
+# label, so neither layout could see it, prefix+m could not reach it, and herdr
+# closed it with the command. A tab is what makes an agent a slot.
 [[keys.command]]
-key = "prefix+alt+o"
-type = "pane"
-command = "opencode"
-description = "opencode in a pane"
+key = "prefix+alt+a"
+type = "popup"
+command = "$HOME/.config/herdr/plugins/dev-flow/agent-add.sh"
+description = "add an agent to this checkout"
+width = "60%"
+height = "40%"
 
 # Vim-aware pane focus: forwarded into the pane when it runs nvim or fzf,
 # handled by herdr otherwise.
@@ -195,8 +199,8 @@ description = "open worktrees of every repo"
 [[keys.command]]
 key = "prefix+m"
 type = "shell"
-command = "$HOME/.config/herdr/plugins/dev-flow/focus-tab.sh main"
-description = "focus main tab"
+command = "$HOME/.config/herdr/plugins/dev-flow/focus-tab.sh agent"
+description = "focus the next agent"
 
 [[keys.command]]
 key = "prefix+n"

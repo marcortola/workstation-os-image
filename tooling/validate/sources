@@ -107,7 +107,19 @@ require_file docs/README.md
 # systemd-oomd, which selects a cgroup rather than a process and so cannot be
 # governed by a per-process policy at all. Deleting either one costs every open
 # workspace, at a moment when the machine is already failing for another reason.
-(( $(wc -l < AGENTS.md) <= 398 ))
+# Raised to 410 for the multi-agent slot model, where the obvious tidy-up is the
+# thing that breaks it. A slot is a tab whose LABEL is the agent's own kind, and
+# `agent 1` / `agent 2` is what anyone would reach for instead -- it reads as the
+# general case. It is not: every lookup in `layout-common.sh` is an equality test
+# on that label, the layouts converge because a second run finds exactly what the
+# first built, and a label that changes when the agent does breaks all of it at
+# once. The legacy `main` half is the same trap from the other side: it looks
+# like dead compatibility code, and deleting it makes every workspace laid out
+# before the rename find no agent and build a SECOND agent tab beside the running
+# one. And the stamp's agent key looks redundant beside its checkout key right up
+# until a codex finish answers the resume question for claude, in a checkout
+# claude has never run in, which drops that pane to a bare shell.
+(( $(wc -l < AGENTS.md) <= 410 ))
 
 # README.md is a landing pad into docs/ and nothing else. Capped because it grows
 # back otherwise: it was 855 lines covering fourteen concerns before the handbook
@@ -482,6 +494,59 @@ for wired in executable_spaces.sh executable_agent-freshness.sh; do
 done
 grep -q 'sweep_parked' "$dev_flow/executable_spaces.sh"
 grep -q 'agent_parked_write' "$dev_flow/executable_spaces.sh"
+
+# More than one agent per checkout spans the plugin, the key map and the
+# manifest, and every way they can disagree is silent. A slot is a tab whose
+# LABEL is the agent's own name, which is what makes the set of agents durable
+# (herdr persists a tab's custom_name) and every lookup an equality test.
+#
+# AGENT_KINDS is that vocabulary, and agent_command is the only thing that turns
+# one back into a command line. A kind listed with no arm there is a tab that
+# gets created and then handed nothing: agent-add.sh refuses it at the last
+# step, and relaunch_role_pane leaves the pane at a shell forever.
+herdr_config_seed=system_files/usr/share/workstation-os-image/dotfiles/dot_config/herdr/create_config.toml
+require_file "$herdr_config_seed"
+agent_kinds=$(sed -n 's/^AGENT_KINDS="\(.*\)"$/\1/p' "$dev_flow/layout-common.sh")
+[[ -n $agent_kinds ]] || { echo "AGENT_KINDS is missing from layout-common.sh" >&2; exit 1; }
+agent_command_body=$(sed -n '/^agent_command() {/,/^}/p' "$dev_flow/layout-common.sh")
+[[ -n $agent_command_body ]] || { echo "agent_command is missing from layout-common.sh" >&2; exit 1; }
+for agent_kind in $agent_kinds; do
+    grep -q "^  $agent_kind)" <<<"$agent_command_body" ||
+        { echo "AGENT_KINDS names $agent_kind but agent_command has no arm for it" >&2; exit 1; }
+done
+# The reverse: the stamp that decides whether to resume is keyed per agent, and
+# claude_command was the single-agent version that read it keyed on the checkout
+# alone. Two builders would put `claude --continue` back into a checkout where
+# only codex ever ran, which fails that pane into a bare shell.
+if grep -rq 'claude_command' "$dev_flow"; then
+    echo "the single-agent command builder is back: $dev_flow" >&2
+    exit 1
+fi
+# shellcheck disable=SC2016 # literal fragment of the guarded script
+grep -qF 'agent_finished_write "$checkout" "$agent"' "$dev_flow/executable_spaces.sh"
+# shellcheck disable=SC2016 # literal fragment of the guarded script
+grep -qF 'agent_finished_write "$(agent_checkout_key "$checkout")" "$agent"' "$dev_flow/executable_agent-freshness.sh"
+# A tab running an agent under the editor's or the terminal's name is claimed as
+# that agent's slot before either layout resolves anything. Without it the split
+# layout adopts a live agent as its terminal and folds it into the sliver under
+# the editor -- which is what a hand-started second agent actually hit.
+for claiming in executable_layout.sh executable_layout-split.sh; do
+    # shellcheck disable=SC2016 # literal fragment of the guarded script
+    grep -qF 'claim_agent_tabs "$workspace"' "$dev_flow/$claiming"
+done
+# One key reaches every agent, so it asks for the next slot rather than for a
+# label. Left pointing at a label, prefix+m would reach whichever agent happened
+# to be named there and nothing else.
+grep -q 'focus-tab.sh agent' "$herdr_config_seed"
+grep -q 'agent-add.sh' "$herdr_config_seed"
+grep -q 'agent-add.sh' "$dev_flow/herdr-plugin.toml"
+# Every script of the plugin needs a manifest entry: herdr discovers the plugin
+# from the linked directory, so one missing file is a popup or a sourced library
+# that dies at its first line on a fresh machine.
+for plugin_script in "$dev_flow"/*.sh; do
+    grep -qF "|dot_config/herdr/plugins/dev-flow/$(basename "$plugin_script")|" tooling/data/dotfiles.manifest ||
+        { echo "dev-flow script has no manifest entry: $plugin_script" >&2; exit 1; }
+done
 
 # The herdr server owns its own cgroup, and one directive is the whole reason.
 # Left at systemd's default of control-group, the unit SIGTERMs the server and

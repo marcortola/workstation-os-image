@@ -41,9 +41,9 @@ event=${HERDR_PLUGIN_EVENT_JSON:-}
 
 # herdr's plugin envelope nests the payload under `data`; read both shapes so a
 # direct invocation with the event body alone still resolves.
-IFS=$'\t' read -r status pane workspace < <(
+IFS=$'\t' read -r status pane workspace agent < <(
     printf '%s' "$event" |
-        jq -r '(.data // .) | [(.agent_status // ""), (.pane_id // ""), (.workspace_id // "")] | @tsv'
+        jq -r '(.data // .) | [(.agent_status // ""), (.pane_id // ""), (.workspace_id // ""), (.agent // "")] | @tsv'
 )
 
 [ -n "$workspace" ] || exit 0
@@ -110,4 +110,15 @@ if [ -z "$checkout" ] && [ -n "$pane" ]; then
 fi
 [ -n "$checkout" ] || exit 0
 
-agent_finished_write "$(agent_checkout_key "$checkout")"
+# Which agent finished, because the stamp is keyed on that as well as on the
+# checkout: two agents in one checkout resume separately, and a finish credited
+# to the wrong one puts a resume flag into a pane that has nothing to resume.
+# The event carries the kind on herdr 0.8.2; the pane is asked only when it does
+# not. An unattributable finish is not stamped at all -- a stamp that names no
+# agent is the thing this key was widened to stop.
+if [ -z "$agent" ] && [ -n "$pane" ]; then
+    agent=$(herdr_cli pane get "$pane" | jq -r '.result.pane.agent // empty')
+fi
+[ -n "$agent" ] || exit 0
+
+agent_finished_write "$(agent_checkout_key "$checkout")" "$agent"

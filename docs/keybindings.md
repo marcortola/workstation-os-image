@@ -82,7 +82,7 @@ Written with the prefix here, unlike the reference below.
 | Key | Action |
 |---|---|
 | `Ctrl+H`, `Ctrl+J`, `Ctrl+K`, `Ctrl+L` | Focus panes, crossing into nvim. No prefix |
-| `Ctrl+G` `m` | `main`, where claude runs |
+| `Ctrl+G` `m` | Next agent — cycles the checkout's agent tabs |
 | `Ctrl+G` `n` | `nvim` — not next-tab |
 | `Ctrl+G` `t` | `term` |
 | `Ctrl+Alt+T` | `term`, no prefix |
@@ -98,7 +98,7 @@ Written with the prefix here, unlike the reference below.
 | `Ctrl+G` `a` | Agent picker, whatever needs you first |
 | `Ctrl+G` `a` then `enter` | Focus that agent's pane |
 | `Ctrl+G` `a` then `ctrl+o` | Send it a prompt without focusing it |
-| `Ctrl+G` `alt+o` | opencode in a pane |
+| `Ctrl+G` `alt+a` | Add an agent to this checkout |
 | `Ctrl+G` `u` | Pick a link out of the scrollback |
 | `Ctrl+G` `c` | New tab |
 | `Ctrl+G` `b` | Show or hide the sidebar |
@@ -277,7 +277,7 @@ tab that is already there.
 
 | Key | Action |
 |---|---|
-| `m`, `n`, `t` | Jump to `main`, `nvim`, `term` — tabs, or panes in the split layout |
+| `m`, `n`, `t` | Next agent, then `nvim`, `term` — tabs, or panes in the split layout |
 | `c` | New tab |
 | `1` … `9` | Tab by number |
 | `alt+x` | Close the tab |
@@ -287,7 +287,13 @@ Two of these skip the prefix: `ctrl+alt+n` and `ctrl+alt+p` cycle tabs, and
 
 In the split layout the same three keys reach panes instead, and `n` and `t`
 also hand the right-hand column to whichever of the two you asked for. `m` only
-focuses: `main` keeps its third of the width whatever you are working in.
+focuses: the agent keeps its third of the width whatever you are working in.
+
+`m` is the exception to "jump to a label": a checkout can hold several agents,
+each in a tab named after the agent it runs, so the key asks for the *next* one
+and wraps. With one agent that is what it always was. `alt+a` is what adds the
+second — a tab labelled `codex` or `opencode` beside the `claude` one, which
+both dev layouts then leave alone.
 
 ### Panes
 
@@ -308,7 +314,7 @@ focuses: `main` keeps its third of the width whatever you are working in.
 | `a` | Agent picker — read any pane, and send it a prompt with `ctrl+o` |
 | `g` | lazygit here |
 | `u` | Pick a link out of the scrollback |
-| `alt+o` | opencode in a pane |
+| `alt+a` | Add an agent to this checkout — claude, codex or opencode |
 | `b` | Show or hide the sidebar |
 | `?` | Every key, from herdr itself |
 

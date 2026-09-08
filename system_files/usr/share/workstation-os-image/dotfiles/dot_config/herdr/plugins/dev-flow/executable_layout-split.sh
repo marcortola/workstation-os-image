@@ -4,9 +4,14 @@
 #
 #   +--------+------------------+
 #   |        |       nvim       |
-#   |  main  +------------------+
+#   | claude +------------------+
 #   |  33%   |  term (a sliver) |
 #   +--------+------------------+
+#
+# The left pane is the PRIMARY agent and carries its own name as its label. A
+# checkout's further agents stay tabs of their own and are not folded in: this
+# tab has three panes and three ratios, and a fourth would leave every one of
+# them too narrow to read.
 #
 # The default layout is still layout.sh's three tabs; this one is the other half
 # of the prefix+shift+n toggle, and layout.sh takes it apart again. Neither
@@ -25,11 +30,16 @@ if [ -z "$workspace" ]; then
   exit 1
 fi
 
-# The agent's tab is what this is built around: `main` coming from the default
-# layout, `dev` coming from this one applied already, and a fresh one when the
-# workspace has lost it. Taking whichever tab came first is what used to build
-# the split around Neovim and leave the workspace with no agent.
-read -r dev_tab main_pane cwd <<<"$(layout_anchor "$workspace" "${2:-}")"
+# The agent's tab is what this is built around: the agent-named tab coming from
+# the default layout, `dev` coming from this one applied already, and a fresh
+# one when the workspace has lost it. Taking whichever tab came first is what
+# used to build the split around Neovim and leave the workspace with no agent.
+# A tab running an agent under the editor's or the terminal's name becomes that
+# agent's slot before anything is resolved, so the anchor and the two side roles
+# below all see the same set of tabs.
+claim_agent_tabs "$workspace"
+
+read -r dev_tab main_pane main_kind cwd <<<"$(layout_anchor "$workspace" "${2:-}")"
 if [ -z "$main_pane" ]; then
   echo "no agent pane in workspace $workspace" >&2
   exit 1
@@ -67,6 +77,14 @@ adopt_tab_pane() {
     fi
   fi
   if [ -z "$pane" ] || [ "$source_tab" = "$dev_tab" ]; then
+    return 1
+  fi
+  # An agent is never the editor or the terminal, whatever the label says.
+  # claim_agent_tabs renames the tabs this can happen to, so reaching here means
+  # a pane labelled by hand or an agent started since that ran; either way,
+  # answer "nothing to adopt" and let the caller build the role a pane of its
+  # own rather than folding a live agent into the sliver.
+  if [ -n "$(pane_agent_of "$pane")" ]; then
     return 1
   fi
   tab_unzoom "$pane"
@@ -124,7 +142,7 @@ fi
 # prefix+n and prefix+t by looking for a tab of that label first, and would stop
 # at this one instead of reaching the pane inside it.
 herdr_cli tab rename "$dev_tab" dev >/dev/null
-pane_rename "$main_pane" main
+pane_rename "$main_pane" "$main_kind"
 pane_rename "$nvim_pane" nvim
 pane_rename "$term_pane" term
 
@@ -133,7 +151,7 @@ pane_rename "$term_pane" term
 # one is old enough to ask, and asking is what puts the editor back in a pane
 # the last session quit out of.
 if pane_is_free "$main_pane"; then
-  herdr_cli pane run "$main_pane" "$(claude_command "$cwd")" >/dev/null
+  herdr_cli pane run "$main_pane" "$(agent_command "$main_kind" "$cwd")" >/dev/null
 fi
 if [ "$nvim_created" = 1 ] || pane_is_free "$nvim_pane"; then
   herdr_cli pane run "$nvim_pane" "$(editor_command "$cwd")" >/dev/null

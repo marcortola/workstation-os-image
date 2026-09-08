@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# The default dev layout: three tabs -- main running the agent, plus nvim and
-# term. Applied for a herdr-created worktree, for a project picked from the
+# The default dev layout: three tabs -- the primary agent's, named after the
+# agent it runs, plus nvim and term. Applied for a herdr-created worktree, for a project picked from the
 # workstation-dev picker, and as one half of the prefix+shift+n toggle, which is
 # also what takes the split layout (layout-split.sh) apart again.
 #
@@ -21,7 +21,12 @@ if [ -z "$workspace" ]; then
   exit 1
 fi
 
-read -r main_tab main_pane cwd <<<"$(layout_anchor "$workspace" "${2:-}")"
+# A tab running an agent under the editor's or the terminal's name becomes that
+# agent's slot before anything is resolved, so the anchor and the two side roles
+# below all see the same set of tabs.
+claim_agent_tabs "$workspace"
+
+read -r main_tab main_pane main_kind cwd <<<"$(layout_anchor "$workspace" "${2:-}")"
 if [ -z "$main_pane" ]; then
   echo "no agent pane in workspace $workspace" >&2
   exit 1
@@ -107,10 +112,13 @@ if [ -n "$split_nvim" ] || [ -n "$split_term" ]; then
   pane_rename "$main_pane" ""
 fi
 
-herdr_cli tab rename "$main_tab" main >/dev/null
+# The tab takes the agent's own name, which is also what renames a workspace
+# laid out before the label became the kind: `main` says nothing about which
+# agent is in it, and layout_anchor has already resolved that from the pane.
+herdr_cli tab rename "$main_tab" "$main_kind" >/dev/null
 
 if pane_is_free "$main_pane"; then
-  herdr_cli pane run "$main_pane" "$(claude_command "$cwd")" >/dev/null
+  herdr_cli pane run "$main_pane" "$(agent_command "$main_kind" "$cwd")" >/dev/null
 fi
 
 ensure_tab_running nvim "$(editor_command "$cwd")"

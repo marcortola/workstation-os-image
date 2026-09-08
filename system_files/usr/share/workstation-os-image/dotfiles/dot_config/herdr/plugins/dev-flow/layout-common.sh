@@ -2,12 +2,17 @@
 # Everything the two dev layouts share.
 #
 # There are two, and either can be applied on top of the other. layout.sh builds
-# the default three tabs -- main running the agent, plus nvim and term.
-# layout-split.sh builds the single `dev` tab that pins main to a third of the
-# width and stacks the editor over the terminal in the rest. layout-toggle.sh is
-# the one key both answer to; it reads which is applied and runs the other.
-# Switching moves the live panes rather than recreating them, so the agent keeps
-# its conversation and Neovim keeps its unsaved buffers.
+# the default three tabs -- the primary agent's, plus nvim and term.
+# layout-split.sh builds the single `dev` tab that pins the agent to a third of
+# the width and stacks the editor over the terminal in the rest.
+# layout-toggle.sh is the one key both answer to; it reads which is applied and
+# runs the other. Switching moves the live panes rather than recreating them, so
+# the agent keeps its conversation and Neovim keeps its unsaved buffers.
+#
+# Both layouts are about ONE agent: the primary slot, the editor and the shell.
+# A checkout's further agents are tabs of their own, added by agent-add.sh and
+# touched by neither layout -- which is what lets a second agent survive a
+# toggle, and why neither builder needed a fourth ratio.
 #
 # Two rules hold every lookup here together, and both were learned from a
 # workspace that had drifted:
@@ -49,6 +54,28 @@ layout_common_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 LAYOUT_MAIN_RATIO=0.33
 LAYOUT_EDITOR_RATIO=0.85
 LAYOUT_TERMINAL_RATIO=0.3
+
+# The agent kinds a checkout can hold, and the label an agent's slot carries.
+#
+# The label IS the kind. It is what the tab bar shows, what every lookup here
+# matches exactly, and what agent_command turns back into a command line, so
+# nothing has to keep a slot-to-agent map in step. herdr persists a tab's
+# custom_name in session.json, which makes the set of agents in a checkout
+# durable across a server restart without any state of ours.
+#
+# One slot per kind, which is what keeps the label unique and every lookup an
+# equality test. Two of the same agent in one checkout would need numbered slots
+# and a map back to the kind, and neither exists here.
+AGENT_KINDS="claude codex opencode"
+AGENT_DEFAULT_KIND=claude
+
+# What the agent's tab was called before the label became the kind. Read as an
+# agent slot so a workspace laid out by an older version keeps its anchor --
+# without this the layouts find no agent, build a second tab beside the running
+# one, and the duplication this file exists to prevent is exactly what the
+# upgrade produces. layout.sh renames it on the way through, so it survives one
+# run per workspace.
+AGENT_LEGACY_LABEL=main
 
 herdr_cli() {
   "${HERDR_BIN_PATH:-herdr}" "$@"
@@ -125,6 +152,11 @@ first_pane_of_tab() {
   herdr_cli pane list --workspace "$1" | jq -r --arg tab "$2" '[.result.panes[] | select(.tab_id == $tab) | .pane_id] | first // empty'
 }
 
+tab_label_of() {
+  herdr_cli tab list --workspace "$1" |
+    jq -r --arg tab "$2" '[.result.tabs[] | select(.tab_id == $tab) | .label // ""] | first // empty'
+}
+
 # Panes carry a label of their own, set by `pane rename` and reported by both
 # `pane list` and `layout.export`. The split layout names its three panes after
 # the tabs the default layout would have given them, which is what lets
@@ -151,33 +183,165 @@ labelled_pane_of() {
 # The agent's pane, by label first and by position only as a fallback. The
 # split layout labels all three, and `pane list` order is not a promise, so
 # asking for the label is what keeps "run the agent here" pointed at the agent.
+#
+# $3 is the slot's own label, because that is now the agent's kind rather than
+# the constant `main`.
 main_pane_of_tab() {
   local pane
-  pane=$(pane_by_label "$1" "$2" main)
+  pane=$(pane_by_label "$1" "$2" "$3")
   if [ -z "$pane" ]; then
     pane=$(first_pane_of_tab "$1" "$2")
   fi
   printf '%s\n' "$pane"
 }
 
-# The tab the agent lives in, and empty when the workspace has lost it.
+# Is this label an agent slot? The legacy name answers yes so a workspace laid
+# out before the rename keeps its anchor.
+agent_label_is_slot() {
+  case " $AGENT_KINDS $AGENT_LEGACY_LABEL " in
+  *" $1 "*) return 0 ;;
+  esac
+  return 1
+}
+
+# Every agent tab of the workspace, in tab-bar order, and every agent pane of it
+# for the split layout. Both are lists: a checkout holds as many agents as it
+# has been given, and the first is the primary slot the layouts build around.
+agent_tabs_of() {
+  herdr_cli tab list --workspace "$1" |
+    jq -r --arg slots "$AGENT_KINDS $AGENT_LEGACY_LABEL" \
+      '($slots | split(" ")) as $known
+       | .result.tabs[] | select(.label as $l | $known | index($l)) | .tab_id'
+}
+
+agent_panes_of() {
+  herdr_cli pane list --workspace "$1" |
+    jq -r --arg slots "$AGENT_KINDS $AGENT_LEGACY_LABEL" \
+      '($slots | split(" ")) as $known
+       | .result.panes[] | select(.label as $l | $known | index($l))
+       | "\(.tab_id) \(.pane_id) \(.label)"'
+}
+
+# Every agent slot of the workspace, in tab-bar order, as
+# `<tab id>\t<pane id or empty>\t<label>`.
 #
-# Both layouts mark it: the default one names the TAB `main`, the split one
-# names the PANE `main` inside the tab it calls `dev`. A workspace carrying
+# One list covering both layouts, because prefix+m has to reach every agent
+# under either: the split layout's agent is a PANE inside the `dev` tab, the
+# default layout's is a TAB, and a split workspace with a second agent has one
+# of each. A tab holding an agent pane is reported through that pane, so no slot
+# appears twice.
+#
+# Two reads, joined here rather than one read per tab: the picker's own budget
+# is the reason this file asks herdr as little as it does.
+agent_slots_of() {
+  jq -rn \
+    --argjson tabs "$(herdr_cli tab list --workspace "$1")" \
+    --argjson panes "$(herdr_cli pane list --workspace "$1")" \
+    --arg slots "$AGENT_KINDS $AGENT_LEGACY_LABEL" '
+      ($slots | split(" ")) as $known
+      | ($panes.result.panes | map(select(.label as $l | $known | index($l)))) as $agent_panes
+      | $tabs.result.tabs[]
+      | . as $t
+      | ($agent_panes | map(select(.tab_id == $t.tab_id)) | first) as $p
+      | if $p != null then [$t.tab_id, $p.pane_id, $p.label]
+        elif ($known | index($t.label // "")) != null then [$t.tab_id, "", $t.label]
+        else empty end
+      | @tsv'
+}
+
+# What herdr says is running in a pane, which is how a slot built before this
+# existed learns its own kind. Empty when the pane holds no agent -- the agent
+# quit, or it never was one.
+pane_agent_of() {
+  herdr_cli pane get "$1" | jq -r '.result.pane.agent // empty'
+}
+
+# The kind of an existing agent slot: what herdr reports in it, falling back to
+# the label when the pane is empty, and to the default when the label is the
+# legacy one and so says nothing about which agent it held.
+agent_kind_of() {
+  local label=$1 pane=${2:-} kind=
+  if [ -n "$pane" ]; then
+    kind=$(pane_agent_of "$pane")
+  fi
+  if [ -n "$kind" ] && agent_label_is_slot "$kind" && [ "$kind" != "$AGENT_LEGACY_LABEL" ]; then
+    printf '%s\n' "$kind"
+    return 0
+  fi
+  if [ "$label" != "$AGENT_LEGACY_LABEL" ] && agent_label_is_slot "$label"; then
+    printf '%s\n' "$label"
+    return 0
+  fi
+  printf '%s\n' "$AGENT_DEFAULT_KIND"
+}
+
+# Take over a tab running an agent under one of the layout's other names.
+#
+# Starting a second agent by hand in the `term` tab is how one got into a
+# checkout before there was a key for it, and the tab kept the terminal's name.
+# The split layout then adopted it as the terminal and folded a live agent into
+# the sliver under the editor, and the default layout left it for prefix+t to
+# land in. Renaming the tab to the agent it actually runs makes it an agent slot
+# instead, and the layouts build the missing terminal beside it.
+#
+# Only `nvim` and `term` are claimed, and only when herdr reports an agent in
+# them. An unlabelled tab is left alone: a tab opened by hand is not a slot
+# until something names it.
+claim_agent_tabs() {
+  local workspace=$1 label tab pane agent
+  for label in nvim term; do
+    while IFS= read -r tab; do
+      [ -n "$tab" ] || continue
+      pane=$(first_pane_of_tab "$workspace" "$tab")
+      [ -n "$pane" ] || continue
+      agent=$(pane_agent_of "$pane")
+      [ -n "$agent" ] || continue
+      [ "$agent" != "$AGENT_LEGACY_LABEL" ] || continue
+      agent_label_is_slot "$agent" || continue
+      herdr_cli tab rename "$tab" "$agent" >/dev/null
+    done < <(tabs_by_label "$workspace" "$label")
+  done
+}
+
+# The tab the primary agent lives in, as `<tab id> <label>`, and empty when the
+# workspace has lost it.
+#
+# Both layouts mark it: the default one names the TAB after the agent, the split
+# one names the PANE after it inside the tab it calls `dev`. A workspace carrying
 # neither mark has never been laid out, and there the first tab IS the agent's,
 # because it is the tab the layout is about to be built around.
+#
+# The label comes back with the tab because it is the agent's kind, and every
+# caller needs it to know what to run there.
 agent_tab_of() {
-  local workspace=$1 located tab
+  local workspace=$1 located tab label pane first='' first_label=''
 
-  located=$(labelled_pane_of "$workspace" main)
+  located=$(agent_panes_of "$workspace" | head -1)
   if [ -n "$located" ]; then
-    printf '%s\n' "${located%% *}"
+    read -r tab pane label <<<"$located"
+    printf '%s %s\n' "$tab" "$label"
     return 0
   fi
 
-  tab=$(layout_tab_for_label "$workspace" main)
-  if [ -n "$tab" ]; then
-    printf '%s\n' "$tab"
+  # Same tie-break layout_tab_for_label applies to one label, across the agent
+  # tabs: a tab whose pane is running something is the one in use, and with
+  # duplicates present taking the first would strand it.
+  while IFS= read -r tab; do
+    [ -n "$tab" ] || continue
+    label=$(tab_label_of "$workspace" "$tab")
+    if [ -z "$first" ]; then
+      first=$tab
+      first_label=$label
+    fi
+    pane=$(first_pane_of_tab "$workspace" "$tab")
+    if [ -n "$pane" ] && ! pane_is_free "$pane"; then
+      printf '%s %s\n' "$tab" "$label"
+      return 0
+    fi
+  done < <(agent_tabs_of "$workspace")
+
+  if [ -n "$first" ]; then
+    printf '%s %s\n' "$first" "$first_label"
     return 0
   fi
 
@@ -196,7 +360,12 @@ agent_tab_of() {
     return 0
   fi
 
-  first_tab_of "$workspace"
+  # Never laid out: the first tab is the agent's, and it carries no label yet.
+  # The empty second field is what tells the caller to work the kind out from
+  # whatever is running in it.
+  tab=$(first_tab_of "$workspace")
+  [ -n "$tab" ] || return 0
+  printf '%s \n' "$tab"
 }
 
 pane_rename() {
@@ -273,30 +442,42 @@ tab_clear_label() {
 
 # Build the agent a tab of its own, as `<tab id> <pane id>`.
 create_agent_tab() {
-  herdr_cli tab create --workspace "$1" --label main --cwd "$2" --no-focus |
+  herdr_cli tab create --workspace "$1" --label "$3" --cwd "$2" --no-focus |
     jq -r 'select(.result.tab.tab_id and .result.root_pane.pane_id) |
       "\(.result.tab.tab_id) \(.result.root_pane.pane_id)"'
 }
 
-# Where a layout starts from: the agent's tab, its pane, and the directory to
-# work in, as `<tab id> <pane id> <cwd>`. Empty when the workspace holds no pane
-# at all to read a directory from.
+# Where a layout starts from: the primary agent's tab, its pane, which agent it
+# is, and the directory to work in, as `<tab id> <pane id> <kind> <cwd>`. Empty
+# when the workspace holds no pane at all to read a directory from.
+#
+# The kind comes before the cwd so the cwd stays the trailing field: a caller
+# reads all four with one `read -r`, and a directory containing a space still
+# arrives whole.
 #
 # The caller's own second argument wins for the directory: worktree-create.sh
 # and workstation-dev both know the checkout before any of these panes exist.
 #
 # A workspace that has lost the agent's tab -- the agent quit, then the shell
-# exited, so herdr closed the pane and the tab with it -- gets a new one here.
-# Both layouts used to take the first tab instead, which handed the agent's slot
-# to Neovim and started a second editor beside it.
+# exited, so herdr closed the pane and the tab with it -- gets a new one here,
+# for the agent it last held rather than for the default one. Both layouts used
+# to take the first tab instead, which handed the agent's slot to Neovim and
+# started a second editor beside it.
 layout_anchor() {
-  local workspace=$1 explicit=${2:-} tab pane cwd
+  local workspace=$1 explicit=${2:-} located tab label pane kind cwd
 
-  tab=$(agent_tab_of "$workspace")
+  located=$(agent_tab_of "$workspace")
+  tab=
+  label=
+  if [ -n "$located" ]; then
+    read -r tab label <<<"$located"
+  fi
+
   pane=
   if [ -n "$tab" ]; then
-    pane=$(main_pane_of_tab "$workspace" "$tab")
+    pane=$(main_pane_of_tab "$workspace" "$tab" "$label")
   fi
+  kind=$(agent_kind_of "$label" "$pane")
 
   cwd=$explicit
   if [ -z "$cwd" ] && [ -n "$pane" ]; then
@@ -308,11 +489,11 @@ layout_anchor() {
   [ -n "$cwd" ] || return 1
 
   if [ -z "$pane" ]; then
-    read -r tab pane <<<"$(create_agent_tab "$workspace" "$cwd")"
+    read -r tab pane <<<"$(create_agent_tab "$workspace" "$cwd" "$kind")"
     [ -n "$pane" ] || return 1
   fi
 
-  printf '%s %s %s\n' "$tab" "$pane" "$cwd"
+  printf '%s %s %s %s\n' "$tab" "$pane" "$kind" "$cwd"
 }
 
 # Whether the pane is idle, asked as "is the shell itself the foreground process
@@ -356,21 +537,43 @@ editor_command() {
   printf 'nvim\n'
 }
 
-# A checkout that has ever finished a turn reopens with `claude --continue`;
-# one that has not starts clean, because there is nothing to continue and
-# `--continue` would fail the pane into a bare shell.
+# What to run in an agent's pane. A checkout where THIS agent has finished a
+# turn reopens on the conversation it left; one where it has not starts clean,
+# because there is nothing to resume and the resume flag would fail the pane
+# into a bare shell.
+#
+# All three resume from the directory they are started in: `claude --continue`
+# is scoped to the current directory, and `codex resume --last` filters by cwd
+# unless `--all` is passed, which is why neither needs a session id here. The
+# stamp answers only whether there is anything to resume, and it is keyed per
+# agent for exactly this: keyed on the checkout alone, a codex finish put
+# `claude --continue` into a checkout claude had never run in.
+#
+# opencode is the exception and always starts clean. It keeps every session in
+# one SQLite database rather than per project, and whether its `--continue` is
+# scoped to the directory is not established here -- resuming another checkout's
+# conversation is a worse failure than starting a new one.
 #
 # The stamp is read as a fact, not as a clock: no age window closes a
 # conversation. herdr restores the exact conversation on its own at server
 # start with no age limit of its own, so a window here would only make the two
 # disagree after a reboot -- and a conversation is finished when the checkout
 # is removed, which is a deliberate act with its own popup.
-claude_command() {
-  if agent_finished_age "$(agent_checkout_key "$1")" >/dev/null; then
-    printf 'claude --continue\n'
-  else
-    printf 'claude\n'
+agent_command() {
+  local agent=$1 cwd=$2 resumable=no
+  if agent_finished_age "$(agent_checkout_key "$cwd")" "$agent" >/dev/null; then
+    resumable=yes
   fi
+  case $agent in
+  claude)
+    if [ "$resumable" = yes ]; then printf 'claude --continue\n'; else printf 'claude\n'; fi
+    ;;
+  codex)
+    if [ "$resumable" = yes ]; then printf 'codex resume --last\n'; else printf 'codex\n'; fi
+    ;;
+  opencode) printf 'opencode\n' ;;
+  *) return 1 ;;
+  esac
 }
 
 layout_export_tab() {
@@ -424,12 +627,12 @@ layout_grow_pane() {
 
 # Hand a role's command back to a pane that has fallen back to the shell.
 #
-# Focusing `main` or `nvim` is a request to be in the agent or in the editor,
-# and a pane whose process has exited answers with a prompt instead -- the tab
-# is still there, still labelled, and empty. The layouts start those two panes
-# under exactly this rule, so the same predicate decides here: a pane running
-# anything at all is left alone, and only an idle shell is started again. `term`
-# is a shell by design and is never restarted.
+# Focusing an agent slot or `nvim` is a request to be in that agent or in the
+# editor, and a pane whose process has exited answers with a prompt instead --
+# the tab is still there, still labelled, and empty. The layouts start those
+# panes under exactly this rule, so the same predicate decides here: a pane
+# running anything at all is left alone, and only an idle shell is started
+# again. `term` is a shell by design and is never restarted.
 #
 # The command is worked out from the pane's own cwd, so a restarted editor still
 # gets `dev nvim` in a Dev Container project and a restarted agent still resumes
@@ -437,17 +640,19 @@ layout_grow_pane() {
 relaunch_role_pane() {
   local label=$1 pane=$2 cwd command
   [ -n "$pane" ] || return 0
-  case $label in
-  main | nvim) ;;
-  *) return 0 ;;
-  esac
+  if [ "$label" != nvim ] && ! agent_label_is_slot "$label"; then
+    return 0
+  fi
   pane_is_free "$pane" || return 0
   cwd=$(pane_cwd "$pane")
   [ -n "$cwd" ] || return 0
-  if [ "$label" = main ]; then
-    command=$(claude_command "$cwd")
-  else
+  if [ "$label" = nvim ]; then
     command=$(editor_command "$cwd")
+  else
+    # An agent slot restarts as the agent its label names. The legacy label
+    # names none, so it resolves through the same rule the layouts use: what the
+    # pane last held, and the default when it held nothing.
+    command=$(agent_command "$(agent_kind_of "$label" "$pane")" "$cwd") || return 0
   fi
   herdr_cli pane run "$pane" "$command" >/dev/null
 }

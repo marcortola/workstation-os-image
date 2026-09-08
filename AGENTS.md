@@ -228,6 +228,17 @@ prefer them over reinventing the shape:
   on dead chords free the keys the rest moves into -- so run `herdr config
   check` after any edit; it reports a collision as `kept keys.X, disabled
   keys.Y` rather than failing.
+- A checkout holds one agent per KIND, each in a tab labelled with the agent's
+  own name -- `claude`, `codex`, `opencode`. The label IS the record: nothing
+  keeps a slot-to-agent map, `session.json` persists a tab's `custom_name` so the
+  set survives a restart, and `agent_command` turns the label back into a command
+  line (`AGENT_KINDS` and its `case` arms are gated to agree). Never renumber
+  them: a mutable label breaks every exact-match lookup here at once. A tab still
+  called `main` is read as a slot and renamed on the next layout run, and
+  `claim_agent_tabs` takes over a `nvim`/`term` tab herdr reports an agent in --
+  without it the split layout folds a live agent into the sliver. Both layouts
+  build around the PRIMARY agent only; further agents are tabs neither touches.
+  `prefix+alt+a` adds one, `prefix+m` cycles them.
 - Both dev layouts avoid `layout.apply`, which replaces the tab it is handed
   and restarts the agent in it: `layout.sh` (three tabs, the default) builds
   with `tab create`, `layout-split.sh` (one tab) with `pane split`, and
@@ -237,14 +248,14 @@ prefer them over reinventing the shape:
   the label, find the agent by label and never by position, and never build a
   replacement for a pane `pane move` refused -- a refusal is a SUCCESS reply
   carrying `changed:false`. The split tab is named `dev`: `focus-tab.sh` resolves
-  `main`/`nvim`/`term` as tabs first, and it is also the split layout's only mark
-  that survives a restart, since `session.json` persists a tab's `custom_name`
-  but of a pane only cwd and agent session. `layout-toggle.sh` tests it beside
-  the pane labels, or a reboot rebuilds the default layout over a live split one.
-- herdr times nothing: `agent list` carries `state_change_seq`, a counter, and
-  no clock. Every recency answer comes from one stamp per checkout, read through
-  `dev-flow/agent-finished.sh` -- the picker's just-finished mark and the sidebar
-  badge. Never add a second recency source. One clock, two writers: the
+  tabs first, and it is also the split layout's only mark that survives a
+  restart, since `session.json` persists no pane label at all.
+  `layout-toggle.sh` tests it beside the pane labels, or a reboot rebuilds the
+  default layout over a live split one.
+- herdr times nothing: `agent list` carries `state_change_seq`, a counter, and no
+  clock. Every recency answer comes from one stamp per checkout AND agent, read
+  through `dev-flow/agent-finished.sh` -- the picker's just-finished mark and the
+  sidebar badge. Never add a second recency source. One clock, two writers: the
   `pane.agent_status_changed` hook stamps when the turn ends, and `spaces.sh`'s
   parked sweep re-stamps when background work that turn left running actually
   exits. Never suppress or defer the hook's stamp to wait for that -- the sidebar
@@ -254,14 +265,15 @@ prefer them over reinventing the shape:
   same ids, and a stale `working` makes the first idle after a restore read as a
   turn that ended while the server was off.
 - The stamp never expires. A checkout leaves the picker by being removed -- the
-  closed rows come from `git worktree list` -- and `claude_command` reads the
-  stamp as a fact: one that exists means `claude --continue`, none means a clean
-  start, since `--continue` without a conversation fails the pane into a bare
-  shell. Never re-add an age window: herdr restores the exact conversation at
-  server start with no age limit, so a window here can only disagree with it
-  after a reboot. That restore is `[session] resume_agents_on_restore`, pinned
-  true in the config seed because it is now load-bearing rather than a
-  convenience.
+  closed rows come from `git worktree list` -- and `agent_command` reads it as a
+  fact: a stamp for THAT agent resumes (`claude --continue`, `codex resume
+  --last`), none starts clean, since a resume flag with no conversation fails the
+  pane into a bare shell. opencode always starts clean -- one SQLite store, cwd
+  scoping unestablished. Never re-add an age window: herdr restores the exact
+  conversation at server start with no age limit, so a window here can only
+  disagree with it after a reboot. That restore is
+  `[session] resume_agents_on_restore`, pinned true in the config seed because it
+  is load-bearing rather than a convenience.
 - herdr's `idle` means no foreground turn, never no work: upstream removed the
   rule that reported a live background shell as `working` and added a test
   guarding it. A parked checkout -- turn over, background work alive -- is

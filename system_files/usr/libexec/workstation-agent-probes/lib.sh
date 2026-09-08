@@ -66,14 +66,20 @@ agent_parked_probe() {
 }
 
 # What was parked when this last ran, as
-# `<pane id>\t<workspace id>\t<checkout>\t<session id>\t<nagged>` lines. The
-# unpark edge is the difference between this and the current answer, and it is
-# the only thing that knows a background task has ended: no agent emits an event
-# for it, which is why the sweep is a poll.
+# `<pane id>\t<workspace id>\t<checkout>\t<session id>\t<nagged>\t<agent>` lines.
+# The unpark edge is the difference between this and the current answer, and it
+# is the only thing that knows a background task has ended: no agent emits an
+# event for it, which is why the sweep is a poll.
 #
 # The session id is carried because a pane id is workspace scoped and herdr
 # reuses it; a marker that outlived its server would otherwise hand a row the
 # checkout of whatever used to hold that id.
+#
+# The agent is carried because the stamp the unpark edge writes is keyed on the
+# checkout AND the agent, and by then the pane may be gone with nothing left to
+# ask. A marker written before this column existed has five fields; spaces.sh
+# reads the missing one as claude, which is the only agent that has ever had a
+# probe and so the only one that can have been parked.
 agent_parked_previous() {
     cat "$AGENT_PARKED_FILE" 2>/dev/null || true
 }

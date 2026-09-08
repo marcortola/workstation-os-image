@@ -67,8 +67,12 @@ read_state() {
 # nothing. The cost is that a row build writes: the same stamp, through the same
 # function, on the same clock as the hook. One clock, two writers.
 unpark() {
-  local pane=$1 workspace=$2 checkout=$3 status
+  local pane=$1 workspace=$2 checkout=$3 agent=${4:-} status
   [ -n "$checkout" ] || return 0
+  # Markers written before the stamp key grew its agent half carry no kind.
+  # claude is the only agent with a probe, so it is the only one that has ever
+  # been parked, and every such marker is its.
+  [ -n "$agent" ] || agent=$AGENT_LEGACY_KIND
   # The marker outlives the checkout it names. A directory that is gone is not a
   # finish worth recording, and agent_finished_write would key the stamp on a
   # path nothing will ever ask about again.
@@ -85,7 +89,7 @@ unpark() {
     working | blocked) return 0 ;;
   esac
 
-  agent_finished_write "$checkout"
+  agent_finished_write "$checkout" "$agent"
 
   # The sidebar badge is the same answer in herdr's own state, expired by TTL
   # rather than swept. Only while the space is still open and quiet; a pane that
@@ -128,8 +132,8 @@ sweep_parked() {
   current=$(
     printf '%s' "$panes" | jq -r --argjson parked "$parked" \
       '.[] | select(.pane_id | IN($parked[]))
-           | [.pane_id, (.workspace_id // ""), (.cwd // ""), (.agent_session.value // "")] | @tsv' |
-      while IFS=$'\t' read -r pane workspace cwd session; do
+           | [.pane_id, (.workspace_id // ""), (.cwd // ""), (.agent_session.value // ""), (.agent // "")] | @tsv' |
+      while IFS=$'\t' read -r pane workspace cwd session agent; do
         [ -n "$cwd" ] || continue
         checkout=$(printf '%s' "$previous" |
           awk -F'\t' -v p="$pane" -v s="$session" '$1 == p && $4 == s { print $3; exit }')
@@ -140,7 +144,7 @@ sweep_parked() {
           nagged=no
         fi
         [ -n "$nagged" ] || nagged=no
-        printf '%s\t%s\t%s\t%s\t%s\n' "$pane" "$workspace" "$checkout" "$session" "$nagged"
+        printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$pane" "$workspace" "$checkout" "$session" "$nagged" "$agent"
       done
   )
 
@@ -148,13 +152,13 @@ sweep_parked() {
   # recording, so a kill between the two repeats the stamp on the next tick
   # rather than losing it. A row already nagged was called finished once and
   # must not be called finished again when it finally goes.
-  while IFS=$'\t' read -r pane workspace checkout session nagged; do
+  while IFS=$'\t' read -r pane workspace checkout session nagged agent; do
     [ -n "$pane" ] || continue
     if printf '%s' "$current" | cut -f1,4 | grep -qxF "$pane$(printf '\t')$session"; then
       continue
     fi
     if [ "$nagged" != yes ]; then
-      unpark "$pane" "$workspace" "$checkout"
+      unpark "$pane" "$workspace" "$checkout" "$agent"
     fi
   done <<<"$previous"
 
@@ -165,18 +169,18 @@ sweep_parked() {
   # pane is not re-nagged and not read as an unpark when the task really ends.
   # No new clock -- the age is the existing stamp through the existing accessor.
   nagged_ids=
-  while IFS=$'\t' read -r pane workspace checkout session nagged; do
+  while IFS=$'\t' read -r pane workspace checkout session nagged agent; do
     [ -n "$checkout" ] || continue
     [ "$nagged" = no ] || continue
-    if age=$(agent_finished_age "$checkout") && [ "$age" -gt "$AGENT_PARKED_NAG_SECONDS" ]; then
-      unpark "$pane" "$workspace" "$checkout"
+    if age=$(agent_finished_age "$checkout" "${agent:-$AGENT_LEGACY_KIND}") && [ "$age" -gt "$AGENT_PARKED_NAG_SECONDS" ]; then
+      unpark "$pane" "$workspace" "$checkout" "$agent"
       nagged_ids=$nagged_ids$pane$'\n'
     fi
   done <<<"$current"
   if [ -n "$nagged_ids" ]; then
     current=$(printf '%s' "$current" | awk -F'\t' -v ids="$nagged_ids" '
       BEGIN { n = split(ids, a, "\n"); for (i = 1; i <= n; i++) if (a[i] != "") flagged[a[i]] = 1 }
-      { if ($1 in flagged) $5 = "yes"; print $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5 }')
+      { if ($1 in flagged) $5 = "yes"; print $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5 "\t" $6 }')
   fi
 
   [ -z "$current" ] || current=$current$'\n'
@@ -252,8 +256,13 @@ rows_json() {
                    elif is_parked and ((.agent_status == "idle") or (.agent_status == "done")) then "parked"
                    else .agent_status end;
         # herdr times nothing, so recency comes from the stamp agent-freshness.sh
-        # writes per checkout on pane.agent_status_changed.
-        def finished_at: $finished[checkout] // null;
+        # writes per checkout and agent on pane.agent_status_changed.
+        #
+        # A row is a checkout, so it takes the newest of its agents: the mark
+        # answers whether something here finished, which is the question a
+        # one-row-per-checkout list can ask. Which agent it was is what the
+        # agent picker on prefix+a answers. No apostrophes, as above.
+        def finished_at: ($finished[checkout] // {}) | [.[]] | max;
         # Working again means you already answered it, so the mark goes as soon
         # as the space goes back to work -- the same moment the hook clears the
         # sidebar token.

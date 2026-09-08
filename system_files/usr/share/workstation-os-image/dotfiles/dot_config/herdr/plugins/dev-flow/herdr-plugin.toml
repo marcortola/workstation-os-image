@@ -43,6 +43,14 @@ title = "Apply split layout"
 contexts = ["workspace"]
 command = ["./layout-split.sh"]
 
+# Give the checkout in front of you another agent. Registered as well as keyed
+# so it can be reached over the socket, the same as the layouts above.
+[[actions]]
+id = "agent-add"
+title = "Add an agent to this checkout"
+contexts = ["workspace"]
+command = ["./agent-add.sh"]
+
 [[actions]]
 id = "adopt-worktrees"
 title = "Open worktrees of every repo"
