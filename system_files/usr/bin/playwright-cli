@@ -5,16 +5,18 @@
 # which this image deliberately avoids. Instead we ensure the Flatpak Chrome is
 # up with a CDP endpoint and translate `open [url]` into
 # `attach --cdp=<endpoint>` (+ goto), so the upstream skill works unchanged and
-# no second browser is layered in. Every other subcommand passes straight
-# through to the CLI, which reuses the attached session.
+# no second browser is layered in. `close` is translated the same way and for
+# the same reason. Every other subcommand passes straight through to the CLI,
+# which reuses the attached session.
 set -euo pipefail
 
 npx=/home/linuxbrew/.linuxbrew/bin/npx
+chrome_helper=/usr/libexec/workstation-playwright-chrome
 
 pw() { "$npx" -y @playwright/cli@latest "$@"; }
 
 if [[ "${1:-}" == open ]]; then
-    endpoint="$(/usr/libexec/workstation-playwright-chrome)"
+    endpoint="$($chrome_helper)"
     shift
     url=""
     for arg in "$@"; do
@@ -24,6 +26,17 @@ if [[ "${1:-}" == open ]]; then
     if [[ -n $url ]]; then
         pw goto "$url"
     fi
+elif [[ "${1:-}" == close ]]; then
+    # Upstream `close` cannot end a browser it did not launch. Its daemon-side
+    # stop unlinks the session file and exits node, and for a CDP attach
+    # playwright-core builds `browserProcess = { close: doClose, kill: doClose }`
+    # where doClose only tears down the WebSocket transport. So the command the
+    # skill documents as "close the browser" left ours running, which is how two
+    # of them reached 2.65 and 2.84 days old. Run upstream's close for the CLI
+    # session state, then end the browser ourselves. `|| true` because a close
+    # with no live session is not a reason to leave the browser up.
+    pw "$@" || true
+    "$chrome_helper" --stop
 else
     pw "$@"
 fi

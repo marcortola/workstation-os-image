@@ -99,19 +99,44 @@ Two shipped files make it work:
   chromium, which this image deliberately avoids, so the wrapper rewrites `open [url]`
   into `attach --cdp=<endpoint>` followed by `goto`. Every other subcommand passes
   straight through and reuses the attached session, so the upstream skill works
-  unchanged.
+  unchanged. `close` is the one other translated subcommand: upstream cannot end a
+  browser it did not launch, so the wrapper runs upstream's close for the CLI session
+  state and then calls the helper's `--stop`.
 - `system_files/usr/libexec/workstation-playwright-chrome` — brings up the per-user
   Flatpak `com.google.Chrome` with `--remote-debugging-address=127.0.0.1` and a
   loopback-only debugging port, then prints the endpoint. Idempotent: a running
   endpoint is reused. The profile is a throwaway per-boot directory under
   `$XDG_RUNTIME_DIR/workstation-playwright/`, and Chrome is started with `nohup`
   rather than `setsid` so it stays attached to the graphical session's D-Bus portal
-  while outliving the script.
+  while outliving the script. `--stop` tears it down again, identifying every process
+  of that browser by the profile path in its command line — the only handle that
+  works, since flatpak moves the app into a transient scope of its own.
 
 | Environment variable | Default | Effect |
 | --- | --- | --- |
 | `WORKSTATION_PLAYWRIGHT_CDP_PORT` | `9222` | CDP port on loopback |
 | `WORKSTATION_PLAYWRIGHT_HEADED` | `0` | `1` drops `--headless=new` for a visible window |
+
+The wrapper reaches the CLI through `npx -y @playwright/cli@latest`, and on this
+layout that shape is only affordable because npm's cache is pinned to the **realpath**
+of `$HOME`. `/home` is a symlink to `var/home` while `$HOME` stays `/home/<user>`, and
+npm reaching its cache through the symlink makes arborist prepend one more `var/`
+component to every tree path on each reify. A dist-tag forces that reify every run, so
+the `_npx` lockfile grew without bound: 18.8 MB and 5014 entries here, costing 51 s of
+pinned CPU per subcommand against 0.99 s on a clean lock.
+
+The pin is `system_files/usr/lib/systemd/user-environment-generators/70-workstation-npm-cache`,
+which resolves the home at runtime and exports `npm_config_cache`. Three properties
+decide that shape. `environment.d` cannot express it — it does only `${VAR}` expansion,
+and both `~` and `${HOME}` expand to the symlinked path, which is the bug. The
+environment variable outranks any `~/.npmrc` the user already has, so it corrects an
+existing account rather than losing to it. And `~/.npmrc` is deliberately **not** a
+manifest entry: npm writes credentials into that file itself, so tracking it would put
+a token-bearing file under the audit's byte-exact comparison, with `copy` — which
+commits the token — as the only obvious way to clear the resulting drift. A gate
+forbids it. Scope is the systemd user manager and everything it spawns, so a bare SSH
+login keeps npm's default. See
+[design record](../design-records/playwright-npm-cache-and-browser-teardown.md).
 
 The payoff is that no second browser is layered into the image: Chrome is already
 there as a Flatpak, and Playwright cannot launch a Flatpak directly, so the image

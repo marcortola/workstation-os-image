@@ -9,6 +9,12 @@
 # the CLI connect with `attach --cdp`. (This is the CDP half of the former
 # workstation-playwright-mcp wrapper, now shared by the CLI.)
 #
+# `--stop` tears the browser down again, and nothing did before it. The browser
+# outliving each CLI invocation is the design; outliving the work is not, and
+# two were found here 2.65 and 2.84 days old still holding the pages of finished
+# sessions. `playwright-cli close` reaches this, so the close the skill
+# documents is now a real one.
+#
 # Env: WORKSTATION_PLAYWRIGHT_CDP_PORT (default 9222),
 #      WORKSTATION_PLAYWRIGHT_HEADED (1 for a visible window).
 set -euo pipefail
@@ -18,22 +24,71 @@ runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 state_dir="$runtime_dir/workstation-playwright"
 profile_dir="$state_dir/chrome-profile"
 log_file="$state_dir/chrome.log"
+
+cdp_endpoint="http://127.0.0.1:${port}"
+
+# --connect-timeout bounds the connect, not the response. A browser that has
+# wedged still accepts the connection and then answers nothing, and curl has no
+# default overall limit, so this probe -- and every `playwright-cli open` behind
+# it -- hung on it. One was reproduced here returning nothing after 3 s.
+cdp_up() {
+    curl -fs --connect-timeout 1 --max-time 3 \
+        "${cdp_endpoint}/json/version" >/dev/null 2>&1
+}
+
+# The profile directory is this script's own per-boot path, which makes it an
+# exact identity for every process of this browser -- the zypak-forked children
+# included, since they inherit the cmdline that carries it -- and one that cannot
+# match the user's real Chrome, whose profile is elsewhere. Two more obvious
+# mechanisms were measured and both fail:
+#
+#   * Recording `flatpak run`'s pid and killing it does nothing. flatpak moves
+#     the app into its own transient app-flatpak-*.scope, so that bwrap is not
+#     the browser's cgroup owner and killing it left 16 processes alive with the
+#     CDP port still answering.
+#   * `flatpak run --die-with-parent` does fix the ancestry -- the same kill then
+#     takes the browser down completely -- but it binds the app to the invoking
+#     shell, so Chrome died the instant this script exited and every subcommand
+#     would have relaunched it. That defeats the reuse this whole file exists for.
+#
+# Collected and filtered rather than fired as `pkill -f`: that pattern also
+# matches any process whose command line merely mentions the profile path,
+# including the shell that invoked this script, and a bare pkill killed exactly
+# that during development. Excluding this shell and its parent keeps the kill to
+# processes that carry the path as a Chrome argument.
+targets() {
+    pgrep -f "user-data-dir=$profile_dir" | grep -vx -e "$$" -e "$PPID" || true
+}
+
+stop_chrome() {
+    local pids
+    mapfile -t pids < <(targets)
+    (( ${#pids[@]} )) || return 0
+    kill "${pids[@]}" 2>/dev/null || true
+    for _ in $(seq 1 40); do
+        mapfile -t pids < <(targets)
+        (( ${#pids[@]} )) || return 0
+        sleep 0.25
+    done
+    kill -9 "${pids[@]}" 2>/dev/null || true
+}
+
+if [[ ${1:-} == --stop ]]; then
+    stop_chrome
+    exit 0
+fi
+
 mkdir -p "$profile_dir"
 
 headless_flag="--headless=new"
 [[ "${WORKSTATION_PLAYWRIGHT_HEADED:-0}" == "1" ]] && headless_flag=""
 
-cdp_endpoint="http://127.0.0.1:${port}"
-
-cdp_up() {
-    curl -fs --connect-timeout 1 "${cdp_endpoint}/json/version" >/dev/null 2>&1
-}
-
 if ! cdp_up; then
     # Loopback-only debugging port; a throwaway per-boot profile under the tmpfs
     # runtime dir. nohup (not setsid) keeps Chrome attached to the graphical
     # session's D-Bus portal while surviving this script's exit, so the next
-    # invocation reuses the same browser.
+    # invocation reuses the same browser. Deliberately no --die-with-parent
+    # here; see stop_chrome above for what that flag actually binds to.
     nohup flatpak run com.google.Chrome \
         ${headless_flag:+"$headless_flag"} \
         --no-first-run \
