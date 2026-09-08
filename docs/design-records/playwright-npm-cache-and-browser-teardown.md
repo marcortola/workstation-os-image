@@ -89,6 +89,17 @@ This was never playwright-specific. `help-scout-mcp-server`, reached the same wa
 by every Claude Code session, was at 12921 entries and 9.9 MB. The `_npx` cache
 totalled 988 MB.
 
+Nor was it two packages. A first sweep deleted only `package-lock.json` files
+over 2 MB and read as a cleanup; a later audit found **18** corrupt visible locks
+and **19** corrupt hidden ones — npm keeps a second copy at
+`node_modules/.package-lock.json`, 15 MB of it here, and deleting either alone
+leaves the other to reseed the corruption. The surviving dirs cost ~4x the clean
+run each: 1.8–2.0 s against 0.42–0.48 s. Both files in all 19 affected
+directories were removed, which cleared the tree without discarding the 923 MB of
+downloaded packages. The lesson is that the corruption is invisible, does not
+self-heal, and is not detectable by file size — a healthy lock's keys are all
+`node_modules/...`, so a key matching `../` is the honest probe.
+
 ---
 
 ## Routes that lost
@@ -150,6 +161,11 @@ is compared by no audit, and the environment variable it sets outranks any
 `~/.npmrc` already on the machine, so it repairs a wrong value instead of
 yielding to it. That `~/.npmrc` must not become a manifest entry is now itself a
 gate.
+
+Its one cost is timing: environment generators run when the user manager starts,
+so an existing session keeps the old environment and the pin lands only after the
+next login. It also does not reach a bare SSH session, which is outside the user
+manager entirely.
 
 **`scaffold` or `modify_` instead of `template`.** Worse. Both gain write power
 and with it `chezmoi diff` exposure, and `just audit-diff` — the command the

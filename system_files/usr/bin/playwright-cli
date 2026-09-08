@@ -5,9 +5,9 @@
 # which this image deliberately avoids. Instead we ensure the Flatpak Chrome is
 # up with a CDP endpoint and translate `open [url]` into
 # `attach --cdp=<endpoint>` (+ goto), so the upstream skill works unchanged and
-# no second browser is layered in. `close` is translated the same way and for
-# the same reason. Every other subcommand passes straight through to the CLI,
-# which reuses the attached session.
+# no second browser is layered in. The teardown commands are translated the same
+# way and for the same reason. Every other subcommand passes straight through to
+# the CLI, which reuses the attached session.
 set -euo pipefail
 
 npx=/home/linuxbrew/.linuxbrew/bin/npx
@@ -15,28 +15,64 @@ chrome_helper=/usr/libexec/workstation-playwright-chrome
 
 pw() { "$npx" -y @playwright/cli@latest "$@"; }
 
-if [[ "${1:-}" == open ]]; then
-    endpoint="$($chrome_helper)"
-    shift
-    url=""
-    for arg in "$@"; do
-        [[ $arg == -* ]] || { url="$arg"; break; }
-    done
-    pw attach --cdp="$endpoint"
-    if [[ -n $url ]]; then
-        pw goto "$url"
+# The subcommand is the first NON-FLAG argument, not $1. A session selector
+# precedes it -- `playwright-cli -s=m91 close` is the ordinary shape, and 88
+# distinct session names have been used on this machine -- so testing $1 matched
+# only the bare form. Both translations were silently skipped for every named
+# session: `-s=NAME close` left the browser running, and worse, `-s=NAME open`
+# fell through to upstream, which launched a downloaded chrome-for-testing. One
+# was found running here as session `cap`, which is exactly what this wrapper
+# exists to prevent.
+flags=()
+subcommand=""
+rest=()
+for arg in "$@"; do
+    if [[ -n $subcommand ]]; then
+        rest+=("$arg")
+    elif [[ $arg == -* ]]; then
+        flags+=("$arg")
+    else
+        subcommand=$arg
     fi
-elif [[ "${1:-}" == close ]]; then
-    # Upstream `close` cannot end a browser it did not launch. Its daemon-side
-    # stop unlinks the session file and exits node, and for a CDP attach
-    # playwright-core builds `browserProcess = { close: doClose, kill: doClose }`
-    # where doClose only tears down the WebSocket transport. So the command the
-    # skill documents as "close the browser" left ours running, which is how two
-    # of them reached 2.65 and 2.84 days old. Run upstream's close for the CLI
-    # session state, then end the browser ourselves. `|| true` because a close
-    # with no live session is not a reason to leave the browser up.
-    pw "$@" || true
-    "$chrome_helper" --stop
-else
-    pw "$@"
-fi
+done
+
+case "$subcommand" in
+    open)
+        endpoint="$("$chrome_helper")"
+        url=""
+        for arg in "${rest[@]}"; do
+            [[ $arg == -* ]] || { url="$arg"; break; }
+        done
+        # The caller's leading flags ride along, or a named session would attach
+        # as the default one and the caller's later commands would miss it.
+        pw "${flags[@]}" attach --cdp="$endpoint"
+        if [[ -n $url ]]; then
+            pw "${flags[@]}" goto "$url"
+        fi
+        ;;
+    close | close-all | kill-all)
+        # Upstream cannot end a browser it did not launch. Its daemon-side stop
+        # unlinks the session file and exits node, and for a CDP attach
+        # playwright-core builds `browserProcess = { close: doClose, kill: doClose }`
+        # where doClose only tears down the WebSocket transport. So the command
+        # the skill documents as closing the browser left ours running, which is
+        # how two of them reached 2.65 and 2.84 days old.
+        #
+        # Only on success. A close with no live session already exits 0
+        # upstream, so a non-zero status is a usage error -- upstream refused to
+        # act, and the browser is not ours to kill on the back of a typo. An
+        # earlier `|| true` here meant a mistyped session name still destroyed
+        # the browser and still reported success.
+        if pw "$@"; then
+            "$chrome_helper" --stop
+        else
+            status=$?
+            echo "playwright-cli: upstream '$subcommand' exited $status;" \
+                "leaving the browser running." >&2
+            exit "$status"
+        fi
+        ;;
+    *)
+        pw "$@"
+        ;;
+esac

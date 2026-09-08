@@ -627,7 +627,7 @@ grep -q "$datagrip_icon.svg\"" "$datagrip_bootstrap" \
 # prepend one more `var/` component to every tree path on each reify --
 # unbounded, and invisible until an `npx <pkg>@latest` costs 51 s of pinned CPU.
 # Measured before the pin: an 18.8 MB package-lock.json, 5014 entries, a
-# 6588-character key, ~41 s of the run inside path.normalizeString.
+# 6588-character key, ~41 s of the run across path.normalizeString, path.resolve and path.relative.
 #
 # It is a systemd user-environment generator and not a chezmoi seed for
 # ~/.npmrc, which was written first and reverted: npm writes that file itself on
@@ -683,19 +683,52 @@ if grep -vE '^[[:space:]]*#' "$pw_chrome" | grep -q -- '--die-with-parent'; then
     echo "$pw_chrome passes --die-with-parent: Chrome will not survive the script's own exit" >&2
     exit 1
 fi
-grep -q -- '--max-time' "$pw_chrome" \
+# Every gate below reads code with the comments stripped. Both files argue their
+# own design at length in prose that repeats the exact terms being matched, so an
+# unstripped grep goes green on the explanation after the code beneath it has
+# changed -- four of these were doing precisely that.
+pw_chrome_code=$(grep -vE '^[[:space:]]*#' "$pw_chrome")
+pw_wrapper_code=$(grep -vE '^[[:space:]]*#' "$pw_wrapper")
+grep -qE 'curl .*--max-time' <<<"$pw_chrome_code" \
     || { echo "$pw_chrome CDP probe needs --max-time; --connect-timeout does not bound the response" >&2; exit 1; }
+# A cmdline SUBSTRING match also hits any process merely mentioning the profile
+# path, the caller's own shell included; three were killed that way. The kill
+# must test an exact argv element out of /proc.
+# shellcheck disable=SC2016
+grep -q '/proc/\$pid/cmdline' <<<"$pw_chrome_code" \
+    || { echo "$pw_chrome must match an exact argv element from /proc, not a cmdline substring" >&2; exit 1; }
 # The single quotes are the point: match the literal variable name in the helper.
 # shellcheck disable=SC2016
-grep -q 'user-data-dir=\$profile_dir' "$pw_chrome" \
+grep -q 'user-data-dir=\$profile_dir' <<<"$pw_chrome_code" \
     || { echo "$pw_chrome must identify the browser by its profile path to stop it" >&2; exit 1; }
-grep -q -- '--stop' "$pw_wrapper" \
+# The helper's half of the mechanism. Without these two, deleting the --stop
+# branch leaves every wrapper gate green while `playwright-cli close` silently
+# becomes `launch another browser` -- measured, 15 processes and a live endpoint.
+grep -q -- '== --stop' <<<"$pw_chrome_code" \
+    || { echo "$pw_chrome does not answer the --stop that $pw_wrapper sends it" >&2; exit 1; }
+grep -q '^stop_chrome()' <<<"$pw_chrome_code" \
+    || { echo "$pw_chrome defines no stop_chrome" >&2; exit 1; }
+grep -q -- '--stop' <<<"$pw_wrapper_code" \
     || { echo "$pw_wrapper never stops the browser it starts" >&2; exit 1; }
-grep -q 'workstation-playwright-chrome' "$pw_wrapper" \
+grep -q 'workstation-playwright-chrome' <<<"$pw_wrapper_code" \
     || { echo "$pw_wrapper does not reach $pw_chrome" >&2; exit 1; }
+# The subcommand is the first non-flag argument. Testing $1 matched only the bare
+# form, so every `-s=NAME close` skipped the teardown and every `-s=NAME open`
+# fell through to upstream and launched a downloaded chromium.
+grep -q 'close-all' <<<"$pw_wrapper_code" \
+    || { echo "$pw_wrapper does not translate close-all, so it leaves the browser running" >&2; exit 1; }
+# Positive, because the ways to reintroduce the bug do not share a shape: the
+# dispatch must be on the resolved subcommand, whatever the surrounding syntax.
+# shellcheck disable=SC2016
+grep -q 'case "\$subcommand" in' <<<"$pw_wrapper_code" \
+    || { echo "$pw_wrapper does not dispatch on a resolved subcommand; \$1 misses every -s=NAME invocation" >&2; exit 1; }
+if grep -qE '\$\{1:-\}' <<<"$pw_wrapper_code"; then
+    echo "$pw_wrapper still reads \$1 directly, which misses every -s=NAME invocation" >&2
+    exit 1
+fi
 # A bare `pkill -f` on that pattern also matches the shell that invoked the
 # script, which killed exactly that during development.
-if grep -qE '^\s*pkill -f' "$pw_chrome"; then
+if grep -qE '^\s*pkill -f' <<<"$pw_chrome_code"; then
     echo "$pw_chrome uses a bare pkill -f, which can match its own caller" >&2
     exit 1
 fi

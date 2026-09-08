@@ -51,13 +51,26 @@ cdp_up() {
 #     shell, so Chrome died the instant this script exited and every subcommand
 #     would have relaunched it. That defeats the reuse this whole file exists for.
 #
-# Collected and filtered rather than fired as `pkill -f`: that pattern also
-# matches any process whose command line merely mentions the profile path,
-# including the shell that invoked this script, and a bare pkill killed exactly
-# that during development. Excluding this shell and its parent keeps the kill to
-# processes that carry the path as a Chrome argument.
+# pgrep only narrows the candidates; /proc decides. A cmdline SUBSTRING match is
+# not good enough, and excluding this shell and its parent does not rescue it:
+# any process whose command line merely mentions the profile path matches, and a
+# grandparent shell, a sibling, or a parallel agent's `bash -c` is neither $$ nor
+# $PPID. Three shells were killed that way during development, the first on a
+# read-only investigation. So require the path to be an exact argv ELEMENT --
+# which a shell's `-c` string, carrying the whole command as one element, can
+# never be, while every real process of this browser carries it as its own.
 targets() {
-    pgrep -f "user-data-dir=$profile_dir" | grep -vx -e "$$" -e "$PPID" || true
+    local pid arg
+    for pid in $(pgrep -u "$(id -u)" -f "user-data-dir=$profile_dir" 2>/dev/null || true); do
+        [[ $pid == "$$" || $pid == "$PPID" ]] && continue
+        [[ -r /proc/$pid/cmdline ]] || continue
+        while IFS= read -r -d '' arg; do
+            if [[ $arg == "--user-data-dir=$profile_dir" ]]; then
+                printf '%s\n' "$pid"
+                break
+            fi
+        done < "/proc/$pid/cmdline"
+    done
 }
 
 stop_chrome() {

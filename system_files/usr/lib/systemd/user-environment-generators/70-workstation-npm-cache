@@ -8,8 +8,9 @@
 # cannot prove a cached tree satisfies `latest` -- so each `npx -y <pkg>@latest`
 # added three entries and one path level to that package's _npx lockfile.
 # Measured before this: 18.8 MB, 5014 entries, a 6588-character key, and 51 s of
-# pinned CPU per playwright-cli subcommand, ~41 s of it inside
-# path.normalizeString. The same command against a clean lock: 0.99 s. A second
+# pinned CPU per playwright-cli subcommand, ~41 s of it across
+# path.normalizeString, path.resolve and path.relative. The same command against
+# a clean lock: 0.99 s. A second
 # package, help-scout-mcp-server, had reached 12921 entries the same way.
 #
 # A generator rather than the two obvious homes:
