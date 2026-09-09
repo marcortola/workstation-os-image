@@ -90,6 +90,12 @@ command = ["./agent-status-reset.sh"]
 [[startup]]
 command = ["./adopt-worktrees.sh"]
 
+# After the adopt above, so a workspace opened by it is walked too, and before
+# anything reads a label: a restored session keeps the tab names it was saved
+# with, which is where an agent started by hand stops being a slot.
+[[startup]]
+command = ["./agent-claim.sh"]
+
 [[startup]]
 command = ["./window-title.sh"]
 

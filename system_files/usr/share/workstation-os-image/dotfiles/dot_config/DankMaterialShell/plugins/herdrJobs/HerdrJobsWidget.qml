@@ -19,6 +19,35 @@ PluginComponent {
 
     readonly property string devFlow: "\"$HOME\"/.config/herdr/plugins/dev-flow"
 
+    // The agents a row runs, as codicon brand marks.
+    //
+    // Names cost the row too much: `claude codex opencode` measures 132px of a
+    // 404px row, and the widest live row had under a pixel left for its label.
+    // Three marks cost 44. The picker on prefix+s keeps the names, where the
+    // width exists and where they can be typed at.
+    //
+    // codex is OpenAI's, hence the OpenAI mark. opencode has no brand glyph in
+    // any Nerd Font release, so it takes cod-agent -- a generic of the same
+    // family rather than a foreign icon set. A kind with no mark falls back to
+    // its own name, which is the honest answer for an agent this plugin does
+    // not manage; herdr detects two dozen.
+    readonly property var agentMarks: ({
+        "claude": "\uec82",
+        "codex": "\uec81",
+        "opencode": "\uec67"
+    })
+
+    // Pinned to the file rather than asked for by family name. Three copies of
+    // `FiraCode Nerd Font` are installed and only this one carries the codicons:
+    // the image ships 3.5.1 (Containerfile ARG FIRACODE_VERSION, sha256-pinned,
+    // gated in 99-check-build.sh), while DMS bundles 3.4.0 and an untracked copy
+    // under ~/.local/share/fonts is 3.4.0 too. Asking by name resolves to one of
+    // those and every mark renders as tofu, silently.
+    FontLoader {
+        id: agentMarkFont
+        source: "file:///usr/share/fonts/firacode-nerd-fonts/FiraCodeNerdFont-Regular.ttf"
+    }
+
     property var rows: []
     property bool serverUp: false
     // A poll still in flight is skipped rather than queued: with herdr wedged,
@@ -249,33 +278,76 @@ PluginComponent {
                         color: rowArea.containsMouse ? Theme.surfaceContainerHighest : "transparent"
                         border.width: 0
 
+                        // The agents running in this space, on the right edge.
+                        //
+                        // A row is a checkout and its state word is herdr's
+                        // rollup of every agent in it, so with two agents the
+                        // word alone cannot say which one wants you. Which ones
+                        // are here is what the row can carry without becoming a
+                        // second agent picker: prefix+a is that, one row per
+                        // pane, and it is where the states live.
+                        //
+                        // The marks are dim, one colour for all three. Colour in
+                        // this row already means state -- red wants an answer,
+                        // green finished, yellow still going -- and a second
+                        // colour axis competes with the one that says where to
+                        // look.
                         Row {
-                            anchors.left: parent.left
-                            anchors.leftMargin: Theme.spacingS
+                            id: agentMarksRow
                             anchors.right: parent.right
                             anchors.rightMargin: Theme.spacingS
                             anchors.verticalCenter: parent.verticalCenter
-                            spacing: Theme.spacingS
+                            spacing: Theme.spacingXS
 
-                            // Fixed width so the states line up into a column the
-                            // way they do in the picker.
-                            StyledText {
-                                width: 62
-                                text: modelData.marked_state
-                                color: root.stateColor(modelData.state)
-                                font.pixelSize: Theme.fontSizeSmall
-                                elide: Text.ElideRight
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
+                            Repeater {
+                                model: modelData.agents || []
 
-                            StyledText {
-                                leftPadding: modelData.is_worktree ? Theme.spacingM : 0
-                                text: (modelData.is_worktree ? "└ " : "") + modelData.label
-                                color: modelData.is_worktree ? Theme.surfaceVariantText : Theme.surfaceText
-                                font.pixelSize: Theme.fontSizeMedium
-                                elide: Text.ElideRight
-                                anchors.verticalCenter: parent.verticalCenter
+                                StyledText {
+                                    required property string modelData
+
+                                    readonly property string mark: root.agentMarks[modelData] || ""
+
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: mark || modelData
+                                    color: Theme.surfaceVariantText
+                                    font.family: mark ? agentMarkFont.name : resolvedFontFamily
+                                    font.pixelSize: mark ? Theme.iconSizeSmall : Theme.fontSizeSmall
+                                }
                             }
+                        }
+
+                        // Fixed width so the states line up into a column the
+                        // way they do in the picker.
+                        StyledText {
+                            id: stateText
+                            anchors.left: parent.left
+                            anchors.leftMargin: Theme.spacingS
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 62
+                            text: modelData.marked_state
+                            color: root.stateColor(modelData.state)
+                            font.pixelSize: Theme.fontSizeSmall
+                            elide: Text.ElideRight
+                        }
+
+                        // Anchored between the two rather than laid out in a
+                        // Row, which is what gives it a width to elide at: a
+                        // Text sized by its own content has nothing to truncate
+                        // to, so in a Row a long branch name would keep growing
+                        // and paint straight over the marks beside it. With the
+                        // names it carried before, a worktree label plus three
+                        // agents was already within a pixel of that.
+                        StyledText {
+                            anchors.left: stateText.right
+                            anchors.leftMargin: Theme.spacingS
+                            anchors.right: agentMarksRow.left
+                            anchors.rightMargin: Theme.spacingS
+                            anchors.verticalCenter: parent.verticalCenter
+                            leftPadding: modelData.is_worktree ? Theme.spacingM : 0
+                            text: (modelData.is_worktree ? "└ " : "") + modelData.label
+                            color: modelData.is_worktree ? Theme.surfaceVariantText : Theme.surfaceText
+                            font.pixelSize: Theme.fontSizeMedium
+                            elide: Text.ElideRight
                         }
 
                         MouseArea {

@@ -759,12 +759,44 @@ a fourth ratio.
 Two rules keep the old shape working. A tab still labelled `main` is read as an
 agent slot, so a workspace laid out before the rename keeps its anchor rather
 than getting a second agent tab built beside the running one; `layout.sh` renames
-it to whatever herdr reports in it on the way through, so it survives one run.
+it to whatever herdr reports in it on the way through, and `claim_legacy_agent_tabs`
+does the same at server start, so the legacy label survives one run per workspace.
 And `claim_agent_tabs` takes over a tab running an agent under the editor's or
 the terminal's name — starting `codex` by hand in the `term` tab is how a second
 agent got into a checkout before there was a key for it, and the split layout
 then adopted it as the terminal and folded a live agent into the sliver under the
 editor.
+
+A third rule covers the pane. An agent started into a *split* of another agent's
+tab is not a slot either: `prefix+m` steps past it, `prefix+alt+a` offers its
+kind again, and the tab bar names one agent while two are running.
+`claim_agent_panes` gives it a tab of its own, named after its kind. The tab
+keeps exactly one agent — a pane already labelled with a kind, which is how the
+split layout marks its agent; failing that the pane whose kind the tab is named
+after; failing that the first — and a kind already spoken for elsewhere in the
+workspace is left where it is, because a second tab under an existing name makes
+both ambiguous rather than making one visible. A zoomed tab refuses the move and
+answers the refusal as a success with `changed:false`, so the zoom is given up
+only on the retry, when it is what stands between a running agent and a tab.
+
+`claim_agent_panes` reaches only into a tab that is already an agent slot: one
+named after a kind, or the legacy `main`. The split layout keeps all three roles
+as panes of a tab called `dev`, and a restored session has no pane labels at all
+— `session.json` persists a tab's `custom_name` but of a pane only its cwd and
+agent session — so a rule that picked the second agent pane out of `dev` would
+be moving the editor or the shell out of the workspace. It also promotes one
+pane per kind per run, since the set of names already taken is read once, before
+the first move.
+
+Both layouts run `claim_agent_tabs` and `claim_agent_panes` before resolving
+anything. `agent-claim.sh` runs `claim_agent_panes` again at server start, over
+every workspace, together with `claim_legacy_agent_tabs` — the `main` → kind
+rename `layout.sh` performs, reachable without a layout run. That pass exists
+because a layout run is not the only way a workspace acquires an agent: herdr
+restores a session with its agents, and a restored checkout carries whatever
+labels it was saved with. It never runs `claim_agent_tabs`: renaming a `nvim` or
+`term` tab takes the workspace's editor or shell away, and only a layout run
+builds the missing one back.
 
 Resume is per agent because the recency stamp is. `agent-finished.sh` keys it on
 the checkout *and* the agent, so `agent_command` answers `claude --continue`,
@@ -777,8 +809,36 @@ another checkout's conversation is the risk not worth taking.
 
 The space picker and the bar widget still show one row per checkout, carrying
 herdr's own rollup of the agents in it; the row's just-finished mark takes the
-newest of that checkout's stamps. Which agent wants you is `prefix+a`, the agent
-picker, which has always listed one row per pane.
+newest of that checkout's stamps. The row does name them: the kinds running in
+the space are a column of their own, read from the `pane list` the row build
+already holds, so they cost no read and `herdr agent list` would be that same
+list filtered. Sorted rather than in pane order, and without their states —
+both because the rows are compared against the previous build to decide whether
+to redraw, and a set that reshuffles or a state that changes every turn would
+push a reload under whoever is reading. Which agent wants you is still
+`prefix+a`, the agent picker, which lists one row per pane and carries the kind
+as a column: `terminal_title_stripped // .agent` never fell back, because herdr
+titles every agent, so the kind showed only when an agent happened to name
+itself in its own title.
+
+The widget draws them rather than naming them. Three names measure 132px of a
+404px popout row and the widest live row had under a pixel left for its label,
+so each agent is a codicon: `cod-claude` (U+EC82), `cod-openai` (U+EC81, since
+codex is OpenAI's) and `cod-agent` (U+EC67) for opencode, which has no brand
+glyph in any Nerd Font release. A kind outside that map falls back to its own
+name — herdr detects two dozen, and a wrong brand is worse than a word. The
+marks are all one dim colour, because colour in that row already means state.
+
+The font is pinned by *path*, `/usr/share/fonts/firacode-nerd-fonts/`, which the
+image installs from a sha256-pinned nerd-fonts release. Three copies of
+`FiraCode Nerd Font` are installed under that one family name and only the
+image's is new enough to carry codicons — DMS bundles 3.4.0 with its own assets,
+and an untracked copy under `~/.local/share/fonts` is 3.4.0 too. Asked for by
+name, every mark would render as a tofu box and nothing would say so: nothing
+here lints QML, and a `Text` cannot tell a missing glyph from a drawn one. That
+is why `99-check-build.sh` asserts the three codepoints with
+`fc-list ':charset=ec82 ec81 ec67'`, and `tooling/validate/sources` asserts the
+widget, the install and the gate all name the same directory.
 
 #### One key, and why it never duplicates
 

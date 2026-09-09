@@ -221,6 +221,20 @@ if ! fc-list | grep 'FiraCode Nerd Font Mono' >/dev/null; then
     fail "FiraCode Nerd Font Mono not installed"
 fi
 
+# The herdr bar widget draws each agent as a codicon brand mark rather than its
+# name, and those codepoints arrived in nerd-fonts 3.5.1: cod-claude U+EC82,
+# cod-openai U+EC81 (codex is OpenAI's) and cod-agent U+EC67, which opencode
+# takes because no Nerd Font release carries a mark for it. A FIRACODE_VERSION
+# that predates them renders three tofu boxes in the popout and nothing reports
+# it: nothing on this machine lints QML, and a Text cannot tell a missing glyph
+# from a drawn one. The widget pins this directory by path for the same reason
+# -- DMS bundles 3.4.0 under its own assets and the family name is identical.
+if ! fc-list ':charset=ec82 ec81 ec67' file | grep -q firacode-nerd-fonts; then
+    echo "--- codicon diagnostics ---" >&2
+    fc-list ':charset=ec82' file >&2 || echo "(no font carries U+EC82)" >&2
+    fail "FiraCode Nerd Font lacks the codicon agent marks (U+EC82/EC81/EC67)"
+fi
+
 # Cambria is deliberately not installed -- see workstation-install-microsoft-fonts.
 # Caladea stands in for it, so gate the whole substitution and not just the
 # package: the font files, the alias rule that maps the Cambria family name, and

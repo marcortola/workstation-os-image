@@ -30,6 +30,22 @@ project_branch_labels() {
     jq -Rn '[inputs | split("\t") | {key: .[0], value: .[1]}] | from_entries'
 }
 
+# The kind is a column of its own, not a fallback behind the title.
+#
+# `.terminal_title_stripped // .agent` never falls back: herdr reports a title
+# for every agent, so the kind only ever showed when the agent happened to name
+# itself in it -- `OpenCode` and `Claude Code` did, a titled conversation did
+# not. That was survivable while a checkout held one agent and the project
+# column identified the row; with three in one checkout the project column
+# repeats and the title is all that is left to tell them apart, which is not
+# something a title is required to do.
+#
+# The column is eight wide, which fits `opencode` and so every kind the plugin
+# manages. herdr detects a couple of dozen more and this list is whatever is
+# running, so a longer one is possible; printf pads and never truncates, so it
+# costs that row its alignment and nothing else. One literal tab still, the one
+# after the pane id: fzf splits on it and hides the id with --with-nth=2..,
+# and every other column is space padded inside that one field.
 agent_rows() {
   jq -rn \
     --argjson labels "$(project_branch_labels)" \
@@ -40,10 +56,11 @@ agent_rows() {
       | .[]
       | [ .pane_id,
           .agent_status,
+          .agent,
           ($labels[.workspace_id] // .workspace_id),
           (.terminal_title_stripped // .agent) ]
       | @tsv' |
-    awk -F'\t' '{ printf "%s\t%-8s %-34s %s\n", $1, $2, $3, $4 }'
+    awk -F'\t' '{ printf "%s\t%-8s %-8s %-34s %s\n", $1, $2, $3, $4, $5 }'
 }
 
 prompt_agent() {

@@ -303,6 +303,137 @@ claim_agent_tabs() {
   done
 }
 
+# Rename a tab still called `main` to the agent herdr reports running in it.
+#
+# The same migration layout.sh performs on its way through, reachable without a
+# layout run, because a workspace restored from session.json keeps the legacy
+# label until something lays it out again -- and until then the tab bar names
+# the slot after a word that is not an agent, prefix+m cannot find it, and
+# agent-add offers a second claude beside the one already running.
+#
+# Only when herdr reports an agent in the tab. An empty legacy tab keeps the
+# name: the kind it last held is not recorded anywhere, and guessing it here
+# would write the default over a codex slot whose agent had merely exited.
+claim_legacy_agent_tabs() {
+  local workspace=$1 tab kind
+  while IFS=$'\t' read -r tab kind; do
+    [ -n "$tab" ] || continue
+    herdr_cli tab rename "$tab" "$kind" >/dev/null
+  done < <(
+    jq -rn \
+      --argjson tabs "$(herdr_cli tab list --workspace "$workspace")" \
+      --argjson panes "$(herdr_cli pane list --workspace "$workspace")" \
+      --arg kinds "$AGENT_KINDS" \
+      --arg legacy "$AGENT_LEGACY_LABEL" '
+        ($kinds | split(" ")) as $known
+        | ( [ $tabs.result.tabs[].label // empty ]
+            + [ $panes.result.panes[].label // empty ] | unique ) as $taken
+        | ( $panes.result.panes
+            | map(select(.agent != null and (.agent | IN($known[]))))
+            | group_by(.tab_id)
+            | map({ key: .[0].tab_id, value: .[0].agent })
+            | from_entries ) as $tab_agent
+        | [ $tabs.result.tabs[]
+            | select(.label == $legacy)
+            | select($tab_agent[.tab_id] != null)
+            | select($tab_agent[.tab_id] | IN($taken[]) | not)
+            | { tab: .tab_id, kind: $tab_agent[.tab_id] } ]
+        # One rename per kind per run. herdr accepts two tabs under one name and
+        # a workspace can hold two legacy tabs, and renaming both would answer
+        # every later lookup with whichever came first, for good.
+        | unique_by(.kind)
+        | .[]
+        | [.tab, .kind]
+        | @tsv'
+  )
+}
+
+# Give an agent sharing a tab with another agent a tab of its own.
+#
+# A slot is a tab labelled with its kind, and the label is the whole record --
+# so an agent started into a split of another agent's tab is not a slot at all:
+# prefix+m steps past it, agent-add offers its kind again, and the layouts fold
+# it into whatever they think that tab is. It is also invisible, which is the
+# half you notice: the tab bar names one agent and two are running.
+#
+# Only a tab that is already an agent slot -- one named after a kind, or the
+# legacy `main`. The split layout keeps all three roles as panes of a tab called
+# `dev`, and a restored session has no pane labels at all, so reaching in there
+# would move the editor or the shell out of a workspace that nothing is about to
+# rebuild.
+#
+# The tab keeps exactly one, and the rest leave. Which one stays is decided in
+# this order: the pane whose kind the TAB is named after; then a pane already
+# labelled with a kind, which is how the split layout marks its agent; then the
+# first. Run after claim_legacy_agent_tabs, or the first rule cannot fire on a
+# workspace that still says `main`.
+#
+# A kind already spoken for elsewhere in the workspace is left where it is. One
+# slot per kind is what keeps every lookup an equality test, and a second tab
+# under a name that already exists would make both of them ambiguous rather
+# than making this one visible.
+claim_agent_panes() {
+  local workspace=$1 pane kind
+  while IFS=$'\t' read -r pane kind; do
+    [ -n "$pane" ] || continue
+    # A zoomed tab refuses the move, and answers the refusal as a success with
+    # `changed:false`, which pane_move_new_tab reports by having no created tab.
+    # Zoom is a view of one pane; it is given up only when it is what stands
+    # between a running agent and a tab of its own.
+    if ! pane_move_new_tab "$pane" "$kind" >/dev/null; then
+      tab_unzoom "$pane"
+      pane_move_new_tab "$pane" "$kind" >/dev/null || continue
+    fi
+    # The new tab carries the name now, so the pane gives its own up -- the same
+    # trade tab_out makes. A pane that kept a role label it no longer fills is
+    # how the split layout ends up with two panes called `term`: the label
+    # outlives the pane it named, and every lookup for that role finds an agent.
+    pane_rename "$pane" "" || true
+  done < <(
+    jq -rn \
+      --argjson tabs "$(herdr_cli tab list --workspace "$workspace")" \
+      --argjson panes "$(herdr_cli pane list --workspace "$workspace")" \
+      --arg kinds "$AGENT_KINDS" \
+      --arg legacy "$AGENT_LEGACY_LABEL" '
+        ($kinds | split(" ")) as $known
+        | ($known + [$legacy]) as $slot_labels
+        | ( $tabs.result.tabs
+            | map({ key: .tab_id, value: (.label // "") })
+            | from_entries ) as $tab_label
+        | ( [ $tabs.result.tabs[].label // empty ]
+            + [ $panes.result.panes[].label // empty ] | unique ) as $taken
+        # Only a tab that is already an agent slot. The split layout keeps the
+        # agent, the editor and the shell as PANES of a tab it calls `dev`, and
+        # a restored session has no pane labels at all -- session.json persists
+        # a tab custom_name but of a pane only cwd and agent session. Reaching
+        # into `dev` here would take the editor or the shell away from a
+        # workspace, and only a layout run builds a missing role back.
+        | ( $tabs.result.tabs
+            | map(select((.label // "") | IN($slot_labels[])) | .tab_id) ) as $agent_tabs
+        | $panes.result.panes
+        | map(select(.agent != null
+                     and (.agent | IN($known[]))
+                     and (.tab_id | IN($agent_tabs[]))))
+        | group_by(.tab_id)
+        | map(select(length > 1))
+        | map(
+            . as $group
+            | ( [ $group[] | select(.agent == $tab_label[.tab_id]) ] | first ) as $named
+            | ( [ $group[] | select(.label != null and (.label | IN($known[]))) ] | first ) as $labelled
+            | (($named // $labelled // $group[0]).pane_id) as $keeper
+            | $group | map(select(.pane_id != $keeper)))
+        | flatten
+        | map(select(.agent | IN($taken[]) | not))
+        # One tab per kind per run: $taken is the state before the first move,
+        # so two panes of one kind would otherwise each be given a tab under the
+        # same name, and the second would be invisible from then on.
+        | unique_by(.agent)
+        | .[]
+        | [.pane_id, .agent]
+        | @tsv'
+  )
+}
+
 # The tab the primary agent lives in, as `<tab id> <label>`, and empty when the
 # workspace has lost it.
 #
