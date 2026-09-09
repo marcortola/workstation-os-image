@@ -118,8 +118,23 @@ require_file docs/README.md
 # before the rename find no agent and build a SECOND agent tab beside the running
 # one. And the stamp's agent key looks redundant beside its checkout key right up
 # until a codex finish answers the resume question for claude, in a checkout
-# claude has never run in, which drops that pane to a bare shell.
-(( $(wc -l < AGENTS.md) <= 410 ))
+# claude has never run in, which drops that pane to a bare shell. Raised to 420
+# for the two halves of making those agents visible, each of which reads as
+# optional and is not. A slot is a LABELLED tab: an agent started into a split of
+# another agent's tab has no label, so every lookup steps past it and the tab bar
+# names one agent while two run -- claiming is what makes it a slot, and it has
+# to happen at server start too, because herdr restores a session with its agents
+# and a restored workspace carries whatever labels it was saved with. And the
+# agent names on a picker row look like the first step towards per-agent states
+# there, which is the opposite: a build is diffed against the last one to decide
+# whether to redraw, so a state that changes every turn reloads the list under
+# whoever is reading it, and `prefix+a` is the per-agent view. The third line of
+# that entry is the font pin: the widget draws those agents as codicon marks and
+# asks for the FILE, because three copies of `FiraCode Nerd Font` are installed
+# under one family name and only the image's carries codicons -- by name every
+# mark is a tofu box, and nothing on this machine lints QML or can tell a
+# missing glyph from a drawn one.
+(( $(wc -l < AGENTS.md) <= 423 ))
 
 # README.md is a landing pad into docs/ and nothing else. Capped because it grows
 # back otherwise: it was 855 lines covering fourteen concerns before the handbook
@@ -530,10 +545,87 @@ grep -qF 'agent_finished_write "$(agent_checkout_key "$checkout")" "$agent"' "$d
 # that agent's slot before either layout resolves anything. Without it the split
 # layout adopts a live agent as its terminal and folds it into the sliver under
 # the editor -- which is what a hand-started second agent actually hit.
+#
+# The pane half of the same rule: an agent started into a split of another
+# agent's tab is not a slot either -- prefix+m steps past it, agent-add offers
+# its kind again, and the tab bar names one agent while two are running.
 for claiming in executable_layout.sh executable_layout-split.sh; do
     # shellcheck disable=SC2016 # literal fragment of the guarded script
     grep -qF 'claim_agent_tabs "$workspace"' "$dev_flow/$claiming"
+    # shellcheck disable=SC2016 # literal fragment of the guarded script
+    grep -qF 'claim_agent_panes "$workspace"' "$dev_flow/$claiming"
 done
+# A layout run is not the only way a workspace acquires an agent: herdr restores
+# a session with its agents, and a checkout restored from session.json carries
+# whatever labels it was saved with. The startup pass is what converges those --
+# both claims, over every workspace, once per server start. Wired in the manifest
+# or it never runs at all, and herdr reports nothing when a hook is absent.
+for startup_claim in claim_legacy_agent_tabs claim_agent_panes; do
+    grep -q "^$startup_claim() {" "$dev_flow/layout-common.sh" ||
+        { echo "$startup_claim is missing from layout-common.sh" >&2; exit 1; }
+    grep -q "$startup_claim" "$dev_flow/executable_agent-claim.sh" ||
+        { echo "agent-claim.sh no longer runs $startup_claim" >&2; exit 1; }
+done
+grep -q 'agent-claim.sh' "$dev_flow/herdr-plugin.toml"
+# The startup pass claims tabs and panes but never a `nvim` or `term` tab: that
+# rename takes the editor or the shell away and only a layout run builds the
+# missing one back, which is why claim_agent_tabs lives in the layouts instead.
+# Comments stripped first: the script explains at length why it leaves those
+# tabs alone, and a gate that reads prose fails on the explanation.
+if grep -vE '^[[:space:]]*#' "$dev_flow/executable_agent-claim.sh" |
+    grep -qE 'claim_agent_tabs|nvim|term'; then
+    echo "agent-claim.sh claims a role tab it cannot rebuild: $dev_flow" >&2
+    exit 1
+fi
+# Which agents a space runs, on all three surfaces that show a space at all.
+#
+# A row is a checkout and its state word is herdr's rollup, so with two agents
+# the word alone cannot say which one wants you. The names are the one thing the
+# row can carry without becoming a second agent picker; the picker on prefix+a
+# stays the per-pane view, and there the kind is a column rather than a fallback
+# behind a terminal title that is never null.
+# shellcheck disable=SC2016 # literal fragment of the guarded jq program
+grep -qF 'agents: agents,' "$dev_flow/executable_spaces.sh"
+# Appended, never inserted: the picker cache is read positionally by eight call
+# sites and by the wt: branch, all of which take a fixed index, so the whole
+# column order is asserted rather than only the new column being last. Newlines
+# and indentation are squeezed out first, since the jq array spans lines.
+# shellcheck disable=SC2016 # literal fragment of the guarded jq program
+tr -s '[:space:]' ' ' < "$dev_flow/executable_spaces.sh" |
+    grep -qF '[ .workspace_id, (.marked_state | pad(8)), (((if .is_worktree then " └ " else "" end) + .label) | pad(38)), .checkout, .repo, (.is_worktree | tostring), .label, (.agents | join(" ") | pad($agent_width)) ]' ||
+    { echo "the picker cache columns moved; every positional reader takes a fixed index" >&2; exit 1; }
+grep -q 'modelData.agents' "$herdr_widget/HerdrJobsWidget.qml"
+# The widget draws them as codicon marks, and that spans three files: the mark
+# map here, the font the build installs, and the build gate that asserts the
+# codepoints are in it. The widget asks for the FILE and not the family, because
+# three copies of `FiraCode Nerd Font` are installed under one name and only the
+# image's carries the codicons -- by name it resolves to one of the others and
+# every mark is a tofu box, silently.
+firacode_dir=/usr/share/fonts/firacode-nerd-fonts
+grep -qF "file://$firacode_dir/FiraCodeNerdFont-Regular.ttf" "$herdr_widget/HerdrJobsWidget.qml" ||
+    { echo "the widget no longer pins the codicon font by path" >&2; exit 1; }
+grep -qF "$firacode_dir" build_files/00-toolchain.sh ||
+    { echo "the build no longer installs the font the widget pins: $firacode_dir" >&2; exit 1; }
+grep -qF "':charset=ec82 ec81 ec67'" build_files/99-check-build.sh ||
+    { echo "the codicon agent marks are no longer gated in the image" >&2; exit 1; }
+for mark in 'uec82' 'uec81' 'uec67'; do
+    grep -qF "\\$mark" "$herdr_widget/HerdrJobsWidget.qml" ||
+        { echo "the widget lost the agent mark \\$mark" >&2; exit 1; }
+done
+# The kind has to reach the RENDERED row, not just the jq array behind it: the
+# picker hides field 1 and shows what the printf builds, so a column dropped
+# there is invisible while the data still looks right.
+# shellcheck disable=SC2016 # literal fragment of the guarded script
+grep -qF '{ printf "%s\t%-8s %-8s %-34s %s\n", $1, $2, $3, $4, $5 }' "$dev_flow/executable_agents.sh" ||
+    { echo "the agent picker no longer renders the kind as its own column" >&2; exit 1; }
+# claim_agent_panes reaches only into a tab that is already an agent slot. The
+# split layout keeps the editor and the shell as PANES of a tab called `dev`, and
+# a restored session has no pane labels at all -- session.json persists a tab
+# custom_name but of a pane only cwd and agent session -- so without this filter
+# the startup pass moves a role pane out of a workspace nothing will rebuild.
+# shellcheck disable=SC2016 # literal fragment of the guarded jq program
+grep -qF 'and (.tab_id | IN($agent_tabs[]))' "$dev_flow/layout-common.sh" ||
+    { echo "claim_agent_panes is no longer restricted to agent tabs" >&2; exit 1; }
 # One key reaches every agent, so it asks for the next slot rather than for a
 # label. Left pointing at a label, prefix+m would reach whichever agent happened
 # to be named there and nothing else.

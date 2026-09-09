@@ -17,6 +17,7 @@
 .config/herdr/plugins/dev-flow/herdr-plugin.toml
 .config/herdr/plugins/dev-flow/adopt-worktrees.sh
 .config/herdr/plugins/dev-flow/agent-add.sh
+.config/herdr/plugins/dev-flow/agent-claim.sh
 .config/herdr/plugins/dev-flow/agent-finished.sh
 .config/herdr/plugins/dev-flow/agent-freshness.sh
 .config/herdr/plugins/dev-flow/agent-status-reset.sh

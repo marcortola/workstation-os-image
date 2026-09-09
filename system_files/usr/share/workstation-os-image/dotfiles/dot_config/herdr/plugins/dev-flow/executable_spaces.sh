@@ -234,6 +234,24 @@ rows_json() {
           | map({ key: .[0].workspace_id, value: .[0].cwd })
           | from_entries ) as $pane_cwd
 
+      # Which agents a space is running, from the same pane blob. `pane list`
+      # carries `agent` on every pane, so this costs no read of its own and
+      # `herdr agent list` would be that same list filtered, plus a counter
+      # nothing here reads.
+      #
+      # Sorted rather than in pane order, because the rows are compared with the
+      # previous build to decide whether to redraw: pane order is not a promise,
+      # and a reshuffle would push a reload under a reader who is trying to
+      # read. The name set changes only when an agent starts or stops, which is
+      # exactly when the row should change. The STATES stay out of it for the
+      # same reason -- the rollup answers that, and per agent they would churn
+      # this row on every turn. No apostrophes, as below.
+      | ( $panes.result.panes
+          | map(select(.agent != null))
+          | group_by(.workspace_id)
+          | map({ key: .[0].workspace_id, value: (map(.agent) | unique) })
+          | from_entries ) as $pane_agents
+
       | def checkout: .worktree.checkout_path // $pane_cwd[.workspace_id] // "";
         def repo: .worktree.repo_root // $repo_by_cwd[checkout] // checkout // .label;
         def is_worktree: .worktree.is_linked_worktree // false;
@@ -242,6 +260,8 @@ rows_json() {
         # the sweep records the git-normalised key, and the two only agree by
         # accident. jq rejects a forward reference, so this stays above state.
         def is_parked: $parked[.workspace_id] == true;
+        # A closed checkout has no space and so no panes, which is [] here.
+        def agents: $pane_agents[.workspace_id] // [];
         # The rollup herdr computes for the space, in the words herdr uses for
         # it: blocked, done, working, idle. Reading .agent_status rather than
         # folding the agent list again is what keeps the picker saying what the
@@ -294,6 +314,7 @@ rows_json() {
               is_worktree: is_worktree,
               state: state,
               marked_state: marked_state,
+              agents: agents,
               is_parked: is_parked,
               is_fresh: is_fresh,
               attention_rank: attention_rank })'
@@ -315,19 +336,31 @@ space_rows() {
     printf '%s' "$worktrees" >"$topology"
   fi
 
-  # The picker's columns, unchanged: the cache is read positionally by
-  # visible_rows and by the wt: branch at the bottom of this file.
+  # The picker's columns: the cache is read positionally by visible_rows and by
+  # the wt: branch at the bottom of this file, so the agent column is APPENDED.
+  # Every one of those readers takes a fixed index, and the seven that were here
+  # first keep theirs.
+  #
+  # The agent column is as wide as the widest row of THIS build, not as wide as
+  # `claude codex opencode`. herdr detects two dozen agent kinds and a row names
+  # whatever is running, so a fixed width sized to the three this plugin manages
+  # is one hand-started `mastracode` away from overflowing -- and jq answers a
+  # negative repeat with null, which pads to nothing and shifts the checkout
+  # column on that row alone. A width taken from the rows fits every kind and
+  # still lines the column up, because one build shares one width.
   rows_json "$worktrees" |
     jq -r '
       def pad($width): . + (" " * ($width - length));
-      .[]
+      ( [ .[] | .agents | join(" ") | length ] | max // 0 ) as $agent_width
+      | .[]
       | [ .workspace_id,
           (.marked_state | pad(8)),
           (((if .is_worktree then "  └ " else "" end) + .label) | pad(38)),
           .checkout,
           .repo,
           (.is_worktree | tostring),
-          .label ]
+          .label,
+          (.agents | join(" ") | pad($agent_width)) ]
       | @tsv'
 }
 
@@ -379,9 +412,9 @@ visible_rows() {
       if ($1 in hit) {
         key = $2
         sub(/\*?[ ]*$/, "", key)
-        print $1 "\t" (key in colour ? colour[key] : "") $2 "\033[0m\t" $3 "\t" $4
+        print $1 "\t" (key in colour ? colour[key] : "") $2 "\033[0m\t" $3 "\t\033[2m" $8 "\033[0m\t" $4
       }
-      else print $1 "\t\033[2m" $2 "\t" $3 "\t" $4 "\033[0m"
+      else print $1 "\t\033[2m" $2 "\t" $3 "\t" $8 "\t" $4 "\033[0m"
     }
     END { print "pos(" (row ? row : 1) ")" > cursor }
   ' "$view" "$view"

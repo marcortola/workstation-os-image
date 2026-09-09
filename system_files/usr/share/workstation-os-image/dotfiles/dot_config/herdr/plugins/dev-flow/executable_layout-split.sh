@@ -38,6 +38,9 @@ fi
 # agent's slot before anything is resolved, so the anchor and the two side roles
 # below all see the same set of tabs.
 claim_agent_tabs "$workspace"
+# And an agent sharing a tab with another agent takes a tab of its own, for
+# the same reason: a slot is a labelled tab, and a layout resolves slots.
+claim_agent_panes "$workspace"
 
 read -r dev_tab main_pane main_kind cwd <<<"$(layout_anchor "$workspace" "${2:-}")"
 if [ -z "$main_pane" ]; then

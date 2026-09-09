@@ -116,7 +116,8 @@ conversation is a worse failure than starting a new one, so it is not attempted.
 
 ### The two migrations
 
-Both are self-healing and neither needs a script.
+Both are self-healing; neither needed a script at the time, and the amendment
+below gives the first one a second trigger.
 
 A tab still labelled `main` is read as an agent slot — without that, an upgraded
 workspace finds no agent and builds a *second* agent tab beside the running one,
@@ -162,6 +163,83 @@ view already exists on `prefix+a`, which has always listed one row per pane,
 blocked first. Duplicating it in the space picker buys a second way to ask the
 same question.
 
+---
+
+## Amendment: naming the agents, and a slot for every one of them
+
+The first use of the shape found the two places it was invisible.
+
+**A row said how many agents wanted you, never which.** One row per checkout is
+still right, but the state word is a rollup and the label is a checkout — with
+three agents in one checkout, nothing on the row or in the widget named any of
+them. The row now carries the kinds it runs, as a column of their own.
+
+The names come from the `pane list` the row build already holds, so the addition
+costs no read; `herdr agent list` would have been that same list filtered plus a
+counter nothing here reads, and the widget's own record already rejects a second
+script reading it directly. They are sorted rather than in pane order, and they
+carry no states. Both follow from the same constraint: a build is compared with
+the previous one to decide whether to push a reload, so a column that reshuffles
+with pane order, or that changes on every turn, would redraw the picker under
+whoever is reading it. A name set changes when an agent starts or stops, which is
+exactly when the row should change.
+
+In the widget the kinds are drawn, not written. A 404px popout row cannot spare
+132px for three names — the widest live row had 0.84px left for its label — so
+each agent is a codicon mark: `cod-claude`, `cod-openai` (codex is OpenAI's) and
+`cod-agent` for opencode, which no Nerd Font release has a brand glyph for. An
+unmapped kind falls back to its name rather than borrowing another agent's mark.
+The font is pinned by path because three copies share the family name
+`FiraCode Nerd Font` and only the image's, from a sha256-pinned 3.5.1 release,
+carries codicons; by name the marks would be tofu and nothing would report it,
+so the codepoints are gated in `99-check-build.sh`. The pickers keep the names:
+they have the width, and a name can be typed at, which a glyph cannot.
+
+The agent picker on `prefix+a` gained the kind as a column too. It had one, in
+theory — `terminal_title_stripped // .agent` — but herdr titles every agent, so
+the fallback never fired and the kind appeared only when an agent happened to
+name itself in its own title. Measured on a live server: 9 of 14 rows hid it, and
+the worst case was this feature's own — three agents in one checkout, the same
+project column on all three rows, told apart only by a conversation title.
+
+**A second agent was a slot only if it arrived through the key.** `prefix+alt+a`
+builds a labelled tab; an agent started by hand into a split of another agent's
+tab has no label at all, and `claim_agent_tabs` covers only the `nvim` and `term`
+tabs. `claim_agent_panes` covers the rest: a tab keeps one agent and the others
+each get a tab named after their kind. The keeper is chosen in the order a slot
+is normally identified — a pane already labelled with a kind, then the pane whose
+kind the tab is named after, then the first — and a kind already spoken for in
+the workspace is left alone, since a second tab under an existing name makes both
+ambiguous rather than making one visible.
+
+`agent-claim.sh` runs `claim_agent_panes` at server start, over every workspace,
+together with `claim_legacy_agent_tabs` — the `main` → kind rename `layout.sh`
+already performs, reachable without a layout run. A layout run is not the only
+way a workspace acquires an agent: herdr restores a session with its agents, and
+a restored checkout carries the labels it was saved with, which is how four
+workspaces kept a tab called `main` after every other one had been renamed.
+
+What the startup pass will not do is take a role away, because nothing there
+rebuilds it. It never runs `claim_agent_tabs`, whose whole job is renaming a
+`nvim` or `term` tab. And `claim_agent_panes` reaches only into a tab that is
+already an agent slot — one named after a kind, or `main`. The split layout keeps
+the agent, the editor and the shell as *panes* of a tab called `dev`, and a
+restored session has no pane labels at all (`session.json` persists a tab's
+`custom_name`, but of a pane only its cwd and agent session), so a rule that
+picked the second agent pane out of `dev` would be picking the editor or the
+shell out of a workspace nothing is about to repair.
+
+Two shapes decide the rest. The tab keeps the agent it is named after, then a
+pane already labelled with a kind, then its first pane. And a kind already
+spoken for in the workspace is left where it is, once per run: `$taken` is the
+state before the first move, so two panes of one kind would otherwise each be
+given a tab under the same name — herdr accepts that, every later lookup takes
+whichever came first, and a second run cannot see the problem to fix it.
+
+Rejected again, for the same reasons as above: one row per agent in the picker or
+the widget. Naming the agents on a checkout row answers *which agents are here*;
+it does not claim to answer *which one wants you*, and `prefix+a` still does.
+
 Parked-work detection also did not change. `tooling/data/agent-probe-registry`
 already records why codex and opencode have no probe, and an agent without one is
 never parked and behaves as it did before probes existed.
@@ -175,7 +253,13 @@ never parked and behaves as it did before probes existed.
 - a kind in `AGENT_KINDS` with no arm in `agent_command` — a tab that gets
   created and then handed nothing
 - `claude_command` reappearing anywhere in the plugin
-- either layout no longer calling `claim_agent_tabs`
+- either layout no longer calling `claim_agent_tabs` or `claim_agent_panes`
+- `agent-claim.sh` losing a claim, its `[[startup]]` entry, or reaching for a
+  role tab it cannot rebuild
+- `claim_agent_panes` no longer restricted to tabs that are agent slots
+- the agent column missing from the row build, the widget, or the line the agent
+  picker actually renders
+- the picker cache columns moving, since eight readers take a fixed index
 - the freshness hook or the picker sweep writing a stamp without the agent
 - `prefix+m` pointing back at a label instead of `agent`
 - any script in the plugin directory without a manifest entry
