@@ -221,6 +221,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_URL: ${{ github.event.pull_request.html_url }}
+          REPO: ${{ github.repository }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
           SELF_WORKFLOW: Dependabot delta audit and auto-merge
         run: |
           node <<'NODE'
@@ -228,51 +230,83 @@ jobs:
 
           const TIMEOUT_MS = 40 * 60 * 1000;
           const POLL_MS = 20 * 1000;
+          const FAILED = new Set(['failure', 'cancelled', 'timed_out', 'action_required']);
           const deadline = Date.now() + TIMEOUT_MS;
           const self = process.env.SELF_WORKFLOW;
           const prUrl = process.env.PR_URL;
 
           const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 
-          function poll() {
-            // gh exits non-zero when checks are pending or failing, so the status is read
-            // from the payload rather than from the exit code.
-            let raw;
+          function gh(args) {
             try {
-              raw = execFileSync('gh', ['pr', 'checks', prUrl, '--json', 'name,state,bucket,workflow'], {
-                encoding: 'utf8',
-                stdio: ['ignore', 'pipe', 'pipe'],
-              });
+              return execFileSync('gh', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
             } catch (error) {
-              raw = error.stdout;
+              // gh exits non-zero when checks are pending or failing, so the status is read
+              // from the payload rather than from the exit code.
+              return error.stdout || '';
             }
-            if (!raw || !raw.trim()) return [];
+          }
+
+          function prChecks() {
+            const raw = gh(['pr', 'checks', prUrl, '--json', 'name,state,bucket,workflow']);
+            if (!raw.trim()) return [];
             return JSON.parse(raw);
           }
 
+          // A check that was already red on the commit this branch forks from was not broken
+          // by this update, and blocking on it would stall every dependency bump - security
+          // ones included - for as long as the default branch stays red. Only regressions
+          // this pull request actually introduced should block the merge. This is the same
+          // base-versus-candidate reasoning the vulnerability audit above applies.
+          let baseRedCache = null;
+          function baseRed() {
+            if (baseRedCache) return baseRedCache;
+            baseRedCache = new Set();
+            const raw = gh([
+              'api', '--paginate',
+              `repos/${process.env.REPO}/commits/${process.env.BASE_SHA}/check-runs`,
+              '--jq', '.check_runs[] | [.name, (.conclusion // "pending")] | @tsv',
+            ]);
+            for (const line of raw.split('\n')) {
+              if (!line.trim()) continue;
+              const [name, conclusion] = line.split('\t');
+              if (FAILED.has(conclusion)) baseRedCache.add(name);
+            }
+            return baseRedCache;
+          }
+
           while (true) {
-            const others = poll().filter((check) => check.workflow !== self);
+            const others = prChecks().filter((check) => check.workflow !== self);
 
             if (others.length === 0) {
               console.log('::warning::No pull_request checks are attached to this pull request, so nothing gates this merge beyond the vulnerability audit. Add a pull_request-triggered build to this repository.');
               break;
             }
 
-            const failed = others.filter((check) => check.bucket === 'fail' || check.bucket === 'cancel');
-            if (failed.length > 0) {
-              const names = failed.map((check) => `${check.workflow}/${check.name}=${check.state}`).join(', ');
-              console.log(`::error::Repository checks failed, refusing to merge this dependency update: ${names}`);
-              process.exit(1);
+            const failing = others.filter((c) => c.bucket === 'fail' || c.bucket === 'cancel');
+            if (failing.length > 0) {
+              const red = baseRed();
+              const preexisting = failing.filter((c) => red.has(c.name));
+              const regressions = failing.filter((c) => !red.has(c.name));
+
+              if (preexisting.length > 0) {
+                console.log(`::notice::Ignoring ${preexisting.length} check(s) already failing on the base commit ${process.env.BASE_SHA}: ${preexisting.map((c) => c.name).join(', ')}`);
+              }
+              if (regressions.length > 0) {
+                const names = regressions.map((c) => `${c.workflow}/${c.name}=${c.state}`).join(', ');
+                console.log(`::error::Checks that pass on the base commit fail here, refusing to merge: ${names}`);
+                process.exit(1);
+              }
             }
 
-            const pending = others.filter((check) => check.bucket === 'pending');
+            const pending = others.filter((c) => c.bucket === 'pending');
             if (pending.length === 0) {
-              console.log(`All ${others.length} repository check(s) passed.`);
+              console.log(`Resolved all ${others.length} repository check(s); no regression against the base commit.`);
               break;
             }
 
             if (Date.now() >= deadline) {
-              const names = pending.map((check) => `${check.workflow}/${check.name}`).join(', ');
+              const names = pending.map((c) => `${c.workflow}/${c.name}`).join(', ');
               console.log(`::error::Timed out waiting for ${pending.length} pending check(s): ${names}`);
               process.exit(1);
             }
