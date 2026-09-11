@@ -812,11 +812,11 @@ herdr's own rollup of the agents in it; the row's just-finished mark takes the
 newest of that checkout's stamps. The row does name them: the kinds running in
 the space are a column of their own, read from the `pane list` the row build
 already holds, so they cost no read and `herdr agent list` would be that same
-list filtered. Sorted rather than in pane order, and without their states —
-both because the rows are compared against the previous build to decide whether
-to redraw, and a set that reshuffles or a state that changes every turn would
-push a reload under whoever is reading. Which agent wants you is still
-`prefix+a`, the agent picker, which lists one row per pane and carries the kind
+list filtered. Sorted rather than in pane order, each kind carries its pane
+state. The picker colours each name and the widget colours each mark, so a turn
+transition now redraws the checkout row. This is deliberate: exact per-agent
+status won over the earlier stable-name-only row. `prefix+a` remains the
+detailed per-pane picker, which lists one row per pane and carries the kind
 as a column: `terminal_title_stripped // .agent` never fell back, because herdr
 titles every agent, so the kind showed only when an agent happened to name
 itself in its own title.
@@ -826,8 +826,9 @@ The widget draws them rather than naming them. Three names measure 132px of a
 so each agent is a codicon: `cod-claude` (U+EC82), `cod-openai` (U+EC81, since
 codex is OpenAI's) and `cod-agent` (U+EC67) for opencode, which has no brand
 glyph in any Nerd Font release. A kind outside that map falls back to its own
-name — herdr detects two dozen, and a wrong brand is worse than a word. The
-marks are all one dim colour, because colour in that row already means state.
+name — herdr detects two dozen, and a wrong brand is worse than a word. Each mark
+uses that agent's state colour: red blocked, green done, yellow working or
+parked, dim idle or unknown. `spaces.sh` derives the state; QML only renders it.
 
 The font is pinned by *path*, `/usr/share/fonts/firacode-nerd-fonts/`, which the
 image installs from a sha256-pinned nerd-fonts release. Three copies of

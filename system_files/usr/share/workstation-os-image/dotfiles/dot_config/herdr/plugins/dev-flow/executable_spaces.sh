@@ -47,6 +47,7 @@ state_workspaces=
 state_panes=
 state_repo_by_cwd=
 state_parked=
+state_parked_panes=
 read_state() {
   state_workspaces=$(herdr_cli workspace list)
   state_panes=$(herdr_cli pane list)
@@ -108,6 +109,11 @@ parked_workspace_map() {
     jq -Rn '[inputs | select(length > 0) | {key: ., value: true}] | from_entries'
 }
 
+parked_pane_map() {
+  printf '%s' "$1" | awk -F'\t' '$5 != "yes" { print $1 }' |
+    jq -Rn '[inputs | select(length > 0) | {key: ., value: true}] | from_entries'
+}
+
 sweep_parked() {
   local panes parked previous current nagged_ids pane workspace cwd checkout session nagged age
 
@@ -121,6 +127,7 @@ sweep_parked() {
   # marker stands and every row keeps its last answer.
   if ! parked=$(agent_parked_probe "$panes"); then
     state_parked=$(parked_workspace_map "$previous")
+    state_parked_panes=$(parked_pane_map "$previous")
     return 0
   fi
 
@@ -186,6 +193,7 @@ sweep_parked() {
   [ -z "$current" ] || current=$current$'\n'
   agent_parked_write "$current"
   state_parked=$(parked_workspace_map "$current")
+  state_parked_panes=$(parked_pane_map "$current")
 }
 
 checkouts_of() {
@@ -226,6 +234,7 @@ rows_json() {
     --argjson now "$(date +%s)" \
     --argjson fresh_seconds "$AGENT_FRESH_SECONDS" \
     --argjson parked "$state_parked" \
+    --argjson parked_panes "$state_parked_panes" \
     --argjson worktrees "$1" '
       # herdr leaves worktree metadata empty on some spaces; their panes still know where they live.
       ( $panes.result.panes
@@ -239,17 +248,32 @@ rows_json() {
       # `herdr agent list` would be that same list filtered, plus a counter
       # nothing here reads.
       #
-      # Sorted rather than in pane order, because the rows are compared with the
-      # previous build to decide whether to redraw: pane order is not a promise,
-      # and a reshuffle would push a reload under a reader who is trying to
-      # read. The name set changes only when an agent starts or stops, which is
-      # exactly when the row should change. The STATES stay out of it for the
-      # same reason -- the rollup answers that, and per agent they would churn
-      # this row on every turn. No apostrophes, as below.
+      # Sorted rather than in pane order, because pane order is not a promise.
+      # State rides beside each kind so both renderers can colour the individual
+      # agent without folding pane state again. This deliberately makes the
+      # picker refresh on a turn transition; exact per-agent status won over the
+      # previous stable-name-only row.
+      #
+      # One slot per kind is the plugin invariant. If a hand-started duplicate
+      # exists before the claim pass converges it, keep one mark and choose its
+      # most urgent state rather than drawing two indistinguishable kinds.
       | ( $panes.result.panes
           | map(select(.agent != null))
           | group_by(.workspace_id)
-          | map({ key: .[0].workspace_id, value: (map(.agent) | unique) })
+          | map({ key: .[0].workspace_id,
+                  value: (map({ kind: .agent,
+                                state: (if $parked_panes[.pane_id] == true
+                                            and ((.agent_status == "idle") or (.agent_status == "done"))
+                                          then "parked"
+                                          else (.agent_status // "unknown")
+                                        end) })
+                          | sort_by([.kind,
+                                     (if .state == "blocked" then 0
+                                      elif .state == "done" then 1
+                                      elif .state == "working" or .state == "parked" then 2
+                                      else 3 end)])
+                          | group_by(.kind)
+                          | map(.[0])) })
           | from_entries ) as $pane_agents
 
       | def checkout: .worktree.checkout_path // $pane_cwd[.workspace_id] // "";
@@ -351,7 +375,7 @@ space_rows() {
   rows_json "$worktrees" |
     jq -r '
       def pad($width): . + (" " * ($width - length));
-      ( [ .[] | .agents | join(" ") | length ] | max // 0 ) as $agent_width
+      ( [ .[] | [.agents[].kind] | join(" ") | length ] | max // 0 ) as $agent_width
       | .[]
       | [ .workspace_id,
           (.marked_state | pad(8)),
@@ -360,7 +384,8 @@ space_rows() {
           .repo,
           (.is_worktree | tostring),
           .label,
-          (.agents | join(" ") | pad($agent_width)) ]
+          ([.agents[].kind] | join(" ") | pad($agent_width)),
+          ([.agents[].state] | join(" ")) ]
       | @tsv'
 }
 
@@ -386,11 +411,24 @@ visible_rows() {
   # BSD awk rejects a newline inside -v, and a wt: key carries a path, so the ids travel tab separated.
   matched=$(printf '%s' "$matched" | tr '\n' '\t')
 
-  # The state carries the sidebar's colours as well as its words: red wants an
-  # answer, green finished, yellow is still going, dim is neither. They are
-  # applied here rather than baked into the cache so that a row dimmed for being
-  # kin stays dim -- an embedded colour would outrank the dim wrapper.
+  # State carries the sidebar's colours as well as its words: red wants an
+  # answer, green finished, yellow is still going, dim is neither. Agent names
+  # take those colours individually from cache field 9. Colour stays out of the
+  # cache so a related row dimmed as kin can still override every agent mark.
   awk -F'\t' -v matched="$matched" -v best="$best" -v cursor="$cache.cursor" '
+    function coloured_agents(names, states,    kinds, statuses, count, i, kind, state, out, width) {
+      count = split(names, kinds, / +/)
+      split(states, statuses, " ")
+      for (i = 1; i <= count; i++) {
+        kind = kinds[i]
+        if (kind == "") continue
+        if (width > 0) { out = out " "; width++ }
+        state = statuses[i]
+        out = out (state in colour ? colour[state] : "\033[2m") kind "\033[0m"
+        width += length(kind)
+      }
+      return out sprintf("%*s", length(names) - width, "")
+    }
     BEGIN {
       split(matched, list, "\t")
       for (i in list) if (list[i] != "") hit[list[i]] = 1
@@ -412,7 +450,7 @@ visible_rows() {
       if ($1 in hit) {
         key = $2
         sub(/\*?[ ]*$/, "", key)
-        print $1 "\t" (key in colour ? colour[key] : "") $2 "\033[0m\t" $3 "\t\033[2m" $8 "\033[0m\t" $4
+        print $1 "\t" (key in colour ? colour[key] : "") $2 "\033[0m\t" $3 "\t" coloured_agents($8, $9) "\t" $4
       }
       else print $1 "\t\033[2m" $2 "\t" $3 "\t" $8 "\t" $4 "\033[0m"
     }
