@@ -32,7 +32,7 @@ ARG BASE_IMAGE=ghcr.io/ublue-os/base-main:latest@sha256:9b43dba0dea1987005cbf8cb
 # no merge, so it is COPYd straight to / below. Putting it in ctx would also
 # re-key the package layer on every overlay edit, because a bind mount from a
 # stage keys on the stage result rather than on the files actually read.
-FROM ghcr.io/ublue-os/brew:latest@sha256:bed056871da6edd8c6ee455a274283ae83bf269461dcad758a7729aaad018401 AS brew
+FROM ghcr.io/ublue-os/brew:latest@sha256:d52b3f578f01623636aff534291b0bd8ff0a0244ef225bf51aecb5fa05a137af AS brew
 
 FROM scratch AS ctx
 COPY build_files /build_files
