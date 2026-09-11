@@ -1,39 +1,45 @@
 version: 2
+multi-ecosystem-groups:
+  repository-dependencies:
+    schedule:
+      interval: weekly
+      day: monday
+      time: 10:30
+      timezone: Europe/Madrid
+    commit-message:
+      prefix: chore(deps)
 updates:
-  # Bumps digest-pinned inputs on literal FROM lines. ARG BASE_IMAGE is
-  # managed by .github/renovate.json5 because Dependabot cannot parse it.
-  - package-ecosystem: "docker"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "10:30"
-      timezone: "Europe/Madrid"
-    commit-message:
-      prefix: "chore(deps)"
+  - package-ecosystem: docker
+    directory: /
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
     groups:
-      minor-and-patch:
-        applies-to: "version-updates"
+      security-updates:
+        applies-to: security-updates
         patterns:
           - "*"
         update-types:
-          - "minor"
-          - "patch"
-
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "10:30"
-      timezone: "Europe/Madrid"
-    commit-message:
-      prefix: "chore(deps)"
+          - patch
+          - minor
+    patterns:
+      - "*"
+    multi-ecosystem-group: repository-dependencies
+  - package-ecosystem: github-actions
+    directory: /
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
     groups:
-      minor-and-patch:
-        applies-to: "version-updates"
+      security-updates:
+        applies-to: security-updates
         patterns:
           - "*"
         update-types:
-          - "minor"
-          - "patch"
+          - patch
+          - minor
+    patterns:
+      - "*"
+    multi-ecosystem-group: repository-dependencies
