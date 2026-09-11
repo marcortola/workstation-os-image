@@ -177,12 +177,12 @@ them. The row now carries the kinds it runs, as a column of their own.
 The names come from the `pane list` the row build already holds, so the addition
 costs no read; `herdr agent list` would have been that same list filtered plus a
 counter nothing here reads, and the widget's own record already rejects a second
-script reading it directly. They are sorted rather than in pane order, and they
-carry no states. Both follow from the same constraint: a build is compared with
-the previous one to decide whether to push a reload, so a column that reshuffles
-with pane order, or that changes on every turn, would redraw the picker under
-whoever is reading it. A name set changes when an agent starts or stops, which is
-exactly when the row should change.
+script reading it directly. They are sorted rather than in pane order. Per-agent
+state was initially omitted because a build is compared with the previous one to
+decide whether to push a reload, and a state change redraws the picker under
+whoever is reading it. The amendment below reverses that half: ordering stays
+stable, but state now travels with each kind because exact per-agent attention
+won over a stable row.
 
 In the widget the kinds are drawn, not written. A 404px popout row cannot spare
 132px for three names — the widest live row had 0.84px left for its label — so
@@ -238,7 +238,23 @@ whichever came first, and a second run cannot see the problem to fix it.
 
 Rejected again, for the same reasons as above: one row per agent in the picker or
 the widget. Naming the agents on a checkout row answers *which agents are here*;
-it does not claim to answer *which one wants you*, and `prefix+a` still does.
+colouring them answers *which one wants you* without changing the one-row-per-
+checkout shape. `prefix+a` still supplies the detailed per-pane view.
+
+### Amendment: per-agent state colours
+
+Agent entries are objects, `{kind, state}`, rather than bare kind strings.
+`spaces.sh` derives both from the `pane list` blob it already holds, including
+the parked override keyed by pane. The picker keeps names in cache field 8 and
+appends aligned states in field 9, then adds ANSI colour only while rendering;
+the widget maps the same state through its existing `stateColor` function.
+Neither view folds state independently.
+
+This knowingly reverses the stable-row trade-off above. A turn transition now
+changes the cache and triggers fzf reload. Exact status for each concurrently
+running agent was chosen over avoiding that redraw. Duplicate panes of one kind
+are temporary invalid state; until the claim pass converges them, the row keeps
+one mark and selects that kind's most urgent state.
 
 Parked-work detection also did not change. `tooling/data/agent-probe-registry`
 already records why codex and opencode have no probe, and an agent without one is

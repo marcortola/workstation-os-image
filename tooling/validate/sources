@@ -125,11 +125,10 @@ require_file docs/README.md
 # names one agent while two run -- claiming is what makes it a slot, and it has
 # to happen at server start too, because herdr restores a session with its agents
 # and a restored workspace carries whatever labels it was saved with. And the
-# agent names on a picker row look like the first step towards per-agent states
-# there, which is the opposite: a build is diffed against the last one to decide
-# whether to redraw, so a state that changes every turn reloads the list under
-# whoever is reading it, and `prefix+a` is the per-agent view. The third line of
-# that entry is the font pin: the widget draws those agents as codicon marks and
+# agent state on a picker row knowingly changes the cache on every turn. That
+# reload-under-the-reader cost is recorded rather than hidden, and `prefix+a`
+# remains the detailed per-pane view. The third line of that entry is the font
+# pin: the widget draws those agents as codicon marks and
 # asks for the FILE, because three copies of `FiraCode Nerd Font` are installed
 # under one family name and only the image's carries codicons -- by name every
 # mark is a tofu box, and nothing on this machine lints QML or can tell a
@@ -577,24 +576,30 @@ if grep -vE '^[[:space:]]*#' "$dev_flow/executable_agent-claim.sh" |
     echo "agent-claim.sh claims a role tab it cannot rebuild: $dev_flow" >&2
     exit 1
 fi
-# Which agents a space runs, on all three surfaces that show a space at all.
+# Which agents a space runs, with each agent's state, on all three surfaces.
 #
 # A row is a checkout and its state word is herdr's rollup, so with two agents
-# the word alone cannot say which one wants you. The names are the one thing the
-# row can carry without becoming a second agent picker; the picker on prefix+a
-# stays the per-pane view, and there the kind is a column rather than a fallback
-# behind a terminal title that is never null.
+# the word alone cannot say which one wants you. Space rows remain one per
+# checkout, but their marks and names now use pane state. The picker on prefix+a
+# stays the detailed per-pane view.
 # shellcheck disable=SC2016 # literal fragment of the guarded jq program
 grep -qF 'agents: agents,' "$dev_flow/executable_spaces.sh"
-# Appended, never inserted: the picker cache is read positionally by eight call
-# sites and by the wt: branch, all of which take a fixed index, so the whole
-# column order is asserted rather than only the new column being last. Newlines
-# and indentation are squeezed out first, since the jq array spans lines.
+grep -qF 'kind: .agent,' "$dev_flow/executable_spaces.sh"
+# shellcheck disable=SC2016 # literal fragment of the guarded jq program
+grep -qF 'state: (if $parked_panes[.pane_id] == true' "$dev_flow/executable_spaces.sh"
+# Appended, never inserted: the picker cache is read positionally. Names remain
+# field 8 and aligned states append as field 9, so existing readers keep their
+# indices. Newlines and indentation are squeezed out first.
 # shellcheck disable=SC2016 # literal fragment of the guarded jq program
 tr -s '[:space:]' ' ' < "$dev_flow/executable_spaces.sh" |
-    grep -qF '[ .workspace_id, (.marked_state | pad(8)), (((if .is_worktree then " └ " else "" end) + .label) | pad(38)), .checkout, .repo, (.is_worktree | tostring), .label, (.agents | join(" ") | pad($agent_width)) ]' ||
+    grep -qF '[ .workspace_id, (.marked_state | pad(8)), (((if .is_worktree then " └ " else "" end) + .label) | pad(38)), .checkout, .repo, (.is_worktree | tostring), .label, ([.agents[].kind] | join(" ") | pad($agent_width)), ([.agents[].state] | join(" ")) ]' ||
     { echo "the picker cache columns moved; every positional reader takes a fixed index" >&2; exit 1; }
 grep -q 'modelData.agents' "$herdr_widget/HerdrJobsWidget.qml"
+grep -qF 'color: root.stateColor(modelData.state)' "$herdr_widget/HerdrJobsWidget.qml" ||
+    { echo "the widget no longer colours each agent mark from its own state" >&2; exit 1; }
+# shellcheck disable=SC2016 # literal fragment of the guarded awk program
+grep -qF 'coloured_agents($8, $9)' "$dev_flow/executable_spaces.sh" ||
+    { echo "the space picker no longer colours each agent name from its own state" >&2; exit 1; }
 # The widget draws them as codicon marks, and that spans three files: the mark
 # map here, the font the build installs, and the build gate that asserts the
 # codepoints are in it. The widget asks for the FILE and not the family, because

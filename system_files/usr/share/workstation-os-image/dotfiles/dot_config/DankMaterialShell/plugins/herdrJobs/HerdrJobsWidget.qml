@@ -282,16 +282,12 @@ PluginComponent {
                         //
                         // A row is a checkout and its state word is herdr's
                         // rollup of every agent in it, so with two agents the
-                        // word alone cannot say which one wants you. Which ones
-                        // are here is what the row can carry without becoming a
-                        // second agent picker: prefix+a is that, one row per
-                        // pane, and it is where the states live.
+                        // word alone cannot say which one wants you. Each mark
+                        // carries that answer by colour; prefix+a remains the
+                        // detailed one-row-per-pane view.
                         //
-                        // The marks are dim, one colour for all three. Colour in
-                        // this row already means state -- red wants an answer,
-                        // green finished, yellow still going -- and a second
-                        // colour axis competes with the one that says where to
-                        // look.
+                        // Each mark takes its own pane state. spaces.sh owns the
+                        // mapping, including parked work; QML only renders it.
                         Row {
                             id: agentMarksRow
                             anchors.right: parent.right
@@ -303,13 +299,13 @@ PluginComponent {
                                 model: modelData.agents || []
 
                                 StyledText {
-                                    required property string modelData
+                                    required property var modelData
 
-                                    readonly property string mark: root.agentMarks[modelData] || ""
+                                    readonly property string mark: root.agentMarks[modelData.kind] || ""
 
                                     anchors.verticalCenter: parent.verticalCenter
-                                    text: mark || modelData
-                                    color: Theme.surfaceVariantText
+                                    text: mark || modelData.kind
+                                    color: root.stateColor(modelData.state)
                                     font.family: mark ? agentMarkFont.name : resolvedFontFamily
                                     font.pixelSize: mark ? Theme.iconSizeSmall : Theme.fontSizeSmall
                                 }

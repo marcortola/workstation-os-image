@@ -38,8 +38,9 @@ none of the window plumbing is ours.
 The load-bearing decision is not the widget. It is that the widget computes
 nothing.
 
-`spaces.sh` already derived state, the freshness mark, the expiry window and the
-attention ordering, in one `jq` program. The refactor split that program's tail
+`spaces.sh` already derived checkout and per-agent state, the freshness mark,
+the expiry window and the attention ordering, in one `jq` program. The refactor
+split that program's tail
 in two: `rows_json` emits one object per row, and the picker's `space_rows`
 became that piped through a formatter producing the same padded TSV it always
 did — verified byte-identical against the pre-refactor script, at both the raw

@@ -244,9 +244,9 @@ prefer them over reinventing the shape:
   layouts run it beside `claim_agent_tabs`, and `agent-claim.sh` runs both over
   every workspace on `[[startup]]`, since a restored session keeps the labels it
   was saved with. Never claim `nvim`/`term` outside a layout -- that rename takes
-  the role away and only a layout rebuilds it. Picker and widget rows say WHICH
-  agents a checkout runs and never their states: a build is diffed against the
-  last to decide a redraw, so a per-agent state churns the list under the reader.
+  the role away and only a layout rebuilds it. Picker and widget rows say which
+  agents a checkout runs and colour each one from its own state. That redraws
+  the row on a turn transition; exact status won over stable names.
   The picker names them, the widget draws codicon marks from the image's pinned
   Nerd Font -- by PATH, since DMS bundles an older copy under the same family
   name and by name every mark is a silent tofu box (gated in three files).
