@@ -1,13 +1,39 @@
 version: 2
 updates:
-  - package-ecosystem: github-actions
-    directory: /
+  # Bumps digest-pinned inputs on literal FROM lines. ARG BASE_IMAGE is
+  # managed by .github/renovate.json5 because Dependabot cannot parse it.
+  - package-ecosystem: "docker"
+    directory: "/"
     schedule:
-      interval: weekly
-  # Bumps the digest-pinned inputs on LITERAL FROM lines -- currently the brew
-  # stage. This parser is a regex over FROM, so it cannot see the base, which
-  # lives in ARG BASE_IMAGE; .github/renovate.json5 owns that one.
-  - package-ecosystem: docker
-    directory: /
+      interval: "weekly"
+      day: "monday"
+      time: "10:30"
+      timezone: "Europe/Madrid"
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      minor-and-patch:
+        applies-to: "version-updates"
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
     schedule:
-      interval: weekly
+      interval: "weekly"
+      day: "monday"
+      time: "10:30"
+      timezone: "Europe/Madrid"
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      minor-and-patch:
+        applies-to: "version-updates"
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
