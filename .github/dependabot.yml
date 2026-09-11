@@ -11,6 +11,10 @@ multi-ecosystem-groups:
 updates:
   - package-ecosystem: docker
     directory: /
+    cooldown:
+      default-days: 7
+      semver-minor-days: 7
+      semver-patch-days: 3
     ignore:
       - dependency-name: "*"
         update-types:
@@ -33,6 +37,10 @@ updates:
           - version-update:semver-minor
   - package-ecosystem: github-actions
     directory: /
+    cooldown:
+      default-days: 7
+      semver-minor-days: 7
+      semver-patch-days: 3
     ignore:
       - dependency-name: "*"
         update-types:
