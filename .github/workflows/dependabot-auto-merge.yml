@@ -1,0 +1,109 @@
+name: Dependabot audit and auto-merge
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - synchronize
+
+permissions: {}
+
+jobs:
+  audit:
+    if: >-
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      update-type: ${{ steps.metadata.outputs.update-type }}
+    steps:
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        with:
+          github-token: ${{ github.token }}
+
+      - name: Check out Dependabot commit
+        if: >-
+          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+          steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Audit npm dependencies
+        if: >-
+          steps.metadata.outputs.package-ecosystem == 'npm' &&
+          (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+          steps.metadata.outputs.update-type == 'version-update:semver-minor')
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "${GITHUB_WORKSPACE}${{ steps.metadata.outputs.directory }}"
+          if [[ -f pnpm-lock.yaml ]]; then
+            corepack pnpm audit --audit-level high
+          elif [[ -f yarn.lock ]]; then
+            corepack prepare yarn@1.22.22 --activate
+            yarn audit --level high
+          elif [[ -f package-lock.json ]]; then
+            npm audit --audit-level high
+          else
+            npm audit --no-package-lock --audit-level high
+          fi
+
+      - name: Audit Composer dependencies
+        if: >-
+          steps.metadata.outputs.package-ecosystem == 'composer' &&
+          (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+          steps.metadata.outputs.update-type == 'version-update:semver-minor')
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "${GITHUB_WORKSPACE}${{ steps.metadata.outputs.directory }}"
+          composer audit --locked --no-interaction --abandoned=report \
+            --ignore-severity=low --ignore-severity=moderate
+
+      - name: Audit Python dependencies
+        if: >-
+          steps.metadata.outputs.package-ecosystem == 'pip' &&
+          (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+          steps.metadata.outputs.update-type == 'version-update:semver-minor')
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "${GITHUB_WORKSPACE}${{ steps.metadata.outputs.directory }}"
+          python -m pip install --disable-pip-version-check pip-audit==2.10.1
+          if [[ -f requirements.txt ]]; then
+            python -m pip_audit -r requirements.txt --progress-spinner off
+          else
+            python -m pip_audit --locked . --progress-spinner off
+          fi
+
+  auto-merge:
+    needs: audit
+    if: >-
+      needs.audit.result == 'success' &&
+      (needs.audit.outputs.update-type == 'version-update:semver-patch' ||
+      needs.audit.outputs.update-type == 'version-update:semver-minor')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Approve pull request
+        run: gh pr review --approve "$PR_URL"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+
+      - name: Enable squash auto-merge
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
