@@ -45,7 +45,7 @@ only installs Brewfile entries that are not present yet. See
 ### The config seeds
 
 `tooling/data/dotfiles.manifest` is the only inventory of captured personal config,
-and eighteen of its entries are the AI CLIs. They land as chezmoi `create_` entries
+and nineteen of its entries are the AI CLIs. They land as chezmoi `create_` entries
 under `system_files/usr/share/workstation-os-image/dotfiles/`, so an existing user
 edit always wins — chezmoi never rewrites a `create_` target once it exists.
 
@@ -53,7 +53,7 @@ edit always wins — chezmoi never rewrites a `create_` target once it exists.
 | --- | --- | --- |
 | `copy` | `.codex/AGENTS.md`, `.claude/CLAUDE.md`, `.claude/rules/context7.md`, `.config/opencode/AGENTS.md`, the three worktree commands for claude and opencode | Byte-for-byte from the live file |
 | `scrub` | `.codex/config.toml`, `.claude/settings.json` | Through a filter in `tooling/scrub/` |
-| `tree` | `.claude/skills/context7-mcp`, `.claude/skills/weekly-summary`, `.codex/skills/weekly-summary`, `.codex/skills/worktree-{create,push,remove}` | Whole skill directories |
+| `tree` | `.claude/skills/context7-mcp`, each CLI's `weekly-summary` skill, `.codex/skills/worktree-{create,push,remove}` | Whole skill directories |
 
 The two `scrub` entries are the ones that would otherwise leak; see
 [Invariants](#invariants) below.
