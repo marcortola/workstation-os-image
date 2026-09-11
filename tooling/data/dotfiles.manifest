@@ -47,6 +47,7 @@ tree|.codex/skills/worktree-create|dot_codex/skills/worktree-create|*
 tree|.codex/skills/worktree-push|dot_codex/skills/worktree-push|*
 tree|.codex/skills/worktree-remove|dot_codex/skills/worktree-remove|*
 copy|.config/opencode/AGENTS.md|dot_config/opencode/create_AGENTS.md|-
+tree|.config/opencode/skills/weekly-summary|dot_config/opencode/skills/weekly-summary|*
 copy|.config/opencode/commands/worktree-create.md|dot_config/opencode/commands/create_worktree-create.md|-
 copy|.config/opencode/commands/worktree-push.md|dot_config/opencode/commands/create_worktree-push.md|-
 copy|.config/opencode/commands/worktree-remove.md|dot_config/opencode/commands/create_worktree-remove.md|-
