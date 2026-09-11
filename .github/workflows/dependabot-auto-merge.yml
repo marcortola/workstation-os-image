@@ -9,6 +9,10 @@ on:
 
 permissions: {}
 
+concurrency:
+  group: dependabot-audit-${{ github.repository }}-${{ github.event.pull_request.base.ref }}
+  cancel-in-progress: false
+
 jobs:
   classify:
     if: >-
@@ -19,17 +23,44 @@ jobs:
       pull-requests: read
     outputs:
       update-type: ${{ steps.metadata.outputs.update-type }}
+      title-major: ${{ steps.title_major.outputs.major }}
     steps:
+      - name: Classify title version transition
+        id: title_major
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const match = process.env.PR_TITLE.match(/\bfrom\s+v?(\d+)(?:\.\d+){0,3}(?:[-+][0-9A-Za-z.-]+)?\s+to\s+v?(\d+)(?:\.\d+){0,3}(?:[-+][0-9A-Za-z.-]+)?/i);
+          const major = match !== null && Number(match[1]) !== Number(match[2]);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `major=${major}\n`);
+          NODE
+
       - name: Fetch Dependabot metadata
         id: metadata
         uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
         with:
           github-token: ${{ github.token }}
 
+  close-major:
+    needs: classify
+    if: needs.classify.outputs.title-major == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Close major update
+        run: gh pr close "$PR_URL"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+
   audit:
     needs: classify
     if: >-
       needs.classify.result == 'success' &&
+      needs.classify.outputs.title-major != 'true' &&
       (needs.classify.outputs.update-type == 'version-update:semver-patch' ||
       needs.classify.outputs.update-type == 'version-update:semver-minor')
     runs-on: ubuntu-latest
