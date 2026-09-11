@@ -1,4 +1,4 @@
-name: Dependabot audit and auto-merge
+name: Dependabot delta audit and auto-merge
 
 on:
   pull_request_target:
@@ -10,13 +10,12 @@ on:
 permissions: {}
 
 jobs:
-  audit:
+  classify:
     if: >-
       github.event.pull_request.user.login == 'dependabot[bot]' &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
-      contents: read
       pull-requests: read
     outputs:
       update-type: ${{ steps.metadata.outputs.update-type }}
@@ -27,70 +26,106 @@ jobs:
         with:
           github-token: ${{ github.token }}
 
+  audit:
+    needs: classify
+    if: >-
+      needs.classify.result == 'success' &&
+      (needs.classify.outputs.update-type == 'version-update:semver-patch' ||
+      needs.classify.outputs.update-type == 'version-update:semver-minor')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Create protected audit workspace
+        run: mkdir .dependabot-audit
+
+      - name: Check out base commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          persist-credentials: false
+
       - name: Check out Dependabot commit
-        if: >-
-          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
-          steps.metadata.outputs.update-type == 'version-update:semver-minor'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           ref: ${{ github.event.pull_request.head.sha }}
+          path: candidate
           persist-credentials: false
 
-      - name: Audit npm dependencies
-        if: >-
-          steps.metadata.outputs.package-ecosystem == 'npm_and_yarn' &&
-          (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
-          steps.metadata.outputs.update-type == 'version-update:semver-minor')
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd "${GITHUB_WORKSPACE}${{ steps.metadata.outputs.directory }}"
-          if [[ -f pnpm-lock.yaml ]]; then
-            corepack pnpm audit --audit-level high
-          elif [[ -f yarn.lock ]]; then
-            corepack prepare yarn@1.22.22 --activate
-            yarn audit --level high
-          elif [[ -f package-lock.json ]]; then
-            npm audit --audit-level high
-          else
-            npm audit --no-package-lock --audit-level high
-          fi
+      - name: Scan base dependencies
+        id: scan-base
+        continue-on-error: true
+        uses: google/osv-scanner-action/osv-scanner-action@06b2ab4348248b456ee06c9e953637f55e03504f # v2.5.0
+        with:
+          scan-args: |-
+            --format=json
+            --output=.dependabot-audit/base.json
+            --recursive
+            base/
 
-      - name: Audit Composer dependencies
-        if: >-
-          steps.metadata.outputs.package-ecosystem == 'composer' &&
-          (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
-          steps.metadata.outputs.update-type == 'version-update:semver-minor')
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd "${GITHUB_WORKSPACE}${{ steps.metadata.outputs.directory }}"
-          composer audit --locked --no-interaction --abandoned=report \
-            --ignore-severity=low --ignore-severity=moderate
+      - name: Scan candidate dependencies
+        id: scan-candidate
+        continue-on-error: true
+        uses: google/osv-scanner-action/osv-scanner-action@06b2ab4348248b456ee06c9e953637f55e03504f # v2.5.0
+        with:
+          scan-args: |-
+            --format=json
+            --output=.dependabot-audit/candidate.json
+            --recursive
+            candidate/
 
-      - name: Audit Python dependencies
-        if: >-
-          steps.metadata.outputs.package-ecosystem == 'pip' &&
-          (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
-          steps.metadata.outputs.update-type == 'version-update:semver-minor')
+      - name: Validate scanner output
         shell: bash
         run: |
-          set -euo pipefail
-          cd "${GITHUB_WORKSPACE}${{ steps.metadata.outputs.directory }}"
-          python -m pip install --disable-pip-version-check pip-audit==2.10.1
-          if [[ -f requirements.txt ]]; then
-            python -m pip_audit -r requirements.txt --progress-spinner off
-          else
-            python -m pip_audit --locked . --progress-spinner off
-          fi
+          node <<'NODE'
+          const fs = require('node:fs');
+          for (const path of ['.dependabot-audit/base.json', '.dependabot-audit/candidate.json']) {
+            if (!fs.existsSync(path)) throw new Error(`OSV Scanner produced no output: ${path}`);
+            const report = JSON.parse(fs.readFileSync(path, 'utf8'));
+            if (!Array.isArray(report.results)) throw new Error(`Invalid OSV Scanner output: ${path}`);
+          }
+          NODE
+
+      - name: Compare vulnerability findings
+        uses: google/osv-scanner-action/osv-reporter-action@06b2ab4348248b456ee06c9e953637f55e03504f # v2.5.0
+        with:
+          scan-args: |-
+            --output=.dependabot-audit/delta.sarif
+            --old=.dependabot-audit/base.json
+            --new=.dependabot-audit/candidate.json
+            --gh-annotations=true
+            --fail-on-vuln=false
+
+      - name: Block introduced high or critical vulnerabilities
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const sarif = JSON.parse(fs.readFileSync('.dependabot-audit/delta.sarif', 'utf8'));
+          const blocking = [];
+          for (const run of sarif.runs ?? []) {
+            const rules = run.tool?.driver?.rules ?? [];
+            for (const result of run.results ?? []) {
+              const rule = rules[result.ruleIndex] ?? rules.find((entry) => entry.id === result.ruleId);
+              const score = Number(rule?.properties?.['security-severity'] ?? 0);
+              if (score >= 7) blocking.push(`${result.ruleId} (${score})`);
+            }
+          }
+          if (blocking.length > 0) {
+            throw new Error(`Introduced high/critical vulnerabilities: ${[...new Set(blocking)].join(', ')}`);
+          }
+          NODE
 
   auto-merge:
-    needs: audit
+    needs:
+      - classify
+      - audit
     if: >-
       needs.audit.result == 'success' &&
-      (needs.audit.outputs.update-type == 'version-update:semver-patch' ||
-      needs.audit.outputs.update-type == 'version-update:semver-minor')
+      (needs.classify.outputs.update-type == 'version-update:semver-patch' ||
+      needs.classify.outputs.update-type == 'version-update:semver-minor')
     runs-on: ubuntu-latest
     permissions:
       contents: write
