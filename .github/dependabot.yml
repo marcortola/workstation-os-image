@@ -13,12 +13,11 @@ updates:
     directory: /
     cooldown:
       default-days: 7
-      semver-minor-days: 7
-      semver-patch-days: 3
     ignore:
       - dependency-name: "*"
         update-types:
           - version-update:semver-major
+          - version-update:semver-minor
     groups:
       security-updates:
         applies-to: security-updates
@@ -39,8 +38,6 @@ updates:
     directory: /
     cooldown:
       default-days: 7
-      semver-minor-days: 7
-      semver-patch-days: 3
     ignore:
       - dependency-name: "*"
         update-types:
