@@ -80,12 +80,69 @@ out where you went in, not at the repo root.
 
 Startup is idempotent: `devcontainer up` builds on the first call and is a fast
 no-op afterwards, and the same mount set is passed on every `up`, so a plain
-`dev` and a `dev nvim` share one container with no rebuild. When `up` fails, the
+`dev` and a `dev nvim` share one container with no rebuild. It is also *skipped*
+once the definition has settled — see [Reaching a running container](#reaching-a-running-container).
+When `up` fails, the
 function prints the CLI's own last twenty lines and then the exact verbose
 command to re-run. It captures that output rather than discarding it because the
 alternative hid a real bug for days: `dev` passed a mount string the CLI rejects
 outright, and every invocation failed with nothing but the retry hint to show
 for it.
+
+### Reaching a running container
+
+The devcontainer CLI is a Node program that re-resolves `devcontainer.json` and
+its features on every invocation. Measured on this machine against a container
+that was *already running*:
+
+| hop | measured |
+|---|---|
+| `devcontainer exec` | 514-610 ms |
+| `docker exec` doing the same work | 39-50 ms |
+| `devcontainer up`, warm | 375-404 ms |
+| `devcontainer read-configuration` | 140-157 ms |
+| `docker ps --filter label=…` | 23-30 ms |
+| `devcontainer --version` (bare Node start) | 70-80 ms |
+| Neovim's own startup | 21 ms |
+
+So `dev` takes two shortcuts, and falls back to the CLI whenever either is not
+provably safe.
+
+**`docker exec` instead of `devcontainer exec`.** `__dev_fast_probe` resolves the
+container by the CLI's own `devcontainer.local_folder` label, so it finds exactly
+the container `exec` would have chosen. Everything else is read back off that
+container rather than recomputed: the workspace path comes from the bind mount
+whose source is the workspace root — which is what makes a linked worktree's
+rewritten `/workspaces/<repo>__worktrees/<slug>` come out right — and the user
+comes from the `devcontainer.metadata` label. That last one is not a nicety:
+`.Config.User` is `root` on every container here while `remoteUser` is `vscode`
+or `node`, so an exec without `-u` would run as root and leave root-owned files
+in the store and the checkout. Missing any of the three, or `DEV_NO_FAST_EXEC`
+set, and the CLI runs instead.
+
+The command runs under `bash -lc`, not `bash -c`, because the CLI's default
+`userEnvProbe` is `loginInteractiveShell`. The provisioning script decides
+whether to download a 181 MB Node from `command -v node`, and node lives on an
+nvm PATH written into `/etc/profile.d` — a non-login shell misses it and
+re-downloads Node into every store.
+
+**Skipping `devcontainer up`.** `up` is skipped when the container is running and
+the Dev Container definition hashes to what it hashed to when that container was
+built. The stamp lives at `<store>/.upconfig` and carries the hash *and* the
+container id, so a container replaced behind our back costs exactly one `up`.
+
+The hash is over **content**, never mtime. git rewrites mtimes on checkout, so
+mtime does not track content: growwer's `.devcontainer/Dockerfile` reads
+2026-09-14 20:05 against a last commit of 2026-09-11 on a clean tree. An mtime
+test would call every project changed and the skip would never fire. `-newermt`
+is how such a test gets written, so it is gated against in code.
+
+What the hash cannot see is a Dockerfile or compose file referenced from outside
+the Dev Container definition, and an upstream feature that has since published a
+new version. `DEV_FORCE_UP=1` is the escape hatch for both.
+
+Net effect on a settled project: `dev <cmd>` at ~145 ms and `dev nvim` at
+~215 ms, against ~930 ms and ~1.5 s before.
 
 ---
 
@@ -185,8 +242,8 @@ the host:
 |---|---|
 | `$HOME/.config/nvim` → `/nvimconf-src` | The host Neovim config; copied into the store on each launch, never written back |
 | `$HOME/.local/share/nvim/lazy` → `/nvim-plugins` | The host's already-cloned plugins, reused instead of re-cloning ~50 repos over the container network |
-| `~/.local/share/dev-nvim/toolchain` → `/nvimtoolchain` | The nvim binary, `fd` and `rg`, shared by every checkout on the same base image |
-| `<per-project store>` → `/nvimdata` | Private Node, Mason servers and compiled treesitter parsers |
+| `~/.local/share/dev-nvim/toolchain` → `/nvimtoolchain` | The nvim binary, `fd`, `rg` and Node, shared by every checkout on the same base image |
+| `<per-project store>` → `/nvimdata` | Mason servers and compiled treesitter parsers |
 | host `lazygit` binary + `~/.config/lazygit` | LazyVim's `<leader>gg` only exists where the binary does |
 
 lazygit is mounted rather than downloaded because it is a static Go binary and
@@ -241,13 +298,13 @@ container has mounted, or one it cannot explain.
 
 First launch provisions it, which takes minutes; every launch after that is
 fast. Provisioning installs a pinned Neovim (0.12.4, checksum-verified against
-the release `shasum.txt` when that file can be fetched), a private Node 22.11.0
-when the container has none, `fd` and `ripgrep` for the pickers, and a build
+the release `shasum.txt` when that file can be fetched), Node 22.11.0 when the
+container has none, `fd` and `ripgrep` for the pickers, and a build
 toolchain via `apt-get` when `cc`/`git` are missing *and* passwordless `sudo` is
 available — otherwise it warns that treesitter may fail rather than dying.
 
-Neovim, `fd` and `rg` are **shared** rather than per-store: they are the same
-bytes in every container on the same base image, so they install once under
+Neovim, `fd`, `rg` and Node are **shared** rather than per-store: they are the
+same bytes in every container on the same base image, so they install once under
 `/nvimtoolchain/<fingerprint>` and the store gets a symlink. The fingerprint is
 only knowable inside the container, which is why the whole `toolchain/` directory
 is mounted and the link is made in there — the launch command still spells
@@ -258,8 +315,8 @@ produce one good copy and one discarded download, never a half-extracted binary.
 
 The store **auto-resets** when the container's base changes. The provisioner
 fingerprints `/etc/os-release`, `ldd --version` and `uname -m`, compares it to
-`/nvimdata/.builtfor`, and on a mismatch wipes Node and the four XDG directories,
-because those artefacts are libc-bound. The nvim and `bin` entries are symlinks
+`/nvimdata/.builtfor`, and on a mismatch wipes the four XDG directories, because
+those artefacts are libc-bound. The nvim, `bin` and `node` entries are symlinks
 by then, so the reset drops the links and the next lines re-point them at the new
 fingerprint's toolchain. To force a clean reprovision yourself, delete the store
 directory.

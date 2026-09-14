@@ -215,13 +215,49 @@ directory lives, so `tooling/validate/sources` gates that the mount target in
 
 ## Where to go next
 
-The one number this record does not have is the warm cost of `devcontainer up`
-at `create_dev.fish:90`. It runs unconditionally, for plain `dev` as well, and
-its floor is 117-127 ms. If it turns out to exceed the ~750 ms that collapsing
-two exec round-trips saves, short-circuiting it outranks everything decided here
-— but measuring it means starting a container, and the comment at
-`create_dev.fish:47-49` says the mounts ride on every `up` deliberately, so a
-liveness guard in front of it is not free.
+**Answered, 2026-09-14.** The warm cost of `devcontainer up` is **375-404 ms**,
+measured against an already-running container which it did not recreate. It does
+*not* outrank collapsing the exec round-trips — a `devcontainer exec` against an
+up container measures 514-610 ms against 39-50 ms for the `docker exec` it
+performs, and `dev nvim` pays it twice — but it was the largest term left once
+those were collapsed, so both shortcuts shipped. The CLI has no cheaper mode:
+`--expect-existing-container` only changes what happens when the container is
+absent, and `--skip-post-create` measured inside the noise (384/372/369 ms
+against 498/394/377 ms) while silently dropping `postStartCommand` and
+`postAttachCommand`.
+
+The liveness guard turned out to be free after all, because the probe that makes
+`docker exec` possible is the same probe: one `docker ps --filter
+label=devcontainer.local_folder=…` at 23-30 ms. `up` is skipped when that probe
+hits and the Dev Container definition hashes to what it hashed to when the
+container was built. It hashes **content**, not mtime, because git rewrites mtimes on
+checkout and mtime therefore does not track content: growwer's
+`.devcontainer/Dockerfile` carried a mtime three days newer than its last commit
+against a clean tree. An mtime test would call every project changed and never
+skip anything. `-newermt` is how such a test gets written, and it is gated
+against in code. `dev nvim` on a settled project went from ~1.5 s to ~215 ms.
+
+Two of this record's own premises have since expired, both found by re-measuring
+rather than by reasoning. **Node is no longer absent from the stores**: five of
+them carried a byte-identical 181,811,945 B copy, 925 MB in total, which the
+`command -v node` guard had been missing — almost certainly the same
+login-shell PATH problem that now forces `bash -lc` on every fast exec. Node
+moved into the shared toolchain alongside nvim, `fd` and `rg`. And the tree had
+grown to **6.8 GB across 58 entries** because the collector this record shipped
+had never been run with `--force`; running it took it to 3.0 GB across 18.
+
+What remains open is Mason, at 1.8 GB and the bulk of what is left. Sharing its
+install root is **rejected on evidence**, not deferred: `mason.nvim`'s
+cross-process lock at `mason-core/installer/InstallRunner.lua:178-187` is
+test-then-act rather than atomic, and the PID it writes is taken from inside one
+container's PID namespace, which is meaningless to any other container reading
+it. That failure is already in the logs here, in store `a24be7fa4406`, naming a
+`pid: 310` that never existed in the reader. The upstream knobs are real —
+mason's `install_root_dir`, nvim-treesitter's `install_dir` — but they relocate
+one Neovim's directory; they do not make one directory safe for several. If the
+duplication ever matters again, hardlink-seeding a cold store from a
+same-fingerprint donor is the shape to reach for, because it keeps one writer
+per tree.
 
 [worktree-dev-containers.md](worktree-dev-containers.md) covers why a linked
 worktree needed a relative common dir to work inside its container at all;
