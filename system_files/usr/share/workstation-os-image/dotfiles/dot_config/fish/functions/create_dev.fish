@@ -1,3 +1,73 @@
+# Seed a brand-new per-project store from one already built on the same base
+# image, by HARDLINK. Every checkout is its own store -- the key is a hash of the
+# checkout path, so a linked worktree IS its own root -- and each new branch
+# therefore re-downloads its Mason packages and recompiles its treesitter parsers
+# from scratch. Measured on the surviving worktree stores: 150-359 MB and 3-16
+# Mason packages each, every byte of which already exists on this disk.
+#
+# Hardlinks rather than copies, and only into an EMPTY store. That combination is
+# what makes it safe:
+#   - the target has never been opened, so there is no second writer to race;
+#   - mason promotes a package by renaming its staging directory into packages/
+#     (mason-core/installer/context/init.lua:95 `fs.sync.rename(cwd, install_path)`),
+#     so anything already in packages/ is complete even while the donor installs
+#     something else right now;
+#   - nvim-treesitter renames a freshly built parser into place, and renames an
+#     in-use one OUT of the way rather than overwriting it
+#     (nvim-treesitter/install.lua:290 and :328), so a shared inode is replaced,
+#     never mutated.
+# Neither tool edits an installed file in place, which is the single property
+# that would make sharing an inode wrong.
+#
+# staging/ is deliberately dropped: it holds mason's lockfiles
+# (InstallLocation:lockfile -> staging/<name>.lock), and inheriting one would
+# make a fresh store believe an install is already running in another process.
+function __dev_seed_store --argument-names store
+    set -l fp (cat "$store/.builtfor" 2>/dev/null)
+    test -n "$fp"; or return 1
+    # Seed only what is untouched; never merge into a populated store.
+    test -e "$store/data/nvim/mason"; and return 1
+    test -e "$store/data/nvim/site"; and return 1
+
+    set -l root (path dirname "$store")
+    set -l best
+    set -l best_n 0
+    # `ls` rather than a glob: an unmatched wildcard is a hard error in fish, and
+    # this runs on a machine that may legitimately have no other store yet.
+    for name in (ls -1 "$root" 2>/dev/null)
+        set -l cand "$root/$name"
+        test "$cand" = "$store"; and continue
+        test -d "$cand/data/nvim/mason/packages"; or continue
+        # Same base image, by the fingerprint the provisioner already computes.
+        # A store with no .builtfor (toolchain/, a stray directory) never matches.
+        set -l cand_fp (cat "$cand/.builtfor" 2>/dev/null)
+        test "$cand_fp" = "$fp"; or continue
+        set -l n (ls -1 "$cand/data/nvim/mason/packages" 2>/dev/null | wc -l | string trim)
+        if test "$n" -gt "$best_n"
+            set best "$cand"
+            set best_n "$n"
+        end
+    end
+    test -n "$best"; or return 1
+
+    mkdir -p "$store/data/nvim"
+    # -a keeps symlinks as symlinks -- mason's bin/ entries are RELATIVE
+    # (`../packages/...`), so they stay correct in the new store -- and -l
+    # hardlinks the regular files. Same filesystem by construction: donor and
+    # target are siblings under the same store root.
+    if not cp -al "$best/data/nvim/mason" "$store/data/nvim/mason" 2>/dev/null
+        rm -rf "$store/data/nvim/mason"
+        return 1
+    end
+    rm -rf "$store/data/nvim/mason/staging"
+    mkdir -p "$store/data/nvim/mason/staging"
+    if test -d "$best/data/nvim/site"
+        cp -al "$best/data/nvim/site" "$store/data/nvim/site" 2>/dev/null
+        or rm -rf "$store/data/nvim/site"
+    end
+    echo "dev nvim: seeded store from "(path basename "$best")" -- $best_n mason packages, hardlinked" >&2
+end
+
 # Resolve the already-running Dev Container for a workspace root, printing its
 # id, the workspace path inside it, and the user to exec as -- or nothing at all
 # when any of the three is unavailable, which is the signal to use the CLI.
@@ -417,6 +487,12 @@ $boot"
             echo "dev nvim: provisioning failed" >&2
             return 1
         end
+
+        # Host-side, and only now: the base-image fingerprint the seed keys on is
+        # written by the provisioning script above, and the store is mounted at
+        # /nvimdata inside the container where no donor is visible. A no-op for
+        # every store that already has one.
+        __dev_seed_store "$store"
 
         # Detect the project's languages (host-side, from the bind-mounted
         # source) so `dev nvim` scopes the in-container LSP/parser/tool install to

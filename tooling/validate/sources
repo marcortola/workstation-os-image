@@ -447,6 +447,33 @@ grep -q 'cfg_hash [$]fast_cid" >"[$]cfg_stamp"' "$dev_fish"
 # `up` may have replaced the container the first probe found.
 [[ $(grep -c '__dev_fast_probe "[$]root"' "$dev_fish") -eq 2 ]]
 
+# A new checkout gets a cold store -- the key is a hash of the checkout path, so
+# every worktree is its own -- and `dev` seeds it by hardlink from a store built
+# on the same base image. Three properties make that safe rather than reckless,
+# and each fails silently if lost:
+#   - It seeds ONLY an untouched store. Merging into a populated one would
+#     hardlink over files a running Neovim already has open.
+#   - It uses `cp -al`. A plain `cp -a` silently turns the whole thing into a
+#     real copy: correct, but it reinstates the hundreds of MB per worktree the
+#     seed exists to avoid, and nothing would report it.
+#   - It drops mason's staging/, which holds the install lockfiles
+#     (InstallLocation:lockfile -> staging/<name>.lock). Inheriting one makes a
+#     fresh store believe an install is already running in another process --
+#     exactly the "Lockfile exists ... (pid: N)" failure already seen here, where
+#     the pid belongs to another container's namespace.
+# The donor is matched on .builtfor, the same base-image fingerprint the shared
+# toolchain already keys on.
+grep -q '__dev_seed_store "[$]store"' "$dev_fish"
+grep -q 'cp -al "[$]best/data/nvim/mason"' "$dev_fish"
+# Scoped to the seed's own paths: the provisioning script's `cp -a
+# /nvimconf-src ...` is a real copy on purpose.
+grep -vE '^[[:space:]]*#' "$dev_fish" | grep -qE 'cp -a[^l].*data/nvim' \
+    && { echo "dev: seed must hardlink (cp -al), not copy" >&2; exit 1; }
+grep -q 'rm -rf "[$]store/data/nvim/mason/staging"' "$dev_fish"
+grep -q '[$]store/[.]builtfor' "$dev_fish"
+# Both halves of the "untouched only" guard, mason and site.
+[[ $(grep -c 'test -e "[$]store/data/nvim/\(mason\|site\)"; and return 1' "$dev_fish") -eq 2 ]]
+
 # One mechanism, two files: the local lint and the CI step must read the same
 # script list and the same shellcheck version, or a rule passes on one side and
 # fails on the other. That is not hypothetical -- the two kept separate lists

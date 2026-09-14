@@ -296,8 +296,9 @@ and nothing removed one when the checkout went away. Half the tree measured on
 reports them and removes them under `--force`; it never touches a store a running
 container has mounted, or one it cannot explain.
 
-First launch provisions it, which takes minutes; every launch after that is
-fast. Provisioning installs a pinned Neovim (0.12.4, checksum-verified against
+First launch provisions it; every launch after that is fast. A *first* launch in
+a checkout that has a sibling built on the same base image is fast too, because
+the store is seeded by hardlink -- see [Seeding a cold store](#seeding-a-cold-store). Provisioning installs a pinned Neovim (0.12.4, checksum-verified against
 the release `shasum.txt` when that file can be fetched), Node 22.11.0 when the
 container has none, `fd` and `ripgrep` for the pickers, and a build
 toolchain via `apt-get` when `cc`/`git` are missing *and* passwordless `sudo` is
@@ -331,6 +332,48 @@ directory.
 > The probe rides inside the provisioning script rather than paying its own
 > `devcontainer exec`, and answers 97 to ask for the recreate. A round trip
 > measured 370-484 ms on every launch, and the probe is a bare `test`.
+
+### Seeding a cold store
+
+The store key is a hash of the workspace root and a linked worktree *is* its own
+root, so every branch checkout starts with an empty store: its own Mason packages
+to download and its own treesitter parsers to compile. The surviving worktree
+stores measured 150-359 MB and 3-16 Mason packages each, all of it bytes that
+already existed on the disk.
+
+So after provisioning, `__dev_seed_store` hardlinks `data/nvim/mason` and
+`data/nvim/site` from a store whose `.builtfor` matches -- the same base-image
+fingerprint the shared toolchain keys on. It runs host-side rather than in the
+container, for two reasons: the fingerprint is only written once the provisioning
+script has run, and inside the container the store is mounted alone at
+`/nvimdata` where no donor is visible.
+
+Three properties make hardlinking safe rather than reckless, and all three are
+gated:
+
+- **It seeds only an untouched store.** Never a merge into a populated one, so
+  there is no second writer and nothing a running Neovim already has open.
+- **Neither tool edits an installed file in place.** Mason promotes a package by
+  renaming its staging directory into `packages/`
+  (`mason-core/installer/context/init.lua:95`), so anything in `packages/` is
+  complete even while the donor installs something else. nvim-treesitter renames
+  a freshly built parser into place, and renames an in-use one *out of the way*
+  rather than overwriting it (`nvim-treesitter/install.lua:290` and `:328`). A
+  shared inode is replaced, never mutated.
+- **`staging/` is dropped.** It holds Mason's lockfiles, and inheriting one makes
+  a fresh store believe an install is already running in another process -- the
+  "Lockfile exists … (pid: N)" failure, where the pid belongs to a different
+  container's namespace entirely.
+
+Mason's `bin/` entries are relative symlinks (`../packages/…`), so they stay
+correct in the new store; `cp -a` preserves them as symlinks while `-l` hardlinks
+the regular files. Donor and target are siblings under the same store root, so
+they are always on one filesystem.
+
+A donor that does not exist is not an error: the first store on a new base image
+provisions the old way, and the next one seeds from it.
+
+---
 
 ### Language scoping
 
