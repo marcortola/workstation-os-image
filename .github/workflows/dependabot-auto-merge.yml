@@ -68,13 +68,28 @@ jobs:
       issues: write
       pull-requests: write
     steps:
+      # Dependabot's own comment-command handler checks the commenter's actual
+      # collaborator permission level, not the Actions token's granted scopes.
+      # github-actions[bot] posting via the default token is never recognized as
+      # having push access - Dependabot replies "Sorry, only users with push access
+      # can use that command." and the ignore never takes effect. Observed in
+      # production: every major this step ran on stayed open indefinitely instead
+      # of being silenced, which is worse than the "gh pr close" churn this
+      # mechanism was built to replace.
+      #
+      # Post the comment anyway - if a DEPENDABOT_COMMAND_TOKEN secret (a PAT
+      # belonging to a real collaborator) is ever added, this starts silencing
+      # majors permanently with no other change needed - but always close the pull
+      # request too, so a rejected comment does not leave it sitting open.
       - name: Silence non-security major
         if: >-
           needs.classify.outputs.ghsa-id == '' &&
           needs.classify.outputs.title-major == 'true'
-        run: gh pr comment "$PR_URL" --body '@dependabot ignore this major version'
+        run: |
+          gh pr comment "$PR_URL" --body '@dependabot ignore this major version' || true
+          gh pr close "$PR_URL"
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.DEPENDABOT_COMMAND_TOKEN || github.token }}
           PR_URL: ${{ github.event.pull_request.html_url }}
 
       # Grouped or unparseable titles cannot be targeted by "ignore this major
@@ -344,6 +359,11 @@ jobs:
 
           case "$state" in
             BEHIND)
+              # Same permission gap as the major-version ignore command below: this is
+              # rejected when DEPENDABOT_COMMAND_TOKEN is not set, since Dependabot does
+              # not recognize github-actions[bot] as having push access. Harmless when
+              # rejected - the next Dependabot sync retries this workflow regardless -
+              # and it starts working with no other change if that secret is added.
               gh pr comment "$PR_URL" --body '@dependabot rebase'
               echo "::notice::Branch was behind the base; asked Dependabot to rebase."
               ;;
@@ -354,5 +374,5 @@ jobs:
 
           exit 1
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.DEPENDABOT_COMMAND_TOKEN || github.token }}
           PR_URL: ${{ github.event.pull_request.html_url }}
