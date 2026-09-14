@@ -380,6 +380,73 @@ while read -r dev_call; do
         || { echo "devcontainer call without \$dcflags: $dev_call" >&2; exit 1; }
 done < <(grep -E 'devcontainer (up|exec) --workspace-folder' "$dev_fish")
 
+# One mechanism, two paths: `dev` reaches the container either through the
+# devcontainer CLI or, when the container is already running, straight through
+# `docker exec` -- measured 39-50 ms against the CLI's 514-610 ms. The fast path
+# has to land in the same place as the same user, and every way it can fail to
+# is silent:
+#   - `.Config.User` is `root` on every container here while the CLI's
+#     remoteUser is `vscode`/`node`, so a `docker exec` that loses `-u` runs as
+#     root and leaves root-owned files in the store and the checkout. Nothing
+#     reports that until `git worktree remove` cannot delete them.
+#   - `-w` carries the workspace path read back off the bind mount, which is
+#     what makes a linked worktree's rewritten /workspaces/<repo>__worktrees/
+#     <slug> come out right; without it the relative cd lands nowhere.
+#   - `bash -lc`, not `bash -c`: the CLI's default userEnvProbe is
+#     loginInteractiveShell. The provisioning script decides whether to download
+#     a 181 MB Node into the store from `command -v node`, and node lives on an
+#     nvm PATH set in /etc/profile.d -- a non-login shell misses it and
+#     re-downloads Node for every project.
+dev_fast_execs=0
+while read -r dev_fast; do
+    dev_fast_execs=$((dev_fast_execs + 1))
+    # shellcheck disable=SC2016
+    [[ $dev_fast == *'-u "$fast_user"'* ]] \
+        || { echo "dev fast path: docker exec without -u: $dev_fast" >&2; exit 1; }
+    # shellcheck disable=SC2016
+    [[ $dev_fast == *'-w "$fast_ws"'* ]] \
+        || { echo "dev fast path: docker exec without -w: $dev_fast" >&2; exit 1; }
+done < <(grep -E '^[[:space:]]*docker exec ' "$dev_fish")
+(( dev_fast_execs > 0 ))
+# Every fast exec runs a login shell, so the count has to match exactly. The
+# comment above them says `bash -lc` too, hence the non-comment anchor.
+[[ $(grep -vE '^[[:space:]]*#' "$dev_fish" | grep -cE 'bash -lc') -eq $dev_fast_execs ]]
+# The probe reads the CLI's OWN label, so it resolves the container `exec` would
+# have chosen. A different label name selects nothing and the fast path silently
+# never engages -- which reads as "no regression" rather than as a broken gate.
+grep -q 'label=devcontainer.local_folder=[$]root' "$dev_fish"
+grep -q 'devcontainer.metadata' "$dev_fish"
+# A recreate builds a NEW container, so the probed id must be dropped rather
+# than reused for the launch that follows it.
+grep -q -- '--remove-existing-container' "$dev_fish"
+
+# `dev` skips `devcontainer up` when the definition has not changed since the
+# container was built. Every way that check can go wrong is silent and one of
+# them was already written once:
+#   - It must key on CONTENT, never mtime, and `-newermt` is how an mtime test
+#     gets written. git rewrites mtimes on checkout, so mtime does not track
+#     content: growwer's .devcontainer/Dockerfile reads three days newer than
+#     its last commit on a clean tree. An mtime test calls every project changed
+#     and the skip never fires.
+#   - It must fail CLOSED: skip_up starts at 0 and is only ever set on an exact
+#     match, so a missing stamp, a missing hash or no running container all run
+#     `up`.
+#   - The stamp carries the container id, so a container replaced behind our
+#     back costs one `up` rather than going unnoticed.
+#   - DEV_FORCE_UP is the escape hatch for what the hash cannot see: a Dockerfile
+#     referenced from outside the definition, or an upstream feature that has
+#     published a new version.
+grep -q 'sha256sum' "$dev_fish"
+# Comments explain why -newermt is wrong, so only code counts.
+grep -vE '^[[:space:]]*#' "$dev_fish" | grep -q -- '-newermt' \
+    && { echo "dev: mtime does not track content; hash the definition instead" >&2; exit 1; }
+grep -q 'set -l skip_up 0' "$dev_fish"
+grep -q 'DEV_FORCE_UP' "$dev_fish"
+grep -q 'cfg_hash [$]fast_cid" >"[$]cfg_stamp"' "$dev_fish"
+# The probe runs once before `up` to decide the skip and once after it, because
+# `up` may have replaced the container the first probe found.
+[[ $(grep -c '__dev_fast_probe "[$]root"' "$dev_fish") -eq 2 ]]
+
 # One mechanism, two files: the local lint and the CI step must read the same
 # script list and the same shellcheck version, or a rule passes on one side and
 # fails on the other. That is not hypothetical -- the two kept separate lists

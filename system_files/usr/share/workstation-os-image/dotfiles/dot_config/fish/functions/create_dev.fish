@@ -1,3 +1,33 @@
+# Resolve the already-running Dev Container for a workspace root, printing its
+# id, the workspace path inside it, and the user to exec as -- or nothing at all
+# when any of the three is unavailable, which is the signal to use the CLI.
+#
+# Each value is read back off the container the devcontainer CLI itself built,
+# never recomputed: the container by the CLI's own `devcontainer.local_folder`
+# label, the workspace path from the bind mount whose source is $root (which is
+# what makes a linked worktree's rewritten /workspaces/<repo>__worktrees/<slug>
+# come out right), and remoteUser from the `devcontainer.metadata` label --
+# `.Config.User` is `root` on every container here, so reading that instead
+# would exec as root and leave root-owned files in the store and the checkout.
+function __dev_fast_probe --argument-names root
+    set -q DEV_NO_FAST_EXEC; and return 1
+    type -q docker; or return 1
+    type -q jq; or return 1
+    set -l cid (docker ps -q \
+        --filter "label=devcontainer.local_folder=$root" 2>/dev/null | head -n1)
+    test -n "$cid"; or return 1
+    set -l ws (docker inspect \
+        -f "{{range .Mounts}}{{if eq .Source \"$root\"}}{{.Destination}}{{end}}{{end}}" \
+        "$cid" 2>/dev/null)
+    set -l user (docker inspect \
+        -f '{{index .Config.Labels "devcontainer.metadata"}}' "$cid" 2>/dev/null \
+        | jq -r '[.[]?|.remoteUser//empty]|last // empty' 2>/dev/null)
+    # All three or none. A container missing the workspace mount or the metadata
+    # label is not one `devcontainer exec` would have driven the same way.
+    test -n "$ws" -a -n "$user"; or return 1
+    printf '%s\n%s\n%s\n' "$cid" "$ws" "$user"
+end
+
 function dev --description "Run a command in the nearest Dev Container (no args = shell; `dev nvim` = Neovim in-container), starting it on demand"
     # realpath resolves symlinks (e.g. /home -> /var/home) so every path below
     # is compared against the same physical prefix.
@@ -47,9 +77,10 @@ function dev --description "Run a command in the nearest Dev Container (no args 
     # Two bind mounts are attached to EVERY `up` (idempotent, so a plain `dev`
     # and `dev nvim` share one container with no rebuild): the host nvim config
     # (read-only by convention: it is copied into the store, never written), and
-    # a per-project store that holds the in-container nvim binary, a private
-    # Node, Mason servers and compiled treesitter parsers, persisted across
-    # rebuilds. Host and container both run as uid 1000, so the store is
+    # a per-project store that holds the Mason servers and compiled treesitter
+    # parsers, persisted across rebuilds. The nvim binary, fd, rg and Node are
+    # NOT per project -- they live once per base-image fingerprint under
+    # toolchain/ and are linked into the store. Host and container both run as uid 1000, so the store is
     # writable and its native artifacts match the container libc.
     set -l store "$HOME/.local/share/dev-nvim/"(echo -n "$root" | sha256sum | cut -c1-12)
     mkdir -p "$store/data" "$store/state" "$store/cache" "$store/config"
@@ -97,19 +128,124 @@ function dev --description "Run a command in the nearest Dev Container (no args 
     # same way, so omitting it there chdirs to a path the container lacks.
     set -l dcflags --mount-git-worktree-common-dir
 
-    # Idempotent: builds/starts on first call, fast no-op once running. The
-    # output is captured rather than discarded so a failure can report the CLI's
-    # own message: a rejected flag or a broken build is otherwise invisible.
-    set -l uplog (mktemp)
-    if not devcontainer up --workspace-folder "$root" $dcflags $mounts >$uplog 2>&1
-        echo "dev: failed to start devcontainer:" >&2
-        tail -n 20 $uplog >&2
-        echo "dev: retry verbosely with:" >&2
-        echo "     devcontainer up --workspace-folder $root $dcflags $mounts" >&2
-        rm -f $uplog
-        return 1
+    # Fast path for a container that is already running. `devcontainer exec`
+    # measures 514-610 ms against an up container, versus 39-50 ms for the
+    # `docker exec` it ultimately performs -- and `dev nvim` pays it twice, for
+    # the provisioning script and for the launch. The difference is Node process
+    # start plus a full devcontainer.json and features resolution, recomputed on
+    # every call and entirely wasted once the container exists.
+    #
+    # Nothing below re-derives what the CLI knows. Each value is read back off
+    # the container the CLI itself built:
+    #   - the container, by the CLI's own `devcontainer.local_folder` label, so
+    #     it is exactly the one `exec` would have chosen;
+    #   - the workspace path, from the bind mount whose source is $root. That is
+    #     what makes a linked worktree's rewritten
+    #     /workspaces/<repo>__worktrees/<slug> come out right instead of being
+    #     reconstructed by hand -- reconstructing it is precisely what lost in
+    #     docs/design-records/worktree-dev-containers.md;
+    #   - remoteUser, from the `devcontainer.metadata` label. Not optional:
+    #     `.Config.User` is `root` on every container here while remoteUser is
+    #     `vscode` or `node`, so a `docker exec` without `-u` would run as root
+    #     and leave root-owned files in the store and the checkout -- the mess
+    #     the worktree-removal tail exists to clean up with `sudo rm -rf`.
+    # Missing any of the three, or DEV_NO_FAST_EXEC set, and the CLI runs.
+    #
+    # `bash -lc`, not `bash -c`: the CLI's default userEnvProbe is
+    # loginInteractiveShell, so the exec'd command expects a login shell's PATH.
+    # The provisioning script below decides whether to download a 181 MB Node
+    # into the store from `command -v node`, so losing a profile-managed PATH
+    # there is not cosmetic -- it silently re-downloads Node for every project.
+    set -l fast_cid
+    set -l fast_ws
+    set -l fast_user
+    set -l probe (__dev_fast_probe "$root")
+    if test (count $probe) -eq 3
+        set fast_cid $probe[1]
+        set fast_ws $probe[2]
+        set fast_user $probe[3]
     end
-    rm -f $uplog
+
+    # `devcontainer up` is unconditional no longer. It measures 375-404 ms warm
+    # -- against ~50 ms for the docker exec that follows it -- so on a project
+    # whose definition has not changed it is most of the launch. The CLI offers
+    # no cheaper mode: `--expect-existing-container` only changes what happens
+    # when the container is absent, and `--skip-post-create` measured inside the
+    # noise (384/372/369 ms against 498/394/377 ms) while silently dropping
+    # postStartCommand and postAttachCommand.
+    #
+    # The stamp is a CONTENT hash, not an mtime. git rewrites mtimes on
+    # checkout, so mtime does not track content: growwer's own
+    # .devcontainer/Dockerfile reads 2026-09-14 20:05 against a last commit of
+    # 2026-09-11 on a clean tree. An mtime test would call every project changed
+    # and never skip anything. The stamp carries the container id too, so a
+    # container recreated behind our back costs one `up` and no more.
+    #
+    # It fails CLOSED by construction: no hash, no stamp, no running container,
+    # a mismatch, or DEV_FORCE_UP set, and `up` runs.
+    #
+    # What it cannot see: a Dockerfile or compose file referenced from OUTSIDE
+    # the Dev Container definition, and an upstream feature that has published a
+    # new version since. DEV_FORCE_UP=1 is the escape hatch for both.
+    set -l cfg_files
+    test -f "$root/.devcontainer.json"; and set -a cfg_files "$root/.devcontainer.json"
+    test -d "$root/.devcontainer"; and set -a cfg_files \
+        (find "$root/.devcontainer" -type f 2>/dev/null | sort)
+    set -l cfg_hash
+    if test (count $cfg_files) -gt 0
+        # Paths as well as contents, so adding or removing a file counts.
+        set cfg_hash (begin
+            for cfg in $cfg_files
+                string replace "$root/" "" -- "$cfg"
+                cat "$cfg"
+            end
+        end | sha256sum | cut -c1-16)
+    end
+    set -l cfg_stamp "$store/.upconfig"
+
+    set -l skip_up 0
+    if test -n "$fast_cid" -a -n "$cfg_hash"; and not set -q DEV_FORCE_UP
+        # Read into a variable first: an absent stamp makes the command
+        # substitution expand to nothing, and `test a = ` is a usage error, not
+        # a false -- which fish reports as a stack trace on every cold run.
+        set -l stamped (cat "$cfg_stamp" 2>/dev/null)
+        test "$cfg_hash $fast_cid" = "$stamped"; and set skip_up 1
+    end
+
+    if test $skip_up -eq 0
+        # Idempotent: builds/starts on first call, fast no-op once running. The
+        # output is captured rather than discarded so a failure can report the
+        # CLI's own message: a rejected flag or a broken build is otherwise
+        # invisible.
+        set -l uplog (mktemp)
+        if not devcontainer up --workspace-folder "$root" $dcflags $mounts >$uplog 2>&1
+            echo "dev: failed to start devcontainer:" >&2
+            tail -n 20 $uplog >&2
+            echo "dev: retry verbosely with:" >&2
+            echo "     devcontainer up --workspace-folder $root $dcflags $mounts" >&2
+            rm -f $uplog
+            return 1
+        end
+        rm -f $uplog
+
+        # `up` may have created or replaced the container, so the values probed
+        # before it can be stale. Re-probe, then stamp what this configuration
+        # resolved to so the next launch can skip straight past the CLI.
+        set probe (__dev_fast_probe "$root")
+        set fast_cid ""
+        set fast_ws ""
+        set fast_user ""
+        if test (count $probe) -eq 3
+            set fast_cid $probe[1]
+            set fast_ws $probe[2]
+            set fast_user $probe[3]
+            test -n "$cfg_hash"; and echo "$cfg_hash $fast_cid" >"$cfg_stamp"
+        end
+    end
+
+    # docker refuses -t without a terminal, which `dev <cmd> | cat` does not have.
+    set -l dtty -i
+    isatty stdin; and isatty stdout; and set dtty -it
 
     if test "$argv[1]" = nvim
         # A container created earlier WITHOUT these mounts (e.g. by JetBrains
@@ -174,12 +310,36 @@ function dev --description "Run a command in the nearest Dev Container (no args 
             # it. `rm -rf` on the link itself never touches the shared copy.
             if [ -d /nvimdata/nvim ] && [ ! -L /nvimdata/nvim ]; then rm -rf /nvimdata/nvim; fi
             ln -sfn "$tc/nvim" /nvimdata/nvim
-            if ! command -v node >/dev/null 2>&1 && [ ! -x /nvimdata/node/bin/node ]; then
+            # Node belongs in the SHARED toolchain for exactly the reason nvim
+            # does: it is one 181,811,945 B tree, byte-identical wherever it
+            # lands. Five stores were each carrying their own copy -- 909 MB of
+            # pure duplication -- and every new worktree paid the 181 MB
+            # download again. The record measured "no store has a node/
+            # directory" and that has since expired. Staged and renamed like the
+            # rest, so two cold launches at once yield one good copy and one
+            # discarded download rather than a half-extracted interpreter.
+            if ! command -v node >/dev/null 2>&1 && [ ! -x "$tc/node/bin/node" ]; then
                 echo "dev nvim: installing Node.js in container (for LSP servers)" >&2
                 nver=22.11.0
                 curl -fsSL "https://nodejs.org/dist/v$nver/node-v$nver-linux-x64.tar.gz" -o /tmp/node.tgz
-                mkdir -p /nvimdata/node && tar xzf /tmp/node.tgz -C /nvimdata/node --strip-components=1
+                stage=$(mktemp -d "$tc/.node.XXXXXX")
+                tar xzf /tmp/node.tgz -C "$stage" --strip-components=1
+                if ! mv -T "$stage" "$tc/node" 2>/dev/null; then
+                    rm -rf "$stage"
+                    if [ ! -x "$tc/node/bin/node" ]; then
+                        echo "dev nvim: could not install Node into the shared toolchain" >&2
+                        exit 1
+                    fi
+                fi
             fi
+            # A store from before Node was shared holds a real directory here;
+            # replace it with the link rather than nesting into it. `rm -rf` on
+            # the link itself never touches the shared copy. The link is only
+            # made when a shared Node exists -- where the base image ships its
+            # own, nothing is installed and /nvimdata/node stays absent, exactly
+            # as before (a missing PATH entry is inert).
+            if [ -d /nvimdata/node ] && [ ! -L /nvimdata/node ]; then rm -rf /nvimdata/node; fi
+            [ -d "$tc/node" ] && ln -sfn "$tc/node" /nvimdata/node
             # fd + ripgrep for the file/grep pickers and venv-selector (the slim
             # container bases usually ship neither).
             # One file at a time, each renamed over its final name, so a missing
@@ -225,8 +385,14 @@ function dev --description "Run a command in the nearest Dev Container (no args 
         set -l boot "$ready || exit 97
 $boot"
 
-        devcontainer exec --workspace-folder "$root" $dcflags bash -c "$boot"
-        set -l provisioned $status
+        set -l provisioned
+        if test -n "$fast_cid"
+            docker exec -u "$fast_user" -w "$fast_ws" "$fast_cid" bash -lc "$boot"
+            set provisioned $status
+        else
+            devcontainer exec --workspace-folder "$root" $dcflags bash -c "$boot"
+            set provisioned $status
+        end
         if test $provisioned -eq 97
             echo "dev nvim: container is missing a mount; recreating..." >&2
             set -l relog (mktemp)
@@ -238,6 +404,11 @@ $boot"
                 return 1
             end
             rm -f $relog
+            # --remove-existing-container built a NEW container, so the id, the
+            # mount set and the user probed above all belong to one that no
+            # longer exists. Drop back to the CLI for the rest of this launch
+            # rather than re-probing a container this call has just created.
+            set fast_cid
             if not devcontainer exec --workspace-folder "$root" $dcflags bash -c "$boot"
                 echo "dev nvim: provisioning failed" >&2
                 return 1
@@ -270,41 +441,67 @@ $boot"
         # Inject the intelephense premium licence (if configured) so the
         # in-container PHP LSP unlocks premium features. Machine-local file, set
         # with `just intelephense-licence`; never seeded into the image.
-        set -l iph_env
+        # Collected as plain KEY=VALUE and spelled two ways below, because the
+        # CLI takes `--remote-env K=V` and docker takes `-e K=V`. One list, so
+        # the two paths cannot drift in what they forward.
+        set -l envs
         set -l iph_file "$HOME/.config/intelephense/licence.key"
         if test -r "$iph_file"
-            set iph_env --remote-env "INTELEPHENSE_LICENCE_KEY="(string trim <"$iph_file")
+            set -a envs "INTELEPHENSE_LICENCE_KEY="(string trim <"$iph_file")
         end
 
         # Committing from the in-container lazygit needs an identity. Forward the
         # host's instead of mounting ~/.config/git/config, which sets `pager =
         # delta` and a gh credential helper that do not exist in the container.
-        set -l git_env
         set -l git_name (git config --get user.name)
         set -l git_email (git config --get user.email)
         if test -n "$git_name" -a -n "$git_email"
-            set git_env \
-                --remote-env "GIT_AUTHOR_NAME=$git_name" \
-                --remote-env "GIT_AUTHOR_EMAIL=$git_email" \
-                --remote-env "GIT_COMMITTER_NAME=$git_name" \
-                --remote-env "GIT_COMMITTER_EMAIL=$git_email"
+            set -a envs \
+                "GIT_AUTHOR_NAME=$git_name" \
+                "GIT_AUTHOR_EMAIL=$git_email" \
+                "GIT_COMMITTER_NAME=$git_name" \
+                "GIT_COMMITTER_EMAIL=$git_email"
         end
 
-        devcontainer exec --workspace-folder "$root" $dcflags \
-            $iph_env \
-            $git_env \
-            --remote-env "NVIM_MASON_LANGS=$mlangs" \
-            --remote-env XDG_CONFIG_HOME=/nvimdata/config \
-            --remote-env XDG_DATA_HOME=/nvimdata/data \
-            --remote-env XDG_STATE_HOME=/nvimdata/state \
-            --remote-env XDG_CACHE_HOME=/nvimdata/cache \
-            --remote-env NVIM_IN_CONTAINER=1 \
-            --remote-env COLORTERM=truecolor \
-            --remote-env TERM=xterm-256color \
-            bash -c 'export PATH=/nvimdata/node/bin:/nvimdata/bin:$PATH; cd "$1" || exit; shift; exec /nvimdata/nvim/bin/nvim "$@"' -- "$rel" $argv[2..-1]
+        set -a envs \
+            "NVIM_MASON_LANGS=$mlangs" \
+            XDG_CONFIG_HOME=/nvimdata/config \
+            XDG_DATA_HOME=/nvimdata/data \
+            XDG_STATE_HOME=/nvimdata/state \
+            XDG_CACHE_HOME=/nvimdata/cache \
+            NVIM_IN_CONTAINER=1 \
+            COLORTERM=truecolor \
+            TERM=xterm-256color
+        set -l remote_env
+        set -l docker_env
+        for pair in $envs
+            set -a remote_env --remote-env "$pair"
+            set -a docker_env -e "$pair"
+        end
+
+        # One command string for both paths: `--` is $0 and $rel is $1, so the
+        # relative cd is identical whichever launcher runs it.
+        set -l nvim_cmd 'export PATH=/nvimdata/node/bin:/nvimdata/bin:$PATH; cd "$1" || exit; shift; exec /nvimdata/nvim/bin/nvim "$@"'
+        if test -n "$fast_cid"
+            docker exec $dtty -u "$fast_user" -w "$fast_ws" $docker_env "$fast_cid" \
+                bash -lc "$nvim_cmd" -- "$rel" $argv[2..-1]
+        else
+            devcontainer exec --workspace-folder "$root" $dcflags $remote_env \
+                bash -c "$nvim_cmd" -- "$rel" $argv[2..-1]
+        end
     else if test (count $argv) -eq 0
-        devcontainer exec --workspace-folder "$root" $dcflags bash -c 'cd "$1" || exit; exec bash' -- "$rel"
+        if test -n "$fast_cid"
+            docker exec $dtty -u "$fast_user" -w "$fast_ws" "$fast_cid" \
+                bash -lc 'cd "$1" || exit; exec bash' -- "$rel"
+        else
+            devcontainer exec --workspace-folder "$root" $dcflags bash -c 'cd "$1" || exit; exec bash' -- "$rel"
+        end
     else
-        devcontainer exec --workspace-folder "$root" $dcflags bash -c 'cd "$1" || exit; shift; exec "$@"' -- "$rel" $argv
+        if test -n "$fast_cid"
+            docker exec $dtty -u "$fast_user" -w "$fast_ws" "$fast_cid" \
+                bash -lc 'cd "$1" || exit; shift; exec "$@"' -- "$rel" $argv
+        else
+            devcontainer exec --workspace-folder "$root" $dcflags bash -c 'cd "$1" || exit; shift; exec "$@"' -- "$rel" $argv
+        end
     end
 end
