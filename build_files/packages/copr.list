@@ -1,10 +1,13 @@
 # copr:avengemedia/dms and copr:avengemedia/danklinux.
-# These float permanently: COPR prunes superseded builds, so versionlock to an
-# older NEVRA is impossible. The manifest diff in CI is the bisectability
+# These float permanently: COPR prunes superseded builds on a 14-day window, so
+# an includepkgs glob at an older NEVRA holds for days and then fails with
+# `matches only excluded packages` -- pinning here is not impossible, it is
+# undurable, which is worse. The manifest diff in CI is the bisectability
 # substitute -- see repos/ for the includepkgs fencing.
 dms
 dms-cli
-dms-greeter                 # built in danklinux, not the dms COPR
+dms-greeter                 # danklinux COPR, and a separate upstream project
+                            # (AvengeMedia/dank-greeter) on its own release train
 quickshell
 dgop
 danksearch                  # ships /usr/bin/dsearch and dsearch.service; the unit is NOT named danksearch.service

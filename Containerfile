@@ -9,9 +9,10 @@
 # Pin the base by digest, not just by tag. The digest pins the kernel, systemd,
 # mesa and the whole negativo17 codec stack in one go -- the overwhelming
 # majority of this image by bytes, and the only pin available that actually
-# holds: the desktop stack comes from COPRs that prune superseded builds, so
-# versionlock to an older NEVRA is impossible there. Bisectability via the NEVRA
-# manifest in 90-cleanup.sh is the substitute for pinning the parts that float.
+# holds: the desktop stack comes from COPRs that prune superseded builds on a
+# 14-day window, so a pin to an older NEVRA there expires into a build failure
+# rather than lasting. Bisectability via the NEVRA manifest in 90-cleanup.sh is
+# the substitute for pinning the parts that float.
 #
 # One knob holding a full image reference -- the same shape the CI repository
 # variable and the Justfile pass. Splitting it into image + tag invited

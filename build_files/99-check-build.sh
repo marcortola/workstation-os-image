@@ -68,25 +68,46 @@ rpm -q libavcodec-freeworld >/dev/null 2>&1 \
 
 # --- cross-package version cohesion --------------------------------------
 # dms and dms-cli come from copr:avengemedia/dms; dms-greeter comes from
-# copr:avengemedia/danklinux. They are released together but published to two
-# separate COPRs, so a half-finished publish hands us dms at N and dms-greeter
-# at N-1. Nothing else here would notice: assert_vendor only checks WHERE a
-# package came from, and the desktop stack floats by design because COPR prunes
-# superseded builds, so there is no version to pin it to.
+# copr:avengemedia/danklinux -- and since 2026-09-03 it is built from a
+# SEPARATE upstream project, AvengeMedia/dank-greeter, with its own release
+# train and its own Epoch. They are no longer released together.
+#
+# The older rule here asserted one exact version across all three and told the
+# reader a mismatch meant a half-finished publish. On 2026-09-10 the greeter
+# released 1.6.2 while DMS stayed at 1.6.1, and every build failed for four
+# days against advice -- "re-run once both have caught up" -- naming a state
+# that could not occur, because no dms 1.6.2 was ever going to exist.
+#
+# So the comparison is deliberately MAJOR.MINOR. It tolerates the patch
+# divergence that is now normal between two independent trains, and still
+# catches the case that indicates real trouble: a greeter from a different
+# feature series than the shell it has to agree with about settings keys.
+#
+# Read that as a tolerance, NOT as a claim that the trains are coupled again.
+# When dank-greeter reaches 1.7 while DMS is still on 1.6 this WILL fire, and
+# that is a review point rather than a defect in the check. The durable fix at
+# that moment is to decide what the greeter should be pinned or reviewed
+# against, not to widen this further.
+# See docs/design-records/dms-greeter-split.md.
+#
+# %{VERSION} only, so the greeter's Epoch 1 never enters the comparison.
 #
 # This is the most likely silent breakage in the whole image -- a shell that
 # starts and then misbehaves, rather than a build that fails.
 cohort_version=""
 for p in dms dms-cli dms-greeter; do
-    v="$(rpm -q --qf '%{VERSION}' "$p")"
+    v="$(rpm -q --qf '%{VERSION}' "$p" | cut -d. -f1,2)"
     if [ -z "$cohort_version" ]; then
         cohort_version="$v"
     elif [ "$v" != "$cohort_version" ]; then
         echo "--- DMS stack versions ---" >&2
         rpm -q --qf '%{NAME} %{VERSION}-%{RELEASE} (%{VENDOR})\n' dms dms-cli dms-greeter >&2
-        fail "DMS stack version skew: $p is $v, expected $cohort_version.
-This usually means copr:avengemedia/dms and copr:avengemedia/danklinux are
-mid-publish. Re-run the build once both have caught up."
+        fail "DMS stack feature-series skew: $p is $v.x, expected $cohort_version.x.
+dms/dms-cli are built from AvengeMedia/DankMaterialShell and dms-greeter from
+AvengeMedia/dank-greeter -- independent release trains, so this is a review
+point, not a mid-publish race and not something a re-run fixes. Read the
+greeter's release notes for settings keys the shell also reads, then decide
+deliberately. See docs/design-records/dms-greeter-split.md."
     fi
 done
 

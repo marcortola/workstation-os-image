@@ -9,9 +9,10 @@ find /etc/yum.repos.d -name '*.repo' \
     -delete
 dnf5 -y config-manager setopt fedora-multimedia.enabled=0
 
-# NEVRA manifest. The desktop stack floats permanently (COPR prunes old
-# builds, so versionlock to a superseded NEVRA is impossible), which makes
-# bisectability the only realistic substitute for pinning: CI diffs this file
+# NEVRA manifest. The desktop stack floats permanently (COPR prunes old builds
+# on a 14-day window, so a pin to a superseded NEVRA holds for days and then
+# breaks -- undurable rather than impossible), which makes bisectability the
+# only realistic substitute for pinning: CI diffs this file
 # against the previous :latest so "the desktop broke this week" becomes
 # "niri went 26.04 -> 26.05 on Tuesday".
 install -d /usr/share/workstation-os-image
