@@ -246,18 +246,26 @@ moved into the shared toolchain alongside nvim, `fd` and `rg`. And the tree had
 grown to **6.8 GB across 58 entries** because the collector this record shipped
 had never been run with `--force`; running it took it to 3.0 GB across 18.
 
-What remains open is Mason, at 1.8 GB and the bulk of what is left. Sharing its
-install root is **rejected on evidence**, not deferred: `mason.nvim`'s
-cross-process lock at `mason-core/installer/InstallRunner.lua:178-187` is
-test-then-act rather than atomic, and the PID it writes is taken from inside one
-container's PID namespace, which is meaningless to any other container reading
-it. That failure is already in the logs here, in store `a24be7fa4406`, naming a
-`pid: 310` that never existed in the reader. The upstream knobs are real —
-mason's `install_root_dir`, nvim-treesitter's `install_dir` — but they relocate
-one Neovim's directory; they do not make one directory safe for several. If the
-duplication ever matters again, hardlink-seeding a cold store from a
-same-fingerprint donor is the shape to reach for, because it keeps one writer
-per tree.
+Mason, at 1.8 GB, was the bulk of what was left. Sharing its install root is
+**rejected on evidence**, not deferred: `mason.nvim`'s cross-process lock at
+`mason-core/installer/InstallRunner.lua:178-187` is test-then-act rather than
+atomic, and the PID it writes is taken from inside one container's PID namespace,
+which is meaningless to any other container reading it. That failure is already
+in the logs here, in store `a24be7fa4406`, naming a `pid: 310` that never existed
+in the reader. The upstream knobs are real — mason's `install_root_dir`,
+nvim-treesitter's `install_dir` — but they relocate one Neovim's directory; they
+do not make one directory safe for several.
+
+**Hardlink-seeding shipped instead**, and it is the shape that keeps one writer
+per tree. A brand-new store is populated from a same-fingerprint donor with
+`cp -al`, so the bytes are shared but each store still owns its own directory.
+What makes it safe is that neither tool edits an installed file in place: Mason
+promotes a package by renaming its staging directory into `packages/`
+(`context/init.lua:95`), and nvim-treesitter renames an in-use parser *out of the
+way* rather than overwriting it (`install.lua:328`). A shared inode is therefore
+replaced, never mutated. `staging/` is excluded because it carries the lockfiles
+that caused the `pid: 310` failure above. Measured on a real donor: 16 Mason
+packages and 29 parsers seeded, same inode, link count 2, zero new disk.
 
 [worktree-dev-containers.md](worktree-dev-containers.md) covers why a linked
 worktree needed a relative common dir to work inside its container at all;
