@@ -1104,6 +1104,32 @@ model does not change when you switch tools. The seed paths are inventoried in
   here, the symptom is silence, so check the plugin's `jq` filters against a real
   `herdr pane process-info` before looking anywhere else.
 
+- **Never `brew upgrade herdr` while the server is running.** Every pane carries
+  `HERDR_BIN_PATH` pointing at the exact binary the server was started from —
+  `…/Cellar/herdr/<version>/bin/herdr` — and every plugin script calls
+  `${HERDR_BIN_PATH:-herdr}`. Homebrew's post-install `Cleanup` deletes the old
+  Cellar directory, so that path stops existing under a server that is still
+  using it: each script dies with status 127 on its first call. The symptom is
+  not an error message but a popup that opens and closes instantly, `prefix+s`
+  included, with `tab bar status command failed … exit status: 127` in
+  `herdr-server.log` as the only trace. Worse, the new client cannot talk to the
+  old server — `protocol_mismatch`, client protocol 22 against server 20 — and
+  herdr answers that by installing a matching older client under
+  `~/.local/share/herdr-<version>/` and repointing the Homebrew symlink at it,
+  which leaves `herdr --version` reporting the old version while the Cellar holds
+  the new one. Upgrade and restart as one step instead:
+
+  ```sh
+  brew upgrade herdr
+  brew link --overwrite herdr   # only if a handoff repointed the symlink
+  systemctl --user restart workstation-herdr-server.service
+  rm -rf ~/.local/share/herdr-<old version>
+  ```
+
+  The restart ends every pane, which is why it is tempting to defer it; the
+  workspaces, their layout and the agent conversations come back with the
+  server. Deferring is what produces the broken state above.
+
 - **A `herdr-plugin.toml` edit does not take effect on `reload-config`.** herdr
   caches the manifest in `~/.config/herdr/plugins.json`, and
   `herdr server reload-config` reloads `config.toml` only — it reported
