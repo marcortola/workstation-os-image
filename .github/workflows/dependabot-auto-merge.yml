@@ -95,15 +95,29 @@ jobs:
             const [prevMajor, prevMinor] = components(dependency.prevVersion);
             const [nextMajor, nextMinor] = components(dependency.newVersion);
 
-            // A missing or unparseable version (a digest bump, say) carries no semver meaning.
-            if (!Number.isInteger(prevMajor) || !Number.isInteger(nextMajor)) return false;
-            if (!Number.isInteger(prevMinor) || !Number.isInteger(nextMinor)) return false;
+            // An unparseable destination (a digest bump, say) carries no semver meaning at all.
+            if (!Number.isInteger(nextMajor) || !Number.isInteger(nextMinor)) return false;
 
-            return prevMajor === 0 && nextMajor === 0 && prevMinor !== nextMinor;
+            // Anything at 1.0.0 or above is ordinary semver and handled by update-type.
+            if (nextMajor !== 0) return false;
+
+            // The destination is pre-1.0. The origin is not always knowable: fetch-metadata
+            // derives prevVersion by parsing "Updates `name` from X to Y" out of the pull request
+            // body and falls back to '' when the body says only "Updates `name` to Y", which
+            // Dependabot does write. Treating unknown as safe would let exactly the kind of bump
+            // this gate exists to stop through in silence, so an unknown origin is held: for a
+            // pre-1.0 dependency the reviewer should be the one deciding it was harmless.
+            if (!Number.isInteger(prevMajor) || !Number.isInteger(prevMinor)) return true;
+
+            // A known origin outside 0.x means this is a downgrade into pre-1.0 rather than a
+            // minor step within it - a shape worth a human's eyes on its own.
+            if (prevMajor !== 0) return true;
+
+            return prevMinor !== nextMinor;
           });
 
           const names = breaking
-            .map((d) => `${d.dependencyName} ${d.prevVersion} -> ${d.newVersion}`)
+            .map((d) => `${d.dependencyName} ${d.prevVersion || '(unknown)'} -> ${d.newVersion}`)
             .join(', ');
 
           console.log(breaking.length > 0
