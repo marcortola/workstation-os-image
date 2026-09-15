@@ -26,6 +26,8 @@ jobs:
       ghsa-id: ${{ steps.metadata.outputs.ghsa-id }}
       dependency-names: ${{ steps.metadata.outputs.dependency-names }}
       title-major: ${{ steps.title_major.outputs.major }}
+      zerover-minor: ${{ steps.zerover.outputs.zerover-minor }}
+      zerover-names: ${{ steps.zerover.outputs.zerover-names }}
     steps:
       # Titles come in several shapes and the version transition has to be read out of all
       # of them, because fetch-metadata reports only the highest update type in a group:
@@ -53,6 +55,64 @@ jobs:
         uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
         with:
           github-token: ${{ github.token }}
+
+      # Dependabot classifies a version transition positionally, so 0.10.0 -> 0.13.0 keeps its
+      # first component at 0 and is reported as version-update:semver-minor. The repository's
+      # semver-major ignore therefore never fires, even though under semver every 0.x minor is
+      # a breaking release. Dependabot compounds this by rewriting the manifest constraint, and
+      # every ecosystem here pins pre-1.0 the same way: "^0.10.0" resolves >=0.10.0 <0.11.0 in
+      # composer, npm and cargo alike, so the manifest would have refused the new version on its
+      # own. Dependabot rewrote it to "^0.13.0" - the caret guard removed by the very bot it
+      # should have constrained. That is how symfony/mcp-bundle 0.13.0 reached production and
+      # 500'd every route of mencoro-app-backend for ~14 hours on 2026-09-14.
+      #
+      # updated-dependencies-json carries prevVersion/newVersion per dependency, so this also
+      # sees a pre-1.0 bump buried inside a grouped pull request, which the title regex above
+      # cannot parse.
+      - name: Flag pre-1.0 minor bumps
+        id: zerover
+        env:
+          UPDATED_DEPENDENCIES: ${{ steps.metadata.outputs.updated-dependencies-json }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          let dependencies = [];
+          try {
+            dependencies = JSON.parse(process.env.UPDATED_DEPENDENCIES || '[]');
+          } catch {
+            dependencies = [];
+          }
+          if (!Array.isArray(dependencies)) dependencies = [];
+
+          // Strip any constraint operator ("~> 0.5", "^0.10.0") before reading the components.
+          const components = (value) => String(value ?? '')
+            .replace(/^[^0-9]*/, '')
+            .split('.')
+            .map((part) => Number.parseInt(part, 10));
+
+          const breaking = dependencies.filter((dependency) => {
+            const [prevMajor, prevMinor] = components(dependency.prevVersion);
+            const [nextMajor, nextMinor] = components(dependency.newVersion);
+
+            // A missing or unparseable version (a digest bump, say) carries no semver meaning.
+            if (!Number.isInteger(prevMajor) || !Number.isInteger(nextMajor)) return false;
+            if (!Number.isInteger(prevMinor) || !Number.isInteger(nextMinor)) return false;
+
+            return prevMajor === 0 && nextMajor === 0 && prevMinor !== nextMinor;
+          });
+
+          const names = breaking
+            .map((d) => `${d.dependencyName} ${d.prevVersion} -> ${d.newVersion}`)
+            .join(', ');
+
+          console.log(breaking.length > 0
+            ? `Pre-1.0 minor bump(s) found, auto-merge will be withheld: ${names}`
+            : 'No pre-1.0 minor bumps in this update.');
+
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `zerover-minor=${breaking.length > 0}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `zerover-names=${names}\n`);
+          NODE
 
   # A major that carries no advisory is silenced permanently, so Dependabot stops
   # recreating it on every run. A major that fixes an advisory is only closed and
@@ -228,6 +288,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
+      actions: read
       checks: read
       pull-requests: read
       statuses: read
@@ -238,7 +299,9 @@ jobs:
           PR_URL: ${{ github.event.pull_request.html_url }}
           REPO: ${{ github.repository }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           SELF_WORKFLOW: Dependabot delta audit and auto-merge
+          SECURITY_ADVISORY: ${{ needs.classify.outputs.ghsa-id }}
         run: |
           node <<'NODE'
           const { execFileSync } = require('node:child_process');
@@ -249,87 +312,200 @@ jobs:
           const deadline = Date.now() + TIMEOUT_MS;
           const self = process.env.SELF_WORKFLOW;
           const prUrl = process.env.PR_URL;
+          const repo = process.env.REPO;
+          const headSha = process.env.HEAD_SHA;
+          const baseSha = process.env.BASE_SHA;
+          const securityAdvisory = process.env.SECURITY_ADVISORY || '';
 
           const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 
+          // gh exits non-zero both when checks are pending or failing and when the call
+          // itself fails, so the exit code cannot separate "the payload says pending" from
+          // "there is no payload". Callers get whatever stdout was produced and decide for
+          // themselves; the readers below return null for anything they cannot parse, and
+          // every caller treats null as "unknown", which keeps this job waiting.
           function gh(args) {
             try {
               return execFileSync('gh', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
             } catch (error) {
-              // gh exits non-zero when checks are pending or failing, so the status is read
-              // from the payload rather than from the exit code.
               return error.stdout || '';
             }
           }
 
+          function ghJson(args) {
+            const raw = gh(args);
+            if (!raw.trim()) return null;
+            try {
+              return JSON.parse(raw);
+            } catch {
+              return null;
+            }
+          }
+
           function prChecks() {
-            const raw = gh(['pr', 'checks', prUrl, '--json', 'name,state,bucket,workflow']);
-            if (!raw.trim()) return [];
-            return JSON.parse(raw);
+            const parsed = ghJson(['pr', 'checks', prUrl, '--json', 'name,state,bucket,workflow']);
+            return Array.isArray(parsed) ? parsed : null;
+          }
+
+          // A workflow run exists from the moment it is queued, but its check runs attach
+          // only once its jobs start, so there is a window in which a build is already on
+          // its way and `gh pr checks` still reports nothing for it. The run list closes
+          // that window: a queued or in-progress run is work this job has to wait for,
+          // whether or not a check has appeared for it yet. Runs of this workflow are
+          // excluded by name; they are keyed to the base commit anyway, because
+          // pull_request_target runs never carry the pull request's head sha.
+          function headRuns() {
+            const payload = ghJson([
+              'api', `repos/${repo}/actions/runs?head_sha=${headSha}&per_page=100`,
+            ]);
+            if (payload === null || !Array.isArray(payload.workflow_runs)) return null;
+            return payload.workflow_runs.map((run) => ({
+              name: run.name,
+              status: run.status,
+              conclusion: run.conclusion ?? '',
+            }));
           }
 
           // A check that was already red on the commit this branch forks from was not broken
           // by this update, and blocking on it would stall every dependency bump - security
           // ones included - for as long as the default branch stays red. Only regressions
           // this pull request actually introduced should block the merge. This is the same
-          // base-versus-candidate reasoning the vulnerability audit above applies.
+          // base-versus-candidate reasoning the vulnerability audit above applies. An
+          // unreadable base is treated as "nothing was red there", so a failing check counts
+          // as a regression and the merge is refused.
           let baseRedCache = null;
           function baseRed() {
             if (baseRedCache) return baseRedCache;
             baseRedCache = new Set();
-            const raw = gh([
-              'api', '--paginate',
-              `repos/${process.env.REPO}/commits/${process.env.BASE_SHA}/check-runs`,
-              '--jq', '.check_runs[] | [.name, (.conclusion // "pending")] | @tsv',
+            const payload = ghJson([
+              'api', `repos/${repo}/commits/${baseSha}/check-runs?per_page=100`,
             ]);
-            for (const line of raw.split('\n')) {
-              if (!line.trim()) continue;
-              const [name, conclusion] = line.split('\t');
-              if (FAILED.has(conclusion)) baseRedCache.add(name);
+            if (payload === null || !Array.isArray(payload.check_runs)) {
+              console.log(`::warning::Could not read the check runs of base commit ${baseSha}; treating every failing check as a regression.`);
+              return baseRedCache;
+            }
+            for (const run of payload.check_runs) {
+              if (FAILED.has(run.conclusion ?? 'pending')) baseRedCache.add(run.name);
             }
             return baseRedCache;
           }
 
           while (true) {
-            const others = prChecks().filter((check) => check.workflow !== self);
+            const checks = prChecks();
+            const runs = headRuns();
+            const unreadable = checks === null || runs === null;
 
-            if (others.length === 0) {
-              console.log('::warning::No pull_request checks are attached to this pull request, so nothing gates this merge beyond the vulnerability audit. Add a pull_request-triggered build to this repository.');
-              break;
+            const others = (checks ?? []).filter((check) => check.workflow !== self);
+            const otherRuns = (runs ?? []).filter((run) => run.name !== self);
+            const pendingChecks = others.filter((c) => c.bucket === 'pending');
+            const pendingRuns = otherRuns.filter((r) => r.status !== 'completed');
+
+            if (!unreadable) {
+              const failing = others.filter((c) => c.bucket === 'fail' || c.bucket === 'cancel');
+              if (failing.length > 0) {
+                const red = baseRed();
+                const preexisting = failing.filter((c) => red.has(c.name));
+                const regressions = failing.filter((c) => !red.has(c.name));
+
+                if (preexisting.length > 0) {
+                  const names = preexisting.map((c) => c.name).join(', ');
+
+                  // A check already red on the base was not broken by this update, and blocking
+                  // every bump on it would stall security fixes for as long as the default branch
+                  // stays red - which is the reason this exemption exists. But spending it on
+                  // routine updates means that the moment the base goes red, auto-merge stops
+                  // verifying anything at all and waves each following bump straight through:
+                  // one broken merge turns into a cascade, and the second failure is invisible
+                  // because the first one is now the excuse for it. The exemption is therefore
+                  // spent only where it was earned - on an update that carries an advisory.
+                  if (securityAdvisory === '') {
+                    console.log(`::error::The base commit ${baseSha} is already red (${names}), so this routine update has not been verified against a passing baseline. Refusing to merge - repair the base branch first.`);
+                    process.exit(1);
+                  }
+
+                  console.log(`::notice::Ignoring ${preexisting.length} check(s) already failing on the base commit ${baseSha} (${names}): this update carries advisory ${securityAdvisory} and must not be stalled by a red base.`);
+                }
+                if (regressions.length > 0) {
+                  const names = regressions.map((c) => `${c.workflow}/${c.name}=${c.state}`).join(', ');
+                  console.log(`::error::Checks that pass on the base commit fail here, refusing to merge: ${names}`);
+                  process.exit(1);
+                }
+              }
+
+              if (others.length > 0 && pendingChecks.length === 0 && pendingRuns.length === 0) {
+                console.log(`Resolved all ${others.length} repository check(s); no regression against the base commit.`);
+                break;
+              }
             }
 
-            const failing = others.filter((c) => c.bucket === 'fail' || c.bucket === 'cancel');
-            if (failing.length > 0) {
-              const red = baseRed();
-              const preexisting = failing.filter((c) => red.has(c.name));
-              const regressions = failing.filter((c) => !red.has(c.name));
-
-              if (preexisting.length > 0) {
-                console.log(`::notice::Ignoring ${preexisting.length} check(s) already failing on the base commit ${process.env.BASE_SHA}: ${preexisting.map((c) => c.name).join(', ')}`);
-              }
-              if (regressions.length > 0) {
-                const names = regressions.map((c) => `${c.workflow}/${c.name}=${c.state}`).join(', ');
-                console.log(`::error::Checks that pass on the base commit fail here, refusing to merge: ${names}`);
-                process.exit(1);
-              }
-            }
-
-            const pending = others.filter((c) => c.bucket === 'pending');
-            if (pending.length === 0) {
-              console.log(`Resolved all ${others.length} repository check(s); no regression against the base commit.`);
-              break;
+            let reason;
+            if (unreadable) {
+              reason = 'the check state could not be read';
+            } else if (others.length === 0 && otherRuns.length === 0) {
+              reason = 'no repository check has attached to this pull request yet';
+            } else {
+              const names = [
+                ...pendingChecks.map((c) => `${c.workflow}/${c.name}`),
+                ...pendingRuns.filter((r) => !others.some((c) => c.workflow === r.name)).map((r) => `${r.name}=${r.status}`),
+              ];
+              reason = `${names.length} check(s) still running: ${names.join(', ')}`;
             }
 
             if (Date.now() >= deadline) {
-              const names = pending.map((c) => `${c.workflow}/${c.name}`).join(', ');
-              console.log(`::error::Timed out waiting for ${pending.length} pending check(s): ${names}`);
+              console.log(`::error::Timed out after ${TIMEOUT_MS / 60000} minutes waiting for this repository's own checks, refusing to merge - ${reason}.`);
               process.exit(1);
             }
 
-            console.log(`Waiting for ${pending.length} of ${others.length} check(s)...`);
+            console.log(`Waiting: ${reason}.`);
             sleep(POLL_MS);
           }
           NODE
+
+  # A pre-1.0 minor is held for review rather than closed. Closing would only make Dependabot
+  # recreate it on the next run and the repository would churn through the same rejection every
+  # week; a major is closed because "ignore this major version" can silence it permanently,
+  # which has no equivalent for a 0.x minor. Leaving it open and labelled puts the breaking
+  # change in front of a human, which is the only thing that can actually judge it.
+  hold-zerover-minor:
+    needs: classify
+    if: needs.classify.outputs.zerover-minor == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Label and explain the hold
+        run: |
+          gh label create pre-1.0-minor \
+            --description 'Pre-1.0 minor bump held from auto-merge; breaking under semver' \
+            --color D93F0B --force
+
+          gh pr edit "$PR_URL" --add-label pre-1.0-minor
+
+          # The workflow re-runs on every synchronize, so the comment is posted at most once.
+          if gh pr view "$PR_URL" --json comments \
+             --jq '.comments[].body' | grep -q 'held from auto-merge'; then
+            echo "Hold comment already present; not repeating it."
+            exit 0
+          fi
+
+          # A heredoc keeps the body flush left: indented continuation lines would be rendered
+          # as a Markdown code block.
+          cat > /tmp/hold-comment.md <<EOF
+          This update is **held from auto-merge**: it moves a pre-1.0 dependency across a minor version ($ZEROVER_NAMES).
+
+          Dependabot classifies versions positionally, so \`0.x\` to \`0.y\` is reported as \`semver-minor\` and the repository's major-version ignore does not apply. Under semver a 0.x minor is a breaking release, and Dependabot also rewrites the manifest constraint, removing the caret guard that would otherwise have refused the resolve.
+
+          Review the upstream changelog for breaking changes, migrate any configuration or API the bump requires, and merge by hand.
+          EOF
+
+          sed -i 's/^          //' /tmp/hold-comment.md
+          gh pr comment "$PR_URL" --body-file /tmp/hold-comment.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          ZEROVER_NAMES: ${{ needs.classify.outputs.zerover-names }}
 
   auto-merge:
     needs:
@@ -338,6 +514,7 @@ jobs:
       - wait-for-checks
     if: >-
       needs.wait-for-checks.result == 'success' &&
+      needs.classify.outputs.zerover-minor != 'true' &&
       (needs.classify.outputs.update-type == 'version-update:semver-patch' ||
       needs.classify.outputs.update-type == 'version-update:semver-minor')
     runs-on: ubuntu-latest
