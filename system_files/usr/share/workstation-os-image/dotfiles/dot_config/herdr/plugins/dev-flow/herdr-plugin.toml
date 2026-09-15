@@ -12,7 +12,10 @@
 id = "dev.flow"
 name = "Dev flow"
 version = "0.1.0"
-min_herdr_version = "0.8.2"
+# 0.9.0 for `workspace close --group`, which checkout-remove.sh passes to close a
+# repo space and its worktree spaces together. 0.8.2 has no such flag: it closed
+# the group unasked, and would reject the flag outright.
+min_herdr_version = "0.9.0"
 description = "Worktree bootstrap and dev pane layout"
 platforms = ["linux", "macos"]
 

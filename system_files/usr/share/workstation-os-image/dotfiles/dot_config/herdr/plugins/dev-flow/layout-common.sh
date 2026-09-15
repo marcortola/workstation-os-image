@@ -173,6 +173,39 @@ workspace_pane_by_label() {
     jq -r --arg label "$2" '[.result.panes[] | select(.label == $label) | .pane_id] | first // empty'
 }
 
+# Which layout, if any, is on this workspace. The marks each one leaves are the
+# whole answer -- herdr keeps no plugin state, and a workspace restored from
+# session.json would arrive without ours anyway:
+#
+#   a PANE called nvim or term, or a TAB called dev -> the split layout
+#   a TAB called nvim or term                       -> the default layout
+#   neither                                         -> never laid out
+#
+# The `dev` tab is the split layout's mark in the one form that survives a
+# server restart: session.json persists a tab's custom_name but nothing about a
+# pane beyond its cwd and agent session, so after a reboot the pane test alone
+# answers false on a workspace that is plainly still split.
+#
+# Two callers, and they ask opposite halves of it: layout-toggle.sh picks the
+# layout to apply from which mark it finds, and the space picker builds the
+# default layout only where it finds neither. One definition, because a second
+# copy that drifted would rebuild the default layout on top of a live split one
+# -- the failure the `dev` tab was added to prevent.
+layout_split_applied() {
+  [ -n "$(workspace_pane_by_label "$1" nvim)" ] ||
+    [ -n "$(workspace_pane_by_label "$1" term)" ] ||
+    [ -n "$(layout_tab_for_label "$1" dev)" ]
+}
+
+layout_tabs_applied() {
+  [ -n "$(layout_tab_for_label "$1" nvim)" ] ||
+    [ -n "$(layout_tab_for_label "$1" term)" ]
+}
+
+layout_applied() {
+  layout_split_applied "$1" || layout_tabs_applied "$1"
+}
+
 # A labelled pane anywhere in the workspace, as `<tab id> <pane id>`.
 labelled_pane_of() {
   herdr_cli pane list --workspace "$1" |

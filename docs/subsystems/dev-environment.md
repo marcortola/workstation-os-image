@@ -991,8 +991,8 @@ from any pane. Checkouts land beside the repository at
 | Key | Effect |
 |---|---|
 | `prefix+shift+w` | Popup: prompt for a branch, validate it with `git check-ref-format`, create the worktree and apply the dev layout |
-| `prefix+shift+x` | Popup: show the checkout, any uncommitted work, the branch's merge state and anything inside owned by another user, confirm, then remove it. The branch goes only if it has already landed, on a separate answer |
-| `prefix+s` | Space picker: live workspaces plus on-disk worktrees that have no workspace yet, grouped by repository and sorted so a blocked or finished agent rises to the top |
+| `prefix+shift+x` | On a checkout: popup showing the checkout, any uncommitted work, the branch's merge state and anything inside owned by another user, confirm, then remove it. The branch goes only if it has already landed, on a separate answer. On a repo space: close it, naming the worktree spaces herdr will close with it |
+| `prefix+s` | Space picker: live workspaces plus on-disk worktrees that have no workspace yet, grouped by repository and sorted so a blocked or finished agent rises to the top. Picking a checkout also gives it the dev layout when it has none |
 | `prefix+shift+u` | Open every linked worktree of every repository as a workspace. Also runs at server start |
 
 The same rows reach the desktop without opening a terminal: the `herdrJobs` DMS
@@ -1000,6 +1000,32 @@ bar widget polls `spaces.sh --json` and lists the open spaces, with a click
 focusing one. It is a view of this picker rather than a second reader of herdr —
 [desktop-session.md](desktop-session.md) covers the plugin and what breaks
 silently about it.
+
+Closing a repo space closes its worktree spaces too, and that is herdr's model
+rather than a choice of ours: a repo workspace and the worktree workspaces
+opened under it are one group. herdr 0.8.2 closed the whole group on a bare
+`workspace close`, silently — one `prefix+shift+x` on the repo space took every
+checkout's panes with it, agents included. 0.9.0 refuses that: the call answers
+`workspace_group_close_required` and leaves the group open unless the caller
+states the intent with `--group`, which is the version this plugin now declares
+in `min_herdr_version`. `checkout-remove.sh` forms that intent in one place — it
+lists the worktree spaces by checkout path, says that nothing is deleted, and
+asks once. Declining leaves everything open. Nothing on this path touches disk:
+the checkouts, their branches and their uncommitted work are exactly where they
+were, which is what separates this prompt from the removal one below.
+
+Picking a checkout from the picker also lays it out, because opening one is the
+same request as creating one. `worktree open` restores the workspace and none of
+the panes it had, so a checkout reopened after a close came back as a single
+bare shell — no `nvim`, no `term`, and no agent, which is the part that reads as
+lost work even though `claude --continue` was always one layout away. The picker
+now calls `layout.sh --only-when-bare` on both kinds of row: the closed one it
+has just opened, and an open one that has never been laid out, which is what
+`adopt-worktrees.sh` leaves behind at server start. The flag is what keeps it
+from touching anything else — the predicate behind it is `layout_applied` in
+`layout-common.sh`, the same marks the `prefix+shift+n` toggle reads, so a space
+already holding either layout is left alone and a live split layout is never
+rebuilt into three tabs. One definition, two callers, gated as such.
 
 The worktree workspace is labelled with the branch slug alone. The repository is
 not lost, because `agent_panel_sort = "spaces"` groups rows under their space

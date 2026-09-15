@@ -537,12 +537,56 @@ chosen=$("$0" --rows "$cache" |
     --bind 's:abort') || exit 0
 
 # The popup dies with the script, so a failed call has to stop and show itself.
+# The reply is kept rather than dropped: opening a checkout has to read the
+# workspace id back out of it, and a failure now returns non-zero so nothing
+# downstream lays out a workspace that was never opened.
+herdr_reply=
 run_herdr() {
-  local failure
-  if failure=$(herdr_cli "$@" 2>&1 >/dev/null); then
+  local err status=0
+  err=$(mktemp)
+  herdr_reply=$(herdr_cli "$@" 2>"$err") || status=$?
+  if [ "$status" -eq 0 ]; then
+    rm -f "$err"
     return 0
   fi
-  printf 'herdr %s\n\n%s\n' "$*" "$failure"
+  printf 'herdr %s\n\n%s\n' "$*" "$(cat "$err")"
+  rm -f "$err"
+  read -r -n 1 -s _ </dev/tty || true
+  return 1
+}
+
+# A field of the row, straight out of the cache: 4 checkout, 5 repo, 6 is_worktree.
+row_field() {
+  awk -F'\t' -v key="$1" -v col="$2" '$1 == key { print $col; exit }' "$cache"
+}
+
+# The dev layout, for a checkout reached through this picker.
+#
+# Opening a checkout from here is the same request as creating one -- the three
+# tabs, the editor, and the agent resumed into the conversation it left -- and
+# for a closed checkout nothing else applies it: `worktree open` restores the
+# workspace, never the panes it had, so before this the row answered with a
+# single bare shell. An already-open space is handled by the same call, because
+# `--only-when-bare` leaves any workspace that carries a layout mark alone; what
+# it reaches is the one adopt-worktrees.sh opens at startup, which has never
+# been laid out and stays that way until something asks.
+#
+# Nothing is applied to a plain repo workspace: Mod+Shift+P owns that one and
+# already lays it out.
+apply_layout() {
+  local workspace=$1 checkout=$2
+  # The space is open either way by the time this runs, so neither failure here
+  # is fatal -- prefix+shift+n builds the layout by hand. Both are reported,
+  # because the state they leave behind is the bare shell this exists to
+  # prevent, and a silent one is indistinguishable from never having run.
+  if [ -z "$workspace" ]; then
+    printf '\nthe space is open, but herdr did not name it in its reply.\n'
+  elif ! "$plugin_dir/layout.sh" --only-when-bare "$workspace" "$checkout" >/dev/null; then
+    printf '\nthe space is open, but the layout failed.\n'
+  else
+    return 0
+  fi
+  printf 'build the layout with prefix+shift+n.\n'
   read -r -n 1 -s _ </dev/tty || true
 }
 
@@ -552,15 +596,22 @@ key=$(printf '%s' "$chosen" | cut -f1)
 
 case $key in
   wt:*)
-    repo=$(awk -F'\t' -v key="$key" '$1 == key { print $5; exit }' "$cache")
+    checkout=${key#wt:}
+    repo=$(row_field "$key" 5)
     parent=$(awk -F'\t' -v repo="$repo" '$1 !~ /^wt:/ && $5 == repo && $6 == "false" { print $1; exit }' "$cache")
-    open_args=(worktree open --path "${key#wt:}" --focus)
+    open_args=(worktree open --path "$checkout" --focus)
     if [ -n "$parent" ]; then
       open_args+=(--workspace "$parent")
     fi
-    run_herdr "${open_args[@]}"
+    run_herdr "${open_args[@]}" || exit 0
+    apply_layout \
+      "$(printf '%s' "$herdr_reply" | jq -r '.result.workspace.workspace_id // .result.workspace_id // empty')" \
+      "$checkout"
     ;;
   *)
-    run_herdr workspace focus "$key"
+    run_herdr workspace focus "$key" || exit 0
+    if [ "$(row_field "$key" 6)" = true ]; then
+      apply_layout "$key" "$(row_field "$key" 4)"
+    fi
     ;;
 esac
