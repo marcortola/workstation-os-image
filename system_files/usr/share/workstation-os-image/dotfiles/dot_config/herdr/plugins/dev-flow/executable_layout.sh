@@ -15,10 +15,25 @@ plugin_dir=$(cd "$(dirname "$0")" && pwd)
 # shellcheck source=layout-common.sh
 . "$plugin_dir/layout-common.sh"
 
+# `--only-when-bare` is the space picker's form: give a checkout that has never
+# been laid out the default layout, and leave every other one exactly as it is.
+# It is a flag here rather than a test in the caller because the marks that
+# answer it are layout-common's, and a second copy of that predicate is what
+# would rebuild these three tabs on top of a live split layout.
+only_when_bare=false
+if [ "${1:-}" = --only-when-bare ]; then
+  only_when_bare=true
+  shift
+fi
+
 workspace=$(target_workspace "${1:-}")
 if [ -z "$workspace" ]; then
   echo "no workspace in context" >&2
   exit 1
+fi
+
+if [ "$only_when_bare" = true ] && layout_applied "$workspace"; then
+  exit 0
 fi
 
 # A tab running an agent under the editor's or the terminal's name becomes that

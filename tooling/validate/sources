@@ -133,7 +133,16 @@ require_file docs/README.md
 # under one family name and only the image's carries codicons -- by name every
 # mark is a tofu box, and nothing on this machine lints QML or can tell a
 # missing glyph from a drawn one.
-(( $(wc -l < AGENTS.md) <= 423 ))
+# Raised to 436 for the two rules about closing and reopening a space, both of
+# which read as herdr's business rather than ours. The group close is the one an
+# agent would delete first -- our popup sends ONE close and herdr ends six panes,
+# so the prompt naming them looks like ceremony around a one-line call until you
+# have watched a keystroke on the repo space take every checkout's agents with
+# it. And laying out a checkout on the way in reads as duplicated work next to
+# the create popup, right up until the reopened space comes back as one bare
+# shell with the conversation still sitting in it, unreachable because nothing
+# ran `claude --continue`.
+(( $(wc -l < AGENTS.md) <= 436 ))
 
 # README.md is a landing pad into docs/ and nothing else. Capped because it grows
 # back otherwise: it was 855 lines covering fourteen concerns before the handbook
@@ -565,6 +574,43 @@ for guard in '__worktrees}" = "$parent"' '"$resolved" = "$repo"' '"$home"/}" = "
     grep -qF "$guard" "$dev_flow/executable_checkout-remove.sh"
 done
 
+# Closing a repo space closes its worktree spaces with it, and that is herdr's
+# doing rather than ours: 0.8.2 did it silently, 0.9.0 refuses unless the caller
+# passes `--group`. Two files therefore have to agree, and the way they can
+# disagree is the one that was reported -- a plugin declaring the version whose
+# behaviour it was written against, while the close it performs is the older,
+# unasked one. The flag also gets exactly one caller, behind the prompt that
+# names the spaces it will take: `--group` reachable without that prompt is the
+# silent cascade back again, in our own code this time.
+grep -q '^min_herdr_version = "0.9.0"$' "$dev_flow/herdr-plugin.toml"
+[[ $(grep -rl 'workspace close "[$]workspace" --group' "$dev_flow" | tr -d '\n') == "$dev_flow/executable_checkout-remove.sh" ]]
+[[ $(grep -v '^[[:space:]]*#' "$dev_flow/executable_checkout-remove.sh" | grep -c -- '--group') -eq 1 ]]
+grep -qF "ask 'close them? [y/N] ' || exit 0" "$dev_flow/executable_checkout-remove.sh"
+# shellcheck disable=SC2016 # literal fragment of the guarded script
+grep -qF 'close_repo_workspace "$workspace" "$repo" "$label"' "$dev_flow/executable_checkout-remove.sh"
+
+# One mechanism, three files: which layout is on a workspace is asked by the
+# toggle and by the space picker, and a second copy of that predicate rebuilds
+# the default layout on top of a live split one -- the failure the `dev` tab
+# mark was added to prevent. The picker reaches it through layout.sh's
+# `--only-when-bare`, so the flag and the predicate are gated together: the flag
+# without the guard lays out every space the picker touches, and the guard
+# without the flag leaves a reopened checkout the bare shell this was about.
+grep -q '^layout_split_applied()' "$dev_flow/layout-common.sh"
+grep -q '^layout_tabs_applied()' "$dev_flow/layout-common.sh"
+grep -q '^layout_applied()' "$dev_flow/layout-common.sh"
+[[ $(grep -rl '^layout_split_applied()' "$dev_flow" | tr -d '\n') == "$dev_flow/layout-common.sh" ]]
+[[ $(grep -rl '^layout_tabs_applied()' "$dev_flow" | tr -d '\n') == "$dev_flow/layout-common.sh" ]]
+grep -q 'layout_split_applied "[$]workspace"' "$dev_flow/executable_layout-toggle.sh"
+grep -q 'layout_tabs_applied "[$]workspace"' "$dev_flow/executable_layout-toggle.sh"
+grep -q 'layout_applied "[$]workspace"' "$dev_flow/executable_layout.sh"
+grep -qF -- '--only-when-bare' "$dev_flow/executable_layout.sh"
+grep -qF -- 'layout.sh" --only-when-bare' "$dev_flow/executable_spaces.sh"
+# Both picker branches lay the checkout out: the closed row that `worktree open`
+# restores without any of its panes, and the open row adopt-worktrees.sh left
+# bare at startup. Losing either one is invisible -- the space still opens.
+[[ $(grep -c 'apply_layout' "$dev_flow/executable_spaces.sh") -eq 3 ]]
+
 # A checkout parked on background work spans five files that have to agree, and
 # every way they can disagree is silent: herdr calls the pane idle either way,
 # so a probe that never runs, a state word the row builder does not emit, or a
@@ -801,12 +847,14 @@ fi
 # The split layout's only restore-surviving mark. session.json persists a tab's
 # custom_name and nothing about a pane beyond cwd and agent session, so without
 # the tab test the toggle rebuilds the default layout over a live split one
-# after every reboot.
+# after every reboot -- and so does the space picker, which asks the same
+# predicate through `layout.sh --only-when-bare`. The test therefore lives with
+# the predicate in layout-common.sh, one definition for both readers.
 # The single quotes are the point: match the literal shell variable names.
 # shellcheck disable=SC2016
 grep -q 'tab rename "$dev_tab" dev' "$dev_flow/executable_layout-split.sh"
 # shellcheck disable=SC2016
-grep -q 'layout_tab_for_label "$workspace" dev' "$dev_flow/executable_layout-toggle.sh"
+grep -q 'layout_tab_for_label "$1" dev' "$dev_flow/layout-common.sh"
 # A remembered pane status belongs to the server that wrote it. Restored pane
 # ids are the same ids, so without this the first idle after a restore reads as
 # a turn that ended while the server was off.

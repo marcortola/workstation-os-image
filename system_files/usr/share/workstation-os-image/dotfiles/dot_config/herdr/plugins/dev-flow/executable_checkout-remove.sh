@@ -65,6 +65,53 @@ ask() {
 # remove_as_root has to compare resolved paths or it refuses every checkout.
 home=$(realpath -- "$HOME" 2>/dev/null || printf '%s' "$HOME")
 
+# Close the repo workspace, and say so when that takes its worktree spaces with
+# it.
+#
+# herdr models a repo workspace and the worktree workspaces opened under it as
+# one group, and closing the repo one closes the whole group. 0.8.2 did that
+# silently -- one keystroke on the repo space closed every checkout's spaces and
+# killed every pane in them, agents included, with nothing asked and nothing
+# said, which is what was reported here. 0.9.0 refuses instead: `workspace
+# close` answers `workspace_group_close_required` and leaves the group open
+# unless the caller states the intent with `--group`. This is where that intent
+# is formed, so the flag is never passed without the group having been named
+# first.
+#
+# Nothing is deleted. This closes SPACES: every checkout, branch and uncommitted
+# change stays exactly where it is, and reopening one from the prefix+s picker
+# gives it its layout back. The prompt says so, because the popup that owns the
+# other half of this script does delete checkouts and the two must not read
+# alike.
+close_repo_workspace() {
+    local workspace=$1 repo=$2 label=$3 members count member_label member_path
+    members=
+    if [ -n "$repo" ]; then
+        members=$(herdr_cli workspace list |
+            jq -r --arg repo "$repo" '
+                .result.workspaces[]
+                | select((.worktree.is_linked_worktree // false)
+                         and (.worktree.repo_root // "") == $repo)
+                | [(.label // ""), (.worktree.checkout_path // "")] | @tsv')
+    fi
+
+    if [ -z "$members" ]; then
+        herdr_cli workspace close "$workspace" >/dev/null
+        return 0
+    fi
+
+    count=$(printf '%s\n' "$members" | grep -c .)
+    printf '\nproject: %s\n' "${label:-$workspace}"
+    printf 'herdr closes this space and its worktree spaces together, %s of them:\n' "$count"
+    while IFS=$'\t' read -r member_label member_path; do
+        [ -n "$member_label$member_path" ] || continue
+        printf '  %s\n' "${member_path:-$member_label}"
+    done <<<"$members"
+    printf '\nnothing is deleted: every checkout, branch and uncommitted change stays.\n\n'
+    ask 'close them? [y/N] ' || exit 0
+    herdr_cli workspace close "$workspace" --group >/dev/null
+}
+
 # The paths git cannot delete, because another user owns them. One traversal
 # answers both questions the display asks: how many, and under which top-level
 # entries.
@@ -166,7 +213,7 @@ if [ "$linked" != "true" ] || [ -z "$checkout" ]; then
         exit 0
     fi
     if [ "$close_plain" = "--close-plain" ]; then
-        herdr_cli workspace close "$workspace" >/dev/null
+        close_repo_workspace "$workspace" "$repo" "$label"
     fi
     exit 0
 fi

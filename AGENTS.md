@@ -302,6 +302,19 @@ prefer them over reinventing the shape:
   tree rather than writing a commit, and never deletes a branch of its own --
   only the shared tail below does, and only for a branch already in the base,
   which an armed auto-merge is not yet.
+- A repo workspace and the worktree workspaces under it are ONE herdr group:
+  closing the repo one closes them all. 0.8.2 did it silently; 0.9.0 answers
+  `workspace_group_close_required` unless the close passes `--group`, hence
+  `min_herdr_version`. `checkout-remove.sh` is that flag's only caller and names
+  the spaces first. Reaching it without the prompt is the silent cascade again,
+  in our own code.
+- `worktree open` restores a workspace and none of its panes, so `spaces.sh`
+  lays a picked checkout out -- the row it just opened AND an already-open one,
+  which is what reaches the bare spaces `adopt-worktrees.sh` leaves at startup.
+  Startup itself stays bare, or every checkout starts an agent at every boot.
+  The predicate behind `layout.sh --only-when-bare` is `layout_applied` in
+  `layout-common.sh`, shared with `layout-toggle.sh`; a second copy rebuilds the
+  default layout over a live split one.
 - Both popups that can delete a checkout -- ship and close-workspace -- end in
   the shared `dev-flow/checkout-remove.sh`, which owns the linked-worktree
   probe, the dirty display and the confirmation. A clean tree is removed

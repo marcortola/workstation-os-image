@@ -28,33 +28,14 @@ if [ -z "$workspace" ]; then
   exit 1
 fi
 
-# A pane called `nvim` or `term` is the split layout's own mark and exists under
-# no other layout, so the question is asked of the whole workspace rather than
-# of the agent's tab. Asking only inside that tab meant the answer depended on
-# finding the agent first, and a split workspace that had lost its agent pane
-# answered "nothing is laid out here" -- which built the default layout on top
-# of the split one and stranded the live editor in the orphan tab.
-#
-# The `dev` tab is the same mark in the one form that survives a server
-# restart. session.json persists a tab's custom_name but nothing about a pane
-# beyond its cwd and agent session, so after a reboot every pane label is gone
-# and the pane test alone answered false on a workspace that is plainly still
-# split -- rebuilding the default layout over it, which is the exact failure
-# the pane test was widened to prevent.
-split_applied() {
-  [ -n "$(workspace_pane_by_label "$workspace" nvim)" ] ||
-    [ -n "$(workspace_pane_by_label "$workspace" term)" ] ||
-    [ -n "$(layout_tab_for_label "$workspace" dev)" ]
-}
-
-tabs_applied() {
-  [ -n "$(layout_tab_for_label "$workspace" nvim)" ] ||
-    [ -n "$(layout_tab_for_label "$workspace" term)" ]
-}
-
-if split_applied; then
+# Which mark is on the workspace is layout-common's question -- the space picker
+# asks it too, to build the default layout on a checkout that has never been
+# laid out without touching one that is already split. The reasoning for each
+# mark, and for asking the whole workspace rather than the agent's tab, lives
+# beside the definitions there.
+if layout_split_applied "$workspace"; then
   target=$plugin_dir/layout.sh
-elif tabs_applied; then
+elif layout_tabs_applied "$workspace"; then
   target=$plugin_dir/layout-split.sh
 else
   target=$plugin_dir/layout.sh
