@@ -1121,12 +1121,22 @@ model does not change when you switch tools. The seed paths are inventoried in
 
   ```sh
   brew upgrade herdr
-  brew link --overwrite herdr   # only if a handoff repointed the symlink
+  brew unlink herdr && brew link herdr   # if a handoff repointed bin/herdr
   systemctl --user restart workstation-herdr-server.service
   rm -rf ~/.local/share/herdr-<old version>
   ```
 
-  The restart ends every pane, which is why it is tempting to defer it; the
+  `brew link --overwrite herdr` is NOT the command. Homebrew decides a keg is
+  linked from `opt/herdr`, which the handoff leaves pointing at the new Cellar
+  version, so it answers `Already linked` and rewrites nothing while `bin/herdr`
+  still points into `~/.local/share`. Unlink first.
+
+  The order is the rest of it, and getting it wrong costs the session twice.
+  Remove the handoff copy before relinking and `bin/herdr` dangles — at which
+  point this unit's `ExecCondition=/usr/bin/test -x` reads it as herdr not being
+  installed and SKIPS the start, so `systemctl --user restart` reports success
+  and leaves `inactive (dead)` with every pane already gone. The restart ends
+  every pane either way, which is why it is tempting to defer it; the
   workspaces, their layout and the agent conversations come back with the
   server. Deferring is what produces the broken state above.
 
