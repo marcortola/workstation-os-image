@@ -196,10 +196,12 @@ pick, while the split layout — one tab, three panes — is left as it was chos
 it a `PATH` rather than trusting the keybind's, and a failure never propagates,
 because the picker still owes the caller its `exec`.
 
-Scoping is also the whole job when a herdr window is already open. Every
-attached client mirrors the others, so the window on screen has already moved
+Scoping is also the whole job when a herdr window is already open. The attached
+client follows the focused workspace, so the window on screen has already moved
 to the picked project by the time the workspace is focused — a second client
-would only be a second view of it. The picker therefore asks niri for a window
+would only be a second view of the same server. Through 0.8 that second view was
+a mirror of the first; 0.9 gives each client its own viewed workspace and tab,
+which changes nothing here because this machine runs one. The picker therefore asks niri for a window
 whose app-id is `herdr` or `dev-terminal`, excluding its own by the focused
 window's id, and focuses that instead of `exec`ing a client; its own terminal
 closes behind it. Both launch binds are matched because both can hold a client:
@@ -656,8 +658,10 @@ parked on chords nobody presses so the rest can move one slot along — so run
 Three rules, each with a failure behind it:
 
 - **Launch it deliberately** — `Mod+Shift+T`, or the project picker's
-  `Mod+Shift+P`. Never auto-attach from a shell rc, because every attached client
-  mirrors every other one, so a second terminal would echo the first.
+  `Mod+Shift+P`. Never auto-attach from a shell rc: that attaches a client per
+  terminal. Through 0.8 they mirrored, so every terminal echoed the first; 0.9
+  gives each client its own viewed workspace and tab, which trades the echo for a
+  fleet of independent views nobody asked for.
 - **Keep one default session.** The agent-state rollup is per server, so named
   sessions fragment the one thing herdr was adopted for.
 - **Run coding agents inside a herdr pane.** `prefix+alt+a` is what puts one
@@ -1104,6 +1108,25 @@ model does not change when you switch tools. The seed paths are inventoried in
   here, the symptom is silence, so check the plugin's `jq` filters against a real
   `herdr pane process-info` before looking anywhere else.
 
+- **A DMS bar plugin keeps running the QML it was loaded with.** DMS reads a
+  plugin's files once, when the shell starts. `workstation-chezmoi-update.timer`
+  fires `OnBootSec=5m`, so on the boot that adopts a new image the shell has
+  already loaded the previous version of every plugin the apply is about to
+  rewrite. On 2026-09-15 that left the herdr widget rendering `[object
+  V4ReferenceObject]` in place of every agent mark: the loaded delegate declared
+  `required property string modelData` while the `spaces.sh` beside it had
+  already moved to `{kind, state}` rows, and Qt converts an object assigned to a
+  string property rather than refusing it. Nothing lints QML, nothing logged a
+  warning, and the only trace was on screen. `workstation-chezmoi-apply` now
+  fingerprints each plugin directory before and after the apply and reloads the
+  ones that changed — `plugin-scan scan` first for a directory DMS has never
+  seen, since a plugin created after the shell started is not in its registry at
+  all. By hand:
+
+  ```sh
+  dms ipc call plugins reload herdrJobs   # PLUGIN_RELOAD_SUCCESS: herdrJobs
+  ```
+
 - **Never `brew upgrade herdr` while the server is running.** Every pane carries
   `HERDR_BIN_PATH` pointing at the exact binary the server was started from —
   `…/Cellar/herdr/<version>/bin/herdr` — and every plugin script calls
@@ -1139,6 +1162,11 @@ model does not change when you switch tools. The seed paths are inventoried in
   every pane either way, which is why it is tempting to defer it; the
   workspaces, their layout and the agent conversations come back with the
   server. Deferring is what produces the broken state above.
+
+  `herdr status` is what reports the state, and it is the one command that can:
+  `update.restart_needed`, `update.server_binary_stale`, and the client and
+  server versions side by side. `tooling/audit/units` reads exactly those, plus
+  the case where nothing executable answers to `herdr` at all.
 
 - **A `herdr-plugin.toml` edit does not take effect on `reload-config`.** herdr
   caches the manifest in `~/.config/herdr/plugins.json`, and

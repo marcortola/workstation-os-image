@@ -142,7 +142,12 @@ require_file docs/README.md
 # the create popup, right up until the reopened space comes back as one bare
 # shell with the conversation still sitting in it, unreachable because nothing
 # ran `claude --continue`.
-(( $(wc -l < AGENTS.md) <= 436 ))
+# Raised to 443 for the upgrade class that bit twice in one day: a bar plugin
+# DMS loaded before the seed apply rewrote it, and a herdr client swapped under
+# its own running server. Both are invisible -- the widget kept drawing, the
+# popups kept opening -- and both look like someone else's problem until you have
+# spent an evening on them.
+(( $(wc -l < AGENTS.md) <= 443 ))
 
 # README.md is a landing pad into docs/ and nothing else. Capped because it grows
 # back otherwise: it was 855 lines covering fourteen concerns before the handbook
@@ -306,6 +311,32 @@ grep -q 'chezmoi apply --force --no-tty --keep-going' "$chezmoi_apply"
 # The audit reads the manifest itself rather than the baked list, so gate that
 # it still selects by kind instead of naming paths again.
 grep -q 'kind == scaffold' tooling/audit/dotfiles
+
+# Writing a DMS plugin's files is only half of updating it: DMS loads a plugin
+# once, when the shell starts, and this apply runs five minutes after boot. The
+# boot that adopts a new image therefore leaves the shell rendering the PREVIOUS
+# plugin against the current scripts beside it -- which is how the herdr widget
+# spent a session drawing `[object V4ReferenceObject]` where its agent marks go,
+# with nothing logged and nothing failing. The order is the mechanism: the
+# fingerprint has to be taken BEFORE the first apply or every plugin looks
+# unchanged and nothing is ever reloaded.
+grep -q 'dms ipc call plugins reload' "$chezmoi_apply"
+grep -q 'dms ipc call plugin-scan scan' "$chezmoi_apply"
+# shellcheck disable=SC2016 # literal fragments of the guarded script
+[[ $(grep -n 'dms_plugins_before=\$(plugin_fingerprints)' "$chezmoi_apply" | cut -d: -f1) \
+    -lt $(grep -n 'chezmoi apply -S' "$chezmoi_apply" | cut -d: -f1) ]]
+# shellcheck disable=SC2016 # literal fragments of the guarded script
+[[ $(grep -n 'reload_changed_dms_plugins "\$dms_plugins_before"' "$chezmoi_apply" | cut -d: -f1) \
+    -gt $(grep -n '^apply_scaffold || status=' "$chezmoi_apply" | cut -d: -f1) ]]
+
+# The other half of that upgrade class, on the machine rather than in the image:
+# Homebrew replaces the herdr binary under a running server -- uupd does it
+# unattended at 04:00 -- and deletes the Cellar path every pane carries in
+# HERDR_BIN_PATH. `herdr status` is the only command that reports the resulting
+# skew, so the audit must keep reading it by those field names.
+grep -q 'herdr status' tooling/audit/units
+grep -q 'update.server_binary_stale' tooling/audit/units
+grep -q 'server.private_protocol_compatible' tooling/audit/units
 
 # Worktree untracked-file propagation: every creation path (herdr, Claude Code,
 # the post-checkout hook) reaches the same committed .worktreeinclude through
