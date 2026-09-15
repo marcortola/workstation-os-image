@@ -214,5 +214,72 @@ report_herdr_oom_policy() {
 
 report_herdr_oom_policy
 
+# Homebrew upgrades herdr under the running server -- uupd does it at 04:00
+# daily, unattended -- and its post-install Cleanup then deletes the Cellar
+# directory the server was started from. Every pane carries that exact path in
+# HERDR_BIN_PATH and every dev.flow script calls it, so the whole plugin dies
+# with status 127 while the server keeps running: popups open and close, the bar
+# widget reports no server, and nothing logs a word. The new client cannot talk
+# to the old server either, and herdr answers a protocol mismatch by installing
+# a matching older client under ~/.local/share and repointing the Homebrew
+# symlink at it, which leaves `herdr --version` reporting the old version with
+# the Cellar holding the new one. All of that was measured on 2026-09-15.
+#
+# `herdr status` is the one command that answers it: it reports the client, the
+# server and whether the binary behind the running server is still there.
+report_herdr_version_skew() {
+    local unit=workstation-herdr-server.service key value
+    local client_version='' server_state='' server_version=''
+    local endpoint_ok='' protocol_ok='' restart_needed='' binary_stale=''
+
+    systemctl --user cat "$unit" >/dev/null 2>&1 || return 0
+    [[ $(systemctl --user is-active "$unit" 2>/dev/null) == active ]] || return 0
+
+    # A dangling symlink is not executable, so this is also the check for the
+    # state the handoff leaves behind once its private copy is deleted.
+    if ! command -v herdr >/dev/null 2>&1; then
+        echo "  the herdr server is running but no herdr binary is on PATH;" >&2
+        echo "    every dev.flow script exits 127 and each popup opens and closes" >&2
+        echo "    with nothing said -- 'brew unlink herdr && brew link herdr'," >&2
+        echo "    then restart $unit" >&2
+        status=1
+        return 0
+    fi
+
+    while IFS='=' read -r key value; do
+        case "$key" in
+            client.version) client_version=$value ;;
+            server.status) server_state=$value ;;
+            server.version) server_version=$value ;;
+            server.endpoint_compatible) endpoint_ok=$value ;;
+            server.private_protocol_compatible) protocol_ok=$value ;;
+            update.restart_needed) restart_needed=$value ;;
+            update.server_binary_stale) binary_stale=$value ;;
+        esac
+    done < <(herdr status 2>/dev/null | awk -F': *' '
+        /^[a-z_]+:$/ { section = substr($0, 1, length($0) - 1); next }
+        NF >= 2 { key = $1; gsub(/^[[:space:]]+/, "", key); print section "." key "=" $2 }')
+
+    [[ $server_state == running ]] || return 0
+
+    if [[ $binary_stale == yes || $restart_needed == yes ]]; then
+        echo "  the running herdr server's binary has been replaced underneath it;" >&2
+        echo "    herdr status reports server_binary_stale=${binary_stale:-<unreadable>}," >&2
+        echo "    restart_needed=${restart_needed:-<unreadable>} -- restart $unit" >&2
+        echo "    (it ends every pane; the workspaces and agents come back)" >&2
+        status=1
+    fi
+
+    if [[ -n $server_version && $client_version != "$server_version" ]] ||
+        [[ $endpoint_ok == no || $protocol_ok == no ]]; then
+        echo "  herdr client $client_version is talking to server ${server_version:-<unreadable>};" >&2
+        echo "    a mismatch answers every plugin call with protocol_mismatch and" >&2
+        echo "    herdr may downgrade the client behind your back -- restart $unit" >&2
+        status=1
+    fi
+}
+
+report_herdr_version_skew
+
 (( status == 0 )) && echo "  every preset line holds; no image-owned unit has failed."
 exit "$status"

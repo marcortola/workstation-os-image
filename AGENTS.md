@@ -148,6 +148,12 @@ prefer them over reinventing the shape:
   `accel-profile`, `click-method` and `dwt`, none of which DMS can restore.
   `keyboard` merges and was never at risk. `99-check-build.sh` gates those
   three properties and the `mouse` section, since `accel-profile` is shared.
+- DMS reads a bar plugin's files once, when the shell starts, and the seed apply
+  runs five minutes after boot -- so the boot that adopts a new image renders the
+  PREVIOUS plugin against the current scripts beside it, silently.
+  `workstation-chezmoi-apply` fingerprints each plugin directory around the apply
+  and reloads what changed; take the fingerprint before the apply or nothing ever
+  looks changed. Gated.
 - The `herdrJobs` bar widget and the `prefix+s` space picker are two views of
   one list: both render `spaces.sh --json`. Never add a second row builder and
   never recompute state or the just-finished mark in QML. The id must agree
@@ -199,7 +205,8 @@ prefer them over reinventing the shape:
 ### Terminal
 
 - herdr is launched deliberately (`Mod+Shift+T`, or the project picker), never
-  auto-attached from a shell rc: every attached client mirrors the others.
+  auto-attached from a shell rc: that attaches a client per terminal -- mirrors
+  of each other through 0.8, independent views of their own workspace from 0.9.
 - The server is `workstation-herdr-server.service`, so it owns a cgroup no pane
   shares. A client that finds none forks its own inside `foot-server.service`,
   which is `KillMode=control-group`: at logout systemd SIGTERMs server and panes

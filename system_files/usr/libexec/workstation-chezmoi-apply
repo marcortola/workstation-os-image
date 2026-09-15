@@ -84,6 +84,65 @@ apply_scaffold() {
         --config "$dir/chezmoi.toml" "${targets[@]}"
 }
 
+# DMS loads a bar plugin's QML once, when the shell starts, and never looks at
+# the file again. This script runs five minutes after boot
+# (workstation-chezmoi-update.timer, OnBootSec=5m), so on the boot that adopts a
+# new image the shell is already running the PREVIOUS version of every plugin
+# the apply below is about to rewrite, and keeps running it until something
+# reloads the plugin.
+#
+# That is silent and it is not hypothetical. On 2026-09-15 the bar widget spent
+# a session rendering `[object V4ReferenceObject]` in place of every agent mark:
+# the loaded QML was the version whose delegate declared `required property
+# string modelData`, while the spaces.sh beside it had already moved to the
+# richer `{kind, state}` rows -- an object assigned to a string property, which
+# Qt converts rather than refusing. Nothing lints QML and nothing logged a
+# warning; the only trace was on screen.
+#
+# So the fingerprint is taken before the apply and again after it, and only a
+# plugin whose files actually changed is reloaded. A directory DMS has never
+# seen needs the scan first -- a plugin created after the shell started is not
+# in its registry at all, so `plugins reload` would answer with an unknown id.
+dms_plugins="${XDG_CONFIG_HOME:-$HOME/.config}/DankMaterialShell/plugins"
+
+plugin_fingerprints() {
+    local dir id
+    [[ -d $dms_plugins ]] || return 0
+    for dir in "$dms_plugins"/*/; do
+        # The id is plugin.json's, never the directory name: the two agree today
+        # and a third place to spell it is how they stop agreeing.
+        [[ -r ${dir}plugin.json ]] || continue
+        id=$(jq -r '.id // empty' "${dir}plugin.json" 2>/dev/null) || continue
+        [[ -n $id ]] || continue
+        printf '%s\t%s\n' "$id" \
+            "$(find "$dir" -type f -exec sha256sum {} + 2>/dev/null | sort | sha256sum)"
+    done
+}
+
+# Never fails the unit. The shell not running is the ordinary case on a headless
+# login or a first provisioning, and a reload that cannot happen leaves exactly
+# the state this ran to improve rather than a failed service.
+reload_changed_dms_plugins() {
+    local before=$1 id fingerprint previous
+    command -v dms >/dev/null 2>&1 || return 0
+    while IFS=$'\t' read -r id fingerprint; do
+        [[ -n $id ]] || continue
+        previous=$(printf '%s\n' "$before" | awk -F'\t' -v id="$id" '$1 == id { print $2; exit }')
+        [[ $previous == "$fingerprint" ]] && continue
+        if [[ -z $previous ]]; then
+            dms ipc call plugin-scan scan >/dev/null 2>&1 || true
+        fi
+        if dms ipc call plugins reload "$id" >/dev/null 2>&1; then
+            echo "reloaded the DMS plugin $id, whose files this apply changed"
+        else
+            echo "the DMS plugin $id changed but could not be reloaded;" >&2
+            echo "  it keeps rendering its previous version until DMS restarts" >&2
+        fi
+    done < <(plugin_fingerprints)
+}
+
+dms_plugins_before=$(plugin_fingerprints)
+
 if [[ ${1:-} == --init ]]; then
     chezmoi apply -S "$src" --config "$dir/chezmoi.toml" || status=$?
 else
@@ -99,5 +158,7 @@ fi
 # Ordered second the pass has nothing to create: the apply above has already
 # made every directory, and all this corrects is the targets it skipped.
 apply_scaffold || status=$?
+
+reload_changed_dms_plugins "$dms_plugins_before"
 
 exit "$status"
