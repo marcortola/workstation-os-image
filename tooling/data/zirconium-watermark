@@ -8,7 +8,7 @@
     "change or recorded why it was declined. Never bump it to silence the diff."
   ],
   "repository": "https://github.com/zirconium-dev/zirconium",
-  "reviewed_commit": "5f1d1d4841f484ae8a0bb2aea7bd42c426bf76ca",
-  "reviewed_date": "2026-09-05",
-  "reviewed_by": "the review that blocked `dms greeter uninstall`"
+  "reviewed_commit": "d72f81c0117e449976728e20441173ef2ecf1b2c",
+  "reviewed_date": "2026-09-14",
+  "reviewed_by": "the review that declined the jackrabbit ogc kernel bump"
 }
