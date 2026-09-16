@@ -29,6 +29,24 @@ for ref in 'ARG BASE_IMAGE=' 'FROM ghcr.io/ublue-os/brew'; do
     grep -F -- "$ref" Containerfile | grep -qE '@sha256:[0-9a-f]{64}' \
         || fail "not digest-pinned: $ref"
 done
+# One mechanism, two files: nothing moves this pin by hand, and the workflow
+# that moves it finds it by matching `^ARG BASE_IMAGE=` and rewriting what
+# follows `@`. A pin reformatted here -- indented, split, quoted -- would leave
+# that workflow resolving a digest, comparing it, and reporting "already
+# pinned" forever, which is the failure Renovate spent seventeen days
+# performing before it. The proposal is also built rather than merely opened,
+# and that only stays safe while the publishing steps are guarded on the branch.
+[[ -f .github/workflows/base-digest.yml ]] \
+    || fail "missing .github/workflows/base-digest.yml, which is what moves the pin"
+grep -qE "^ARG BASE_IMAGE=\S+@sha256:[0-9a-f]{64}$" Containerfile \
+    || fail "the base pin is not one unindented ARG BASE_IMAGE=<ref>@<digest> line"
+grep -q "ARG BASE_IMAGE=" .github/workflows/base-digest.yml \
+    || fail "base-digest.yml no longer matches the pin it maintains"
+grep -q 'tooling/validate/source-images' .github/workflows/base-digest.yml \
+    || fail "base-digest.yml must cosign-verify the digest before proposing it"
+[[ $(grep -c "github.ref == 'refs/heads/main'" .github/workflows/build.yml) -eq 4 ]] \
+    || fail "the publishing steps must stay guarded on main, or a dispatched branch publishes :latest"
+
 # A single full reference. A split image/tag pair silently produces
 # `repo:tag:tag` as soon as anything passes a tagged --build-arg.
 if grep -qE '^ARG BASE_TAG' Containerfile; then

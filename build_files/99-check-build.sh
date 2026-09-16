@@ -463,8 +463,8 @@ done
 # does not -- it is pinned to one release both in the URL
 # (repos.fyralabs.com/terra44/key.asc) and in its own uid ("Terra 44"). The base
 # is tagged :latest, so the day base-main moves to F45 the repo follows and the
-# key does not, and nothing else in the repo would notice: renovate only manages
-# the Containerfile, and the fingerprint check in tooling/validate/rpm-keys
+# key does not, and nothing else in the repo would notice: the base-digest
+# workflow only moves the pin, and the fingerprint check in tooling/validate/rpm-keys
 # compares the key against the manifest, which would still agree with itself.
 # shellcheck source=/dev/null
 . /usr/lib/os-release

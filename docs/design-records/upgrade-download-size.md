@@ -128,9 +128,10 @@ a pre-rechunk intermediate that is then discarded, while
 `tooling/validate/image-build` still passed. Its floor is not zero either:
 rechunk forces everything unowned by an RPM into one dedicated `unpackaged`
 layer, measured at 125,052,002 B gzip and dirty every build. And the one-time
-full re-download recurs weekly, because `renovate.json5` bumps the base "before
-6am on monday" and after rechunking the base's 259 shared blobs no longer exist
-in this image. Realistic band ~300-750 MB, centred near -60%. If it is
+full re-download recurs on every base bump, after which the base's 259 shared
+blobs no longer exist in this image. That was weekly when Renovate was nominally
+in charge; since 2026-09-16 it is `base-digest.yml`, checking daily, so the cost
+this paragraph weighs got larger rather than smaller. Realistic band ~300-750 MB, centred near -60%. If it is
 revisited, evaluate `rpm-ostree compose build-chunked-oci --bootc
 --format-version=2` first — it needs none of rechunk's `/etc` relocation or
 passwd/group rewriting.
