@@ -355,8 +355,15 @@ jobs:
             echo "group provisioning ok: $(id -nG ciuser)"
           '
 
+      # main only, and the ref test is not redundant with the event test.
+      # `workflow_dispatch` and `schedule` are both non-PR events, and dispatch
+      # takes a --ref: without this, running this workflow by hand against a
+      # branch pushes that branch's image and moves :latest to it, signed and
+      # all. The machine would then pull a branch as its OS. The bump workflow
+      # dispatches exactly that way on purpose, to get a real build and smoke
+      # test on a proposed base digest, which is what made the gap worth closing.
       - name: Push image
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         run: |
           # :latest is deliberately NOT pushed here. policy.json on the machine
           # requires a signature for this scope, so a failure between push and
@@ -410,13 +417,13 @@ jobs:
           echo "both tags resolve to $sha_digest"
 
       - name: Install cosign
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
         with:
           cosign-release: "v3.1.3"
 
       - name: Sign the published image
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
           COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
@@ -447,7 +454,7 @@ jobs:
           echo "signature verified against cosign.pub"
 
       - name: Publish :latest
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         run: |
           # Copy from the digest that was signed and verified above, rather than
           # pushing :latest again from local storage. A second push produces the

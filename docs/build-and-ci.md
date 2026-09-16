@@ -374,10 +374,14 @@ created uid-1000 account to `docker` and `input`. The smoke test runs *before*
 the push, because a gate that runs after publication can only report a fact
 already shipped.
 
-> All three publishing steps gate on `if: github.event_name != 'pull_request'`
-> and nothing narrower. A `workflow_dispatch` run therefore pushes, signs and
-> **moves `:latest`** — including one dispatched from a branch. Pull requests
-> build and smoke-test but never push.
+> All three publishing steps gate on
+> `github.event_name != 'pull_request' && github.ref == 'refs/heads/main'`. The
+> event test alone was not enough: `schedule` and `workflow_dispatch` are both
+> non-PR events and dispatch takes a `--ref`, so a run started by hand against a
+> branch pushed that branch's image, signed it and **moved `:latest`** to it —
+> the machine would have pulled a branch as its OS. The ref test closed that,
+> and it is what lets `base-digest.yml` dispatch a real build against its own
+> proposal branch. Pull requests build and smoke-test but never push.
 
 Both pushes assert afterwards that the two tags resolved to the same digest.
 Only `:$GITHUB_SHA` is signed — the sign step resolves its digest and cosign
@@ -458,16 +462,15 @@ cannot be edited away without failing CI.
 
 ---
 
-## Lint, Renovate and Dependabot
+## Lint, the base digest bump and Dependabot
 
 `.github/workflows/lint.yml` triggers on push to `main`, on `pull_request` and on
-`workflow_dispatch` — not on every push to every branch. It runs four checks,
+`workflow_dispatch` — not on every push to every branch. It runs three checks,
 each pinned:
 
 | Check | Pin | Target |
 | --- | --- | --- |
 | hadolint | `ghcr.io/hadolint/hadolint:v2.14.0` | `Containerfile`, with `.hadolint.yaml` |
-| `renovate-config-validator --strict` | `renovate@44.52.0` via `npx` | `.github/renovate.json5` |
 | actionlint | `rhysd/actionlint:1.7.12` | every workflow |
 | gitleaks | `ghcr.io/gitleaks/gitleaks:v8.30.1` | `dir . --no-banner --redact` |
 
@@ -476,34 +479,51 @@ four trees `tooling/validate/all` scans — `tooling`, `build_files`,
 `system_files/usr/bin` and `system_files/usr/libexec` — so the two cannot report
 different findings on a shared file.
 
-The Renovate check looks redundant until you consider its failure mode:
-
-```text
-# A malformed renovate.json5 fails nothing on its own: Renovate simply
-# stops opening PRs, which is how the base digest pin stayed frozen.
-```
-
-Nothing goes red when the bot stops working; the pin just quietly stops moving.
-The validator version is pinned by hand for a related reason — an unpinned
-`--package renovate` resolved to 37.440.7 and rejected `managerFilePatterns`, a
-key current Renovate requires, so a floating validator reports failures that are
-its own age rather than the config's.
-
 ### Which bot bumps what
 
 The two are partitioned so they can never touch the same line.
 
 | Bot | Owns | Mechanism |
 | --- | --- | --- |
-| Renovate | `ARG BASE_IMAGE=` in the Containerfile, and nothing else | A `customManagers` regex scoped to `/^Containerfile$/`; the built-in `dockerfile` manager is explicitly `{ "enabled": false }`. Scheduled "before 6am on monday", `automerge: false`. |
+| `base-digest.yml` | `ARG BASE_IMAGE=` in the Containerfile, and nothing else | A workflow of this repository's own: resolve the tag's digest with skopeo, rewrite the pin, cosign-verify it, open one rolling pull request. Daily at `23 5 * * *`, never automerged. |
 | Dependabot | Literal `FROM` lines (currently the `brew` stage) and the pinned GitHub Actions SHAs | The `docker` and `github-actions` ecosystems, both weekly. |
 
 The split exists because Dependabot's docker parser is a regex over literal
 `FROM` lines. It bumps the brew stage and silently skips the base, which lives in
-an `ARG` — and leaving the base to Dependabot froze it permanently. The base
-digest is never automerged: `tooling/validate/source-images` cosign-verifies it,
-and the NEVRA manifest diff is the only place a base change is visible before it
-reaches the machine.
+an `ARG` — and leaving the base to Dependabot froze it permanently.
+
+Renovate held that job until 2026-09-16 and never did it. `.github/renovate.json5`
+was correct, its schema was validated on every lint run, and a comment in the
+lint workflow warned that a malformed config would silently stop the bumps — but
+the App was never installed, so there were no bumps to stop. Zero Renovate pull
+requests exist in this repository's history. The pin sat 17 days behind while
+Fedora shipped ostree 2026.4, and 2026.3's static-delta size margin failed every
+Flatpak update on the machine, nightly, with `Decompressed delta part exceeds
+configured limit`. The daily image rebuild hid it: the base is pinned by digest,
+so rebuilding against the same pin cannot pick up a base fix.
+
+A validated config for a bot nobody installed is the failure this replaced.
+`base-digest.yml` runs in the same Actions log as everything else, so "it did not
+run" is visible in the same place as "it failed".
+
+### The bump workflow
+
+Four properties, each with a reason:
+
+- **It proves the digest before proposing it.** `tooling/validate/source-images`
+  runs inside the job, so a pruned or unsigned digest fails there rather than
+  arriving as a pull request that looks like every other one.
+- **It dispatches its own build.** A pull request opened with `GITHUB_TOKEN`
+  starts no workflow runs — GitHub's rule, and it would have left base bumps with
+  no build, no smoke test and no manifest diff. `workflow_dispatch` is the
+  documented exception, and the ref guard added to the publishing steps is what
+  makes dispatching against a branch safe.
+- **One rolling branch.** `automation/base-image-digest`, force-pushed. A second
+  bump replaces the first instead of stacking pull requests, which is what makes
+  a daily cadence tolerable.
+- **Never automerged.** `source-images` proves the digest is ublue's; it says
+  nothing about what the base now contains. The NEVRA manifest diff in the build
+  is the only place that shows, and reading it is a person's job.
 
 ---
 

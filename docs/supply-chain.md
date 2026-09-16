@@ -21,7 +21,7 @@ bots:
 
 | Input | Pinned at | Bumped by |
 |---|---|---|
-| `ghcr.io/ublue-os/base-main` | `ARG BASE_IMAGE=` in `Containerfile` | Renovate, via a `customManagers` regex in `.github/renovate.json5` |
+| `ghcr.io/ublue-os/base-main` | `ARG BASE_IMAGE=` in `Containerfile` | `.github/workflows/base-digest.yml`, daily: resolve, cosign-verify, one rolling pull request |
 | `ghcr.io/ublue-os/brew` | the literal `FROM ... AS brew` line | Dependabot, via `.github/dependabot.yml` |
 
 The split is not redundancy. Dependabot's Docker parser is a regex over literal

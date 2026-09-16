@@ -1,0 +1,188 @@
+name: Bump the base image digest
+
+# Keep `ARG BASE_IMAGE=` in the Containerfile pointing at the current
+# ublue base-main, and prove the proposed digest before proposing it.
+#
+# This replaces Renovate, which was configured for exactly this one job and
+# never ran: the repository has zero Renovate pull requests in its history, no
+# workflow invoked it, and the App was never installed -- so the only thing
+# meant to move this pin moved it never. The cost was not theoretical. The pin
+# sat 17 days behind while Fedora shipped ostree 2026.4, and 2026.3's static
+# delta size margin failed every Flatpak update on the machine nightly with
+# `Decompressed delta part exceeds configured limit`. A daily image build gave
+# every appearance of being current, because the base is pinned by digest and a
+# rebuild against the same pin cannot pick up a base fix.
+#
+# Daily rather than weekly, because base-main rebuilds daily and the failure
+# mode here is silence. Noise is bounded by the branch instead: one rolling
+# branch, force-updated, so a second bump replaces the first rather than opening
+# a second pull request.
+#
+# Never automerged. `tooling/validate/source-images` below proves the digest is
+# present and ublue-signed, but the NEVRA manifest diff in the build workflow is
+# the only place the package delta a base bump carries is visible before it
+# reaches the machine, and reading it is a person's job.
+
+on:
+  schedule:
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: base-digest
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+      # The pull request is opened with GITHUB_TOKEN, and GitHub deliberately
+      # does not start workflow runs from events that token creates -- so the
+      # bump would arrive with no build, no smoke test and no manifest diff.
+      # `workflow_dispatch` is the documented exception, which is why the last
+      # step dispatches the build itself.
+      actions: write
+    env:
+      BRANCH: automation/base-image-digest
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Resolve the base tag's current digest
+        id: resolve
+        run: |
+          set -euo pipefail
+          # Exactly one ARG line, or stop: a Containerfile that grew a second
+          # one would otherwise have whichever came first rewritten, silently.
+          mapfile -t pins < <(grep -oE '^ARG BASE_IMAGE=\S+' Containerfile)
+          if (( ${#pins[@]} != 1 )); then
+            echo "expected exactly one ARG BASE_IMAGE= line, found ${#pins[@]}" >&2
+            exit 1
+          fi
+          ref=${pins[0]#ARG BASE_IMAGE=}
+          pinned=${ref##*@}
+          repo_tag=${ref%@*}
+          case "$pinned" in
+            sha256:*) ;;
+            *) echo "the base pin is not a digest: $ref" >&2; exit 1 ;;
+          esac
+
+          # skopeo is preinstalled on the runner, and the build workflow already
+          # reads digests with it. Retries because an unanswered registry is not
+          # an answer: a rate limit must not read as "no new base".
+          current="$(skopeo inspect --no-tags --retry-times 3 \
+            --format '{{ .Digest }}' "docker://$repo_tag")"
+          version="$(skopeo inspect --no-tags --retry-times 3 \
+            --format '{{ index .Labels "org.opencontainers.image.version" }}' \
+            "docker://$repo_tag")"
+
+          {
+            echo "repo_tag=$repo_tag"
+            echo "pinned=$pinned"
+            echo "current=$current"
+            echo "version=$version"
+            if [[ "$pinned" == "$current" ]]; then
+              echo "changed=false"
+            else
+              echo "changed=true"
+            fi
+          } >> "$GITHUB_OUTPUT"
+
+          if [[ "$pinned" == "$current" ]]; then
+            echo "$repo_tag is already pinned at $current ($version)"
+          else
+            echo "$repo_tag moved: $pinned -> $current ($version)"
+          fi
+
+      - name: Rewrite the pin
+        if: steps.resolve.outputs.changed == 'true'
+        env:
+          PINNED: ${{ steps.resolve.outputs.pinned }}
+          CURRENT: ${{ steps.resolve.outputs.current }}
+        run: |
+          set -euo pipefail
+          sed -i "s|@$PINNED|@$CURRENT|" Containerfile
+          # A sed that matched nothing exits 0, so assert the edit landed rather
+          # than the command succeeded.
+          if git diff --quiet Containerfile; then
+            echo "the rewrite changed nothing" >&2
+            exit 1
+          fi
+          grep -n '^ARG BASE_IMAGE=' Containerfile
+
+      - name: Install cosign
+        if: steps.resolve.outputs.changed == 'true'
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: "v3.1.3"
+
+      - name: Verify the proposed digest before proposing it
+        if: steps.resolve.outputs.changed == 'true'
+        run: |
+          # The same gate the build runs, run here so an unsigned or pruned
+          # digest fails this job rather than arriving as a pull request that
+          # looks like every other one.
+          tooling/validate/source-images
+
+      - name: Open or update the pull request
+        if: steps.resolve.outputs.changed == 'true'
+        env:
+          REPO_TAG: ${{ steps.resolve.outputs.repo_tag }}
+          PINNED: ${{ steps.resolve.outputs.pinned }}
+          CURRENT: ${{ steps.resolve.outputs.current }}
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git commit -a -m "chore(deps): bump the ublue base image digest" \
+            -m "$REPO_TAG $PINNED -> $CURRENT ($VERSION)"
+          # Force, because this branch is rolling by design and this workflow is
+          # its only writer. --force-with-lease would refuse the first push after
+          # a merge deleted the branch, which is the ordinary case.
+          git push --force origin "HEAD:$BRANCH"
+
+          body=$(cat <<EOF
+          \`$REPO_TAG\` moved to \`$VERSION\`.
+
+          | | digest |
+          |---|---|
+          | from | \`$PINNED\` |
+          | to | \`$CURRENT\` |
+
+          The digest is present in the registry and its signature verifies
+          against \`build_files/keys/ublue-os.pub\` -- \`tooling/validate/source-images\`
+          ran before this pull request was opened.
+
+          What it carries is the question this pull request exists to ask: the
+          build's **Diff the package manifest against the published image** step
+          lists the NEVRA delta, and that is the only place a base change is
+          visible before it reaches the machine. Read it before merging.
+          EOF
+          )
+
+          if [[ -n "$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')" ]]; then
+            gh pr edit "$BRANCH" --body "$body"
+            echo "updated the open pull request"
+          else
+            gh pr create --head "$BRANCH" --base main \
+              --title "chore(deps): bump the ublue base image to $VERSION" \
+              --body "$body"
+          fi
+
+      - name: Build the proposal
+        if: steps.resolve.outputs.changed == 'true'
+        run: |
+          # GITHUB_TOKEN cannot start a run from the pull request it just opened,
+          # so the build is dispatched. It publishes nothing: every push, sign
+          # and :latest step in that workflow is guarded on
+          # `github.ref == 'refs/heads/main'`, and this dispatch names a branch.
+          gh workflow run "Build bootc image" --ref "$BRANCH"
+          echo "dispatched the image build against $BRANCH"

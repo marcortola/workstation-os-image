@@ -20,9 +20,10 @@
 # a tagged reference, which is exactly what happened.
 #
 # tooling/validate/source-images cosign-verifies both pinned digests against
-# ublue's public key before any build runs. This one is bumped by Renovate
-# (.github/renovate.json5); Dependabot's docker parser only reads literal FROM
-# lines, so it maintains the brew stage below and never sees this ARG.
+# ublue's public key before any build runs. This one is bumped by
+# .github/workflows/base-digest.yml; Dependabot's docker parser only reads
+# literal FROM lines, so it maintains the brew stage below and never sees this
+# ARG. Renovate held that job until it turned out never to have run at all.
 ARG BASE_IMAGE=ghcr.io/ublue-os/base-main:latest@sha256:dae6f8ff182d91c9765f001406515684e87ab322fad6d4557bf1cb4ac428843f
 
 # build_files travels in a scratch stage and is bind-mounted, never COPYd, so

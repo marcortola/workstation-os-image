@@ -207,10 +207,9 @@ Four jobs in `.github/workflows/build.yml`: `image-inputs`, `repo-gates`,
 when `image-inputs` reports `changed == 'true'`. The tags, cache and publish
 mechanics are [build-and-ci.md](build-and-ci.md); what belongs here is the reach.
 
-`build.yml` is not the whole CI surface. `.github/workflows/lint.yml` runs four
+`build.yml` is not the whole CI surface. `.github/workflows/lint.yml` runs three
 checks on push to `main`, on `pull_request` and on `workflow_dispatch` —
-hadolint, `renovate-config-validator --strict` under a pinned
-`renovate@44.52.0`, actionlint, and gitleaks — each pinned to an exact version,
+hadolint, actionlint and gitleaks — each pinned to an exact version,
 because a silent version rollover presents as a new finding on an unchanged
 tree. `tooling/validate/all` runs the same hadolint, actionlint and gitleaks
 locally, so the two surfaces cannot diverge.
