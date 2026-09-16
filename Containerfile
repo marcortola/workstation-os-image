@@ -23,7 +23,7 @@
 # ublue's public key before any build runs. This one is bumped by Renovate
 # (.github/renovate.json5); Dependabot's docker parser only reads literal FROM
 # lines, so it maintains the brew stage below and never sees this ARG.
-ARG BASE_IMAGE=ghcr.io/ublue-os/base-main:latest@sha256:9b43dba0dea1987005cbf8cbc64727564b40ec5a162f7c51e3c6f7f36b6d3863
+ARG BASE_IMAGE=ghcr.io/ublue-os/base-main:latest@sha256:dae6f8ff182d91c9765f001406515684e87ab322fad6d4557bf1cb4ac428843f
 
 # build_files travels in a scratch stage and is bind-mounted, never COPYd, so
 # the scripts and their data cannot end up in a layer of the shipped image.
