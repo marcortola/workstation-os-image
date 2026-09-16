@@ -58,7 +58,58 @@ checkouts were gone, because the popup has never deleted a branch.
 
 Probe for foreign ownership before removing anything, and answer the two
 refusals differently. Then, and only for a branch that is already in its base,
-offer the branch too.
+offer the branch too. And ahead of all of it, ask about the agents the close
+would interrupt, because that question is the only one the plain close ever had
+to answer and the only one it never asked.
+
+### The agents, before the tree and the branch
+
+A close deletes nothing. That is what the group prompt says, and it is why the
+whole path read as free — and it ends every agent in the space mid-turn. The
+group prompt covered the cascade a repo space triggers; nothing covered the
+plain path, where a repo space with no worktree spaces open under it matched
+nothing in the member query and reached `herdr workspace close` on the keystroke
+with no prompt at all. Measured while writing this: a space with three panes and
+`claude` reporting `working`, one keystroke from closing unasked.
+
+So `checkout-remove.sh` reads `herdr pane list` once, on every path, and names
+what each space is running:
+
+```
+agents:
+  claude working  Image analysis
+```
+
+Three states take an answer. `working` is a foreground turn. `blocked` is an
+agent waiting on an answer that dies with its pane. `parked` is herdr's `idle`
+over background work a probe found still alive — the state herdr has no word
+for, and the only reason this reads a probe at all. `done` takes none: it is the
+normal state after every turn, and a question asked on every close is a question
+nobody reads.
+
+Where the answer goes follows the rule the rest of this record is built on — one
+keystroke, one question per thing that can be lost. The group prompt already had
+its answer, so the agent state is folded into it rather than asked behind it.
+The delete paths get their own answer, asked first, because a dirty tree and a
+merge state are not worth weighing while the reason to stop is still running.
+And a space nothing is running in still closes on the one keystroke, which is
+what it always did.
+
+The parked half calls `agent_parked_probe` from the image's probe library and
+never `spaces.sh`'s sweep. The sweep writes — the recency stamp and the sidebar
+token — and a popup asking whether to interrupt a turn must not stamp that turn
+finished on the way past. A probe that could not answer is also not a probe that
+said no, and for a close the two point opposite ways: the picker keeps its last
+answer, this has to ask, so a failed probe makes every space running an agent
+count as busy and says the check could not be made.
+
+herdr offers nothing to hook here. Every close-adjacent event in the 0.9.0
+schema is past tense — `pane.closed`, `tab.closed`, `workspace.closed`,
+`worktree.removed` — and no method confirms or vetoes, so a guard can only live
+in code that calls the close itself. `[ui] confirm_close` defaults true and
+covers herdr's own `close_workspace` key with a generic dialog; it does not gate
+the socket call these popups make, which was measured on a scratch workspace
+rather than assumed.
 
 ### The probe runs first
 
@@ -206,6 +257,26 @@ lose their local half to the very same popup and become unreachable. It cost
 eight orphaned remote branches across seven repositories before that was
 measured, which is more than it saved.
 
+**Gate the close on `agent_status == "working"` alone.** herdr's own answer,
+free, and blind to exactly the case that costs most: a turn that ended leaving a
+twenty-minute build running reads `idle`, and the space closes over it. That is
+what the parked probe exists for, and reusing it here is one function call.
+
+**Ask on any agent that is not `idle`.** Includes `done`, which is the state
+after every ordinary turn, so every close would ask. An answer given reflexively
+is worth less than no answer at all.
+
+**Put the predicate in a new sourced helper beside `merge-state.sh`.** One
+consumer, and the dev-flow sourced helpers are the three files the shell lint
+sweep does not reach — `tooling/validate/shell-files` globs `executable_*` under
+the dotfiles tree. It would ship the guard unlinted and owe a manifest entry for
+nothing.
+
+**Replace herdr's own close keys with guarded popups.** `close_tab` and the
+default `close_pane` ask nothing and can take an agent pane with them. Rejected
+for now as scope: it routes every tab and pane close in the session through a
+script to cover a keystroke nobody reported.
+
 **Add `--delete-branch` to the ship popup's `gh pr merge` instead.** It would
 cover the branch this machine just pushed, which is the common case, and leave
 every branch merged by another route untouched — including both of the two that
@@ -222,6 +293,16 @@ exactly one base resolver, one `branch -D`, one `push origin --delete` and one
 `sudo rm -rf`, with the guard clauses present in the script that owns them, the
 merged-verdict test present beside the remote deletion, and `delete_remote`
 assigned in exactly one place so no second, weaker path to that push can appear.
+
+The close guard is gated by running it rather than by grepping it. A prompt
+that is never reached greps exactly like one that is, and the plain path reached
+none, so `tooling/validate/sources` drives `checkout-remove.sh` against a stub
+`herdr` three times: a plain space holding a `working` agent, where the close
+must not happen; the same space quiet, where it must; and a repo space with one
+member holding a `working` agent, where the member and its agent must both be
+named and the group's single answer must still be there. `setsid` detaches the
+controlling terminal, so every prompt reads a `/dev/tty` it cannot open and
+declines — which is also what the popup does when its window goes.
 
 Nothing gates that the merge check is *right*. It is two commands against
 GitHub and git, and the failure mode of both is `unknown`, which keeps the

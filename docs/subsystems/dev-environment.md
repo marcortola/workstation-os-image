@@ -995,7 +995,7 @@ from any pane. Checkouts land beside the repository at
 | Key | Effect |
 |---|---|
 | `prefix+shift+w` | Popup: prompt for a branch, validate it with `git check-ref-format`, create the worktree and apply the dev layout |
-| `prefix+shift+x` | On a checkout: popup showing the checkout, any uncommitted work, the branch's merge state and anything inside owned by another user, confirm, then remove it. The branch goes only if it has already landed, on a separate answer. On a repo space: close it, naming the worktree spaces herdr will close with it |
+| `prefix+shift+x` | On a checkout: popup showing the checkout, any uncommitted work, the branch's merge state and anything inside owned by another user, confirm, then remove it. The branch goes only if it has already landed, on a separate answer. On a repo space: close it, naming the worktree spaces herdr will close with it. Either way it names the agents the close would interrupt first, and takes an answer for them |
 | `prefix+s` | Space picker: live workspaces plus on-disk worktrees that have no workspace yet, grouped by repository and sorted so a blocked or finished agent rises to the top. Picking a checkout also gives it the dev layout when it has none |
 | `prefix+shift+u` | Open every linked worktree of every repository as a workspace. Also runs at server start |
 
@@ -1017,6 +1017,40 @@ lists the worktree spaces by checkout path, says that nothing is deleted, and
 asks once. Declining leaves everything open. Nothing on this path touches disk:
 the checkouts, their branches and their uncommitted work are exactly where they
 were, which is what separates this prompt from the removal one below.
+
+What none of it prompted about until recently is the panes. A close deletes
+nothing, which is exactly why it read as free — and it ends every agent in the
+space mid-turn. The group prompt above covered the cascade but not the plain
+path: a repo space with no worktree spaces open under it, or one herdr reports
+no `repo_root` for, matched nothing in the member query and closed on the
+keystroke with nothing asked at all. `checkout-remove.sh` now reads `pane list`
+once, on every path, and names what the space is running. `working`, `blocked`
+and `parked` — herdr's idle over background work the probe found still alive —
+take an answer; `done` does not, because it is the normal state after every turn
+and a question asked on every close is one nobody reads. The answer is folded
+into the group prompt rather than asked behind it, the delete paths ask it ahead
+of anything about a tree or a branch, and a space nothing is running in still
+closes on the one keystroke.
+
+The parked half reads the probe directly and never `spaces.sh`'s sweep, which
+writes: a popup asking whether to interrupt a turn must not stamp that turn
+finished on the way past. [agent-probes.md](agent-probes.md) covers the probe
+and its coverage — one agent of three has one, so background work left running
+by codex or opencode is invisible to this prompt. A probe that could not answer
+is not a probe that said no, and here the two point opposite ways: the picker
+keeps its last answer, while a close has to ask, so a failed probe makes every
+space running an agent count as busy and the prompt says the check could not be
+made.
+
+Neither is a guard against herdr's own keys. There is no pre-close hook to hang
+one on — every close-adjacent event in the 0.9.0 schema is past tense
+(`pane.closed`, `tab.closed`, `workspace.closed`, `worktree.removed`) and no
+method confirms or vetoes — so this covers the two popups that call the close
+themselves. `close_workspace` on `prefix+ctrl+d` gets herdr's own generic
+dialog, since `[ui] confirm_close` defaults true and the seed leaves it alone;
+that dialog does not gate the socket call these popups make, which was measured
+rather than assumed. `close_tab` on `prefix+alt+x` and herdr's default
+`close_pane` on `prefix+x` ask nothing and can take an agent pane with them.
 
 Picking a checkout from the picker also lays it out, because opening one is the
 same request as creating one. `worktree open` restores the workspace and none of

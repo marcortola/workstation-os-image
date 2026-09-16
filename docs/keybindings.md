@@ -238,7 +238,7 @@ without the prefix.
 |---|---|
 | `s` | Space picker — projects and branches, whatever needs you first |
 | `shift+w` | New branch worktree, with the tab layout ready |
-| `shift+x` | Close a space, showing anything uncommitted — and the branch's merge state — before it does |
+| `shift+x` | Close a space, naming any agent it would interrupt — and anything uncommitted, and the branch's merge state — before it does |
 | `shift+o` | Open an existing worktree |
 | `shift+u` | Adopt every repository's worktrees as spaces, in one pass |
 | `shift+m` | Ship the branch: push, open the PR, merge it when checks pass |
@@ -266,6 +266,15 @@ never on `git cherry` agreeing, because that proves the patch is in the base and
 not that a shared branch is finished with. `/worktree-remove` is still what
 handles an unmerged branch, a checkout with no open space, and the nvim session
 file.
+
+Both also ask about the agents first. A close deletes nothing and still ends
+every turn in the space, so the popup names what is running — `working`, waiting
+on you, or sitting on background work that is still alive — and takes one answer
+for it before anything about the tree or the branch. A space nothing is running
+in closes on the keystroke, as it always did. Background work is only visible
+for `claude`; `codex` and `opencode` have no probe, and herdr's own keys —
+`ctrl+d` for the space, `alt+x` for a tab, `x` for a pane — do not go through
+this and ask nothing beyond herdr's own dialog.
 
 `shift+n` reads which layout is applied and gives you the other one, so the
 first press on a bare workspace builds the three tabs and every press after it
