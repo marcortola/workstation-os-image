@@ -12,16 +12,44 @@ vim.g.lazyvim_python_lsp = "basedpyright" -- over the stock pyright
 vim.g.lazyvim_php_lsp = "intelephense" -- premium; phpactor added separately as RPC-only
 
 -- Inside a Dev Container (`dev nvim`) there is no Wayland/X clipboard tool, so
--- route the system clipboard through OSC 52 (a terminal escape sequence). foot
--- supports it natively, and herdr forwards pane OSC 52 writes to the attached
--- client with no configuration of its own. Inert on the host.
+-- route the system clipboard through OSC 52 (a terminal escape sequence).
+--
+-- COPY ONLY. foot answers an OSC 52 read query; a herdr pane never does
+-- (measured: `ESC]52;c;?` on the tty gets 8 bytes back from foot and nothing
+-- from a pane), and nvim's osc52 paste waits 1s, echoes "Waiting for OSC 52
+-- response from the terminal", waits 9s more and warns. Nothing caches it
+-- either: `provider#clipboard#Call` skips its own selection cache whenever the
+-- copy handler is a function, so every read of `+` pays the full 10 s again.
+-- With LazyVim's `clipboard=unnamedplus` that is not just an explicit paste --
+-- measured in a container: `p` 10.2 s (yanky.nvim builds its ring from the
+-- register), `:registers` 40.6 s, and merely pressing `"` 40.6 s, because
+-- which-key expands the register list to draw its popup.
+--
+-- So paste is answered from what THIS Neovim last copied, and the escape
+-- sequence is still written so a yank reaches the host clipboard. Pulling the
+-- host clipboard INTO the container is the terminal's own paste
+-- (Ctrl+Shift+V), which never went through OSC 52. Inert on the host.
 if os.getenv("NVIM_IN_CONTAINER") then
   local ok, osc52 = pcall(require, "vim.ui.clipboard.osc52")
   if ok then
+    -- `[lines, regtype]`, the shape :help g:clipboard specifies for paste.
+    local last = { ["+"] = { { "" }, "v" }, ["*"] = { { "" }, "v" } }
+    local function copy(reg)
+      local send = osc52.copy(reg)
+      return function(lines, regtype)
+        last[reg] = { lines, regtype or "v" }
+        send(lines, regtype)
+      end
+    end
+    local function paste(reg)
+      return function()
+        return last[reg]
+      end
+    end
     vim.g.clipboard = {
-      name = "OSC52",
-      copy = { ["+"] = osc52.copy("+"), ["*"] = osc52.copy("*") },
-      paste = { ["+"] = osc52.paste("+"), ["*"] = osc52.paste("*") },
+      name = "OSC52 (copy only)",
+      copy = { ["+"] = copy("+"), ["*"] = copy("*") },
+      paste = { ["+"] = paste("+"), ["*"] = paste("*") },
     }
   end
 end

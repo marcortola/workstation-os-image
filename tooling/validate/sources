@@ -518,6 +518,18 @@ grep -q '[$]store/[.]builtfor' "$dev_fish"
 # Both halves of the "untouched only" guard, mason and site.
 [[ $(grep -c 'test -e "[$]store/data/nvim/\(mason\|site\)"; and return 1' "$dev_fish") -eq 2 ]]
 
+# The in-container clipboard provider is COPY ONLY. A herdr pane answers no
+# OSC 52 read query, and nvim's osc52 paste blocks 10 s per read with no cache
+# in front of it -- so with `clipboard=unnamedplus` a `p`, a `:registers` or a
+# bare `"` freezes the editor for 10-40 s (measured). Restoring `osc52.paste`
+# reintroduces exactly that, silently, because copying still works and only
+# reads hang. See lua/config/options.lua.
+nvim_opts=system_files/usr/share/workstation-os-image/dotfiles/dot_config/nvim/lua/config/create_options.lua
+require_file "$nvim_opts"
+grep -q 'osc52[.]copy(' "$nvim_opts"
+grep -q 'osc52[.]paste(' "$nvim_opts" \
+    && { echo "nvim: container clipboard must not read via OSC 52 (herdr never answers)" >&2; exit 1; }
+
 # One mechanism, two files: the local lint and the CI step must read the same
 # script list and the same shellcheck version, or a rule passes on one side and
 # fails on the other. That is not hypothetical -- the two kept separate lists
