@@ -147,7 +147,11 @@ require_file docs/README.md
 # its own running server. Both are invisible -- the widget kept drawing, the
 # popups kept opening -- and both look like someone else's problem until you have
 # spent an evening on them.
-(( $(wc -l < AGENTS.md) <= 443 ))
+# Raised to 452 for the close that asked nothing. Every other rule about removing
+# a checkout weighs a tree, a branch or a directory, and none of them covers the
+# thing a plain close actually ends: a turn in flight. It reads like a courtesy
+# prompt until the keystroke lands on a repo space whose agent was mid-tool-call.
+(( $(wc -l < AGENTS.md) <= 452 ))
 
 # README.md is a landing pad into docs/ and nothing else. Capped because it grows
 # back otherwise: it was 855 lines covering fourteen concerns before the handbook
@@ -620,6 +624,116 @@ grep -qF "ask 'close them? [y/N] ' || exit 0" "$dev_flow/executable_checkout-rem
 # shellcheck disable=SC2016 # literal fragment of the guarded script
 grep -qF 'close_repo_workspace "$workspace" "$repo" "$label"' "$dev_flow/executable_checkout-remove.sh"
 
+# A close kills every pane in the space, agents included, and nothing else it
+# touches can be lost -- no file, branch or commit. So the agent state is the
+# one thing a close has to ask about, and until the guard existed the plain path
+# asked nothing at all: the group prompt above covers only a repo space with
+# worktree spaces open under it, so a repo space with none -- or one herdr
+# reports no repo_root for -- closed on a single keystroke with a turn in
+# flight, and the panes it killed were the whole loss.
+#
+# Grepping for a prompt cannot show that it is REACHED, and a prompt never
+# reached is indistinguishable from the silent close it replaced. So the paths
+# are run against a stub herdr: the plain one holding a working agent, where the
+# close must not happen; the same one quiet, where it must, because a space
+# nothing is running in still closes on the one keystroke; and the group one,
+# where the agent state is folded into the answer that was already there rather
+# than asked again behind it.
+grep -q '^AGENT_BUSY_STATES="working blocked parked"$' "$dev_flow/executable_checkout-remove.sh"
+[[ $(grep -rl '^AGENT_BUSY_STATES=' "$dev_flow" | tr -d '\n') == "$dev_flow/executable_checkout-remove.sh" ]]
+# shellcheck disable=SC2016 # literal fragments of the guarded script
+grep -qF 'agent_guard "space: ${label:-$workspace}" "$workspace"' "$dev_flow/executable_checkout-remove.sh"
+# shellcheck disable=SC2016
+grep -qF 'agents_busy_in "${spaces[@]}"' "$dev_flow/executable_checkout-remove.sh"
+# The answer comes before every question about the checkout and the branch: a
+# dirty tree and a merge state are not worth weighing while the work that would
+# be interrupted is still running, and the removal closes the workspace itself.
+close_guard_line=$(grep -n '^agent_answer_or_exit "[$]workspace"$' \
+    "$dev_flow/executable_checkout-remove.sh" | cut -d: -f1)
+close_delete_line=$(grep -n "ask 'delete this checkout from disk" \
+    "$dev_flow/executable_checkout-remove.sh" | cut -d: -f1)
+[[ -n $close_guard_line && -n $close_delete_line ]] ||
+    { echo "the close guard or the delete answer is no longer where it can be ordered" >&2; exit 1; }
+(( close_guard_line < close_delete_line ))
+
+close_stub=$(mktemp -d)
+mkdir "$close_stub/probes"
+cat >"$close_stub/herdr" <<'STUB'
+#!/usr/bin/env bash
+# Enough of the herdr CLI for the close paths: three reads answered from files,
+# and a close that records itself rather than happening.
+case "$1 $2" in
+    "workspace get") cat "$STUB_GET" ;;
+    "workspace list") cat "$STUB_LIST" ;;
+    "pane list") cat "$STUB_PANES" ;;
+    "workspace close") printf 'close %s %s\n' "$3" "${4:-}" >>"$STUB_LOG" ;;
+    *) echo "stub herdr: unexpected $*" >&2; exit 1 ;;
+esac
+STUB
+chmod +x "$close_stub/herdr"
+printf '{"result":{"workspace":{"label":"stub-project","worktree":{}}}}\n' >"$close_stub/get-plain"
+printf '{"result":{"workspace":{"label":"stub-project","worktree":{"repo_root":"/stub/repo"}}}}\n' \
+    >"$close_stub/get-repo"
+printf '{"result":{"workspaces":[]}}\n' >"$close_stub/list-empty"
+printf '{"result":{"workspaces":[{"workspace_id":"w2","label":"branch-slug","worktree":{"is_linked_worktree":true,"repo_root":"/stub/repo","checkout_path":"/stub/repo__worktrees/branch-slug"}}]}}\n' \
+    >"$close_stub/list-member"
+close_stub_panes() {
+    printf '{"result":{"panes":[{"pane_id":"%s:p1","workspace_id":"%s","agent":"claude","agent_status":"%s","terminal_title_stripped":"Stub turn"}]}}\n' \
+        "$1" "$1" "$2"
+}
+close_stub_panes w1 working >"$close_stub/panes-busy"
+close_stub_panes w1 idle >"$close_stub/panes-quiet"
+close_stub_panes w2 working >"$close_stub/panes-member"
+
+# setsid detaches the controlling terminal, so every `ask` reads a /dev/tty that
+# cannot be opened and declines -- which is what the popup itself does when its
+# window goes, and what makes this runnable with no terminal at all.
+close_guard_run() {
+    rm -f "$close_stub/log"
+    STUB_GET=$1 STUB_LIST=$2 STUB_PANES=$3 STUB_LOG=$close_stub/log \
+        HERDR_BIN_PATH=$close_stub/herdr AGENT_PROBE_DIR=$close_stub/probes \
+        setsid --wait bash "$dev_flow/executable_checkout-remove.sh" w1 --close-plain \
+        </dev/null 2>&1
+}
+
+close_guard_out=$(close_guard_run "$close_stub/get-plain" "$close_stub/list-empty" \
+    "$close_stub/panes-busy")
+grep -q 'claude working' <<<"$close_guard_out" ||
+    { echo "the close guard did not name the working agent: $close_guard_out" >&2; exit 1; }
+grep -q 'closing takes their panes' <<<"$close_guard_out" ||
+    { echo "the close guard did not say what closing costs: $close_guard_out" >&2; exit 1; }
+grep -q 'interrupt them?' <<<"$close_guard_out" ||
+    { echo "the close guard asked nothing about a working agent: $close_guard_out" >&2; exit 1; }
+if [[ -s $close_stub/log ]]; then
+    echo "a space holding a working agent was closed anyway: $(cat "$close_stub/log")" >&2
+    exit 1
+fi
+
+close_guard_out=$(close_guard_run "$close_stub/get-plain" "$close_stub/list-empty" \
+    "$close_stub/panes-quiet")
+[[ -s $close_stub/log ]] ||
+    { echo "a quiet space no longer closes on the one keystroke: $close_guard_out" >&2; exit 1; }
+if grep -q 'interrupt them?' <<<"$close_guard_out"; then
+    echo "the close guard asked about an idle agent: $close_guard_out" >&2
+    exit 1
+fi
+
+close_guard_out=$(close_guard_run "$close_stub/get-repo" "$close_stub/list-member" \
+    "$close_stub/panes-member")
+grep -q 'branch-slug' <<<"$close_guard_out" ||
+    { echo "the group prompt no longer names its member spaces: $close_guard_out" >&2; exit 1; }
+grep -q 'claude working' <<<"$close_guard_out" ||
+    { echo "the group prompt did not name the agent in a member space: $close_guard_out" >&2; exit 1; }
+grep -q 'closing takes their panes' <<<"$close_guard_out" ||
+    { echo "the group prompt did not fold in what closing costs: $close_guard_out" >&2; exit 1; }
+grep -qF 'close them? [y/N]' <<<"$close_guard_out" ||
+    { echo "the group prompt lost its own answer: $close_guard_out" >&2; exit 1; }
+if [[ -s $close_stub/log ]]; then
+    echo "a group holding a working agent was closed anyway: $(cat "$close_stub/log")" >&2
+    exit 1
+fi
+rm -rf "$close_stub"
+
 # One mechanism, three files: which layout is on a workspace is asked by the
 # toggle and by the space picker, and a second copy of that predicate rebuilds
 # the default layout on top of a live split one -- the failure the `dev` tab
@@ -673,12 +787,17 @@ done < tooling/data/agent-probe-registry
 # source line itself.
 grep -q '^agent_parked_probe()' "$probes/lib.sh"
 grep -q '^agent_parked_write()' "$probes/lib.sh"
-for wired in executable_spaces.sh executable_agent-freshness.sh; do
+for wired in executable_spaces.sh executable_agent-freshness.sh executable_checkout-remove.sh; do
     grep -qF '. /usr/libexec/workstation-agent-probes/lib.sh' "$dev_flow/$wired"
     grep -q 'agent_parked_probe' "$dev_flow/$wired"
 done
 grep -q 'sweep_parked' "$dev_flow/executable_spaces.sh"
 grep -q 'agent_parked_write' "$dev_flow/executable_spaces.sh"
+# The sweep is the picker's, and only the picker's: it WRITES, stamping the
+# recency clock and pushing the sidebar token. A third caller makes something a
+# writer on a clock that has exactly two, and the close popup reaching it would
+# mark a turn finished as a side effect of asking whether to interrupt it.
+[[ $(grep -rl 'sweep_parked' "$dev_flow" | tr -d '\n') == "$dev_flow/executable_spaces.sh" ]]
 
 # More than one agent per checkout spans the plugin, the key map and the
 # manifest, and every way they can disagree is silent. A slot is a tab whose

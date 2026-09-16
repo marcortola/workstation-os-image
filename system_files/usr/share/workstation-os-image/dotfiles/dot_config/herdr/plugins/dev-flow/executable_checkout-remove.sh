@@ -39,6 +39,17 @@ plugin_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=merge-state.sh
 . "$plugin_dir/merge-state.sh"
 
+# The parked-work seam, sourced the way spaces.sh and agent-freshness.sh source
+# it: image payload rather than plugin, so a machine without the image half
+# keeps the behaviour it had before probes existed instead of failing the popup
+# at its first line.
+# shellcheck source=../../../../../../../libexec/workstation-agent-probes/lib.sh
+if [ -r /usr/libexec/workstation-agent-probes/lib.sh ]; then
+    . /usr/libexec/workstation-agent-probes/lib.sh
+else
+    agent_parked_probe() { printf '[]\n'; }
+fi
+
 herdr_cli() {
     "${HERDR_BIN_PATH:-herdr}" "$@"
 }
@@ -65,6 +76,122 @@ ask() {
 # remove_as_root has to compare resolved paths or it refuses every checkout.
 home=$(realpath -- "$HOME" 2>/dev/null || printf '%s' "$HOME")
 
+# What the spaces about to close are running, and which of it a close would
+# interrupt.
+#
+# herdr kills every pane in a space it closes, and until this existed it did so
+# unasked wherever the group prompt below did not apply: a repo space with no
+# worktree spaces open under it took no answer at all, so one keystroke ended a
+# turn in flight with nothing said. A close touches no file, branch or commit --
+# the panes are the whole loss -- which is exactly why it was invisible.
+#
+# Three states mean something is in flight. `working` is a foreground turn,
+# `blocked` is an agent waiting on an answer that dies with its pane, and
+# `parked` is herdr's idle over background work the probe found still alive --
+# the state herdr has no word for, and the only reason this reads a probe at
+# all. `done` is deliberately not one of them: it is the normal state after
+# every turn, and a question asked on every close is a question nobody reads.
+AGENT_BUSY_STATES="working blocked parked"
+
+agent_activity=
+agent_busy_spaces=
+agent_probe_failed=no
+
+# One `pane list` read answers both halves: it carries `.agent` and
+# `.agent_status` on every pane, and the parked probe takes that same blob.
+#
+# The probe, never spaces.sh's sweep. The sweep WRITES -- it stamps the recency
+# clock and pushes the sidebar token -- and a popup that asks a question must not
+# also record a turn as finished. One clock, two writers, and this is neither.
+#
+# A probe that could not answer is not a probe that said no, and for a close the
+# two point opposite ways: the picker keeps its last answer, while this has to
+# ask. So a failed probe makes every space that runs an agent busy and says why,
+# rather than closing quietly over work it could not see.
+read_agent_activity() {
+    local panes parked
+    panes=$(herdr_cli pane list 2>/dev/null | jq -c '.result.panes' 2>/dev/null) || return 0
+    [ -n "$panes" ] || return 0
+    if ! parked=$(agent_parked_probe "$panes"); then
+        agent_probe_failed=yes
+    fi
+    printf '%s' "${parked:-}" | jq -e 'type == "array"' >/dev/null 2>&1 || parked='[]'
+
+    agent_activity=$(printf '%s' "$panes" | jq -r --argjson parked "$parked" '
+        .[]
+        | select(.agent != null)
+        | [ (.workspace_id // ""),
+            .agent,
+            (if (.pane_id | IN($parked[])) and ((.agent_status == "idle") or (.agent_status == "done"))
+               then "parked"
+               else (.agent_status // "unknown")
+             end),
+            (.terminal_title_stripped // "") ]
+        | @tsv') || agent_activity=
+
+    if [ "$agent_probe_failed" = yes ]; then
+        agent_busy_spaces=$(printf '%s' "$agent_activity" | awk -F'\t' 'NF { print $1 }' | sort -u)
+    else
+        agent_busy_spaces=$(printf '%s' "$agent_activity" |
+            awk -F'\t' -v busy=" $AGENT_BUSY_STATES " \
+                'NF && index(busy, " " $3 " ") { print $1 }' | sort -u)
+    fi
+}
+
+# The agents of one space, indented under whatever named it. Nothing for a space
+# that runs none, so every caller can print it unconditionally.
+agent_state_block() {
+    local indent=$1 workspace=$2
+    printf '%s' "$agent_activity" |
+        awk -F'\t' -v ws="$workspace" -v indent="$indent" \
+            '$1 == ws { printf "%s%s %s%s\n", indent, $2, $3, ($4 == "" ? "" : "  " $4) }'
+}
+
+# Is closing any of these spaces going to interrupt something?
+agents_busy_in() {
+    local workspace
+    for workspace in "$@"; do
+        [ -n "$workspace" ] || continue
+        printf '%s\n' "$agent_busy_spaces" | grep -qxF "$workspace" && return 0
+    done
+    return 1
+}
+
+# What a close costs, worded once. The folded group answer and the delete paths
+# print the same three sentences, because it is the same keystroke either way.
+agent_interrupt_note() {
+    if [ "$agent_probe_failed" = yes ]; then
+        printf 'background work could not be checked -- the probe did not answer -- so\n'
+        printf 'this cannot say whether anything above is still running.\n'
+    fi
+    printf 'closing takes their panes with them, and the turn ends where it is.\n'
+    printf 'reopening the space is not the same as resuming it: the dev layout\n'
+    printf 'resumes a conversation only where the checkout has finished a turn once.\n'
+}
+
+# The answer, for a path that has already displayed the agents. Asked FIRST
+# wherever questions follow it: there is nothing to weigh about a tree or a
+# branch while the work that would be interrupted is still running.
+agent_answer_or_exit() {
+    agents_busy_in "$@" || return 0
+    agent_interrupt_note
+    printf '\n'
+    ask 'interrupt them? [y/N] ' || exit 0
+}
+
+# Rows and answer together, for a path that displays nothing else.
+agent_guard() {
+    local heading=$1 workspace
+    shift
+    agents_busy_in "$@" || return 0
+    printf '\n%s\n' "$heading"
+    for workspace in "$@"; do
+        agent_state_block '  ' "$workspace"
+    done
+    printf '\n'
+    agent_answer_or_exit "$@"
+}
+
 # Close the repo workspace, and say so when that takes its worktree spaces with
 # it.
 #
@@ -84,7 +211,11 @@ home=$(realpath -- "$HOME" 2>/dev/null || printf '%s' "$HOME")
 # other half of this script does delete checkouts and the two must not read
 # alike.
 close_repo_workspace() {
-    local workspace=$1 repo=$2 label=$3 members count member_label member_path
+    local workspace=$1 repo=$2 label=$3 members count member_ws member_label member_path
+    # The workspace id rides with each member so the agent rows can be hung
+    # under the checkout they belong to, and so the busy test covers the whole
+    # group rather than only the space in front of you.
+    local -a spaces=("$workspace")
     members=
     if [ -n "$repo" ]; then
         members=$(herdr_cli workspace list |
@@ -92,22 +223,37 @@ close_repo_workspace() {
                 .result.workspaces[]
                 | select((.worktree.is_linked_worktree // false)
                          and (.worktree.repo_root // "") == $repo)
-                | [(.label // ""), (.worktree.checkout_path // "")] | @tsv')
+                | [.workspace_id, (.label // ""), (.worktree.checkout_path // "")] | @tsv')
     fi
 
     if [ -z "$members" ]; then
+        # No group: this space closes, nothing else does, and nothing is
+        # deleted -- so its own agents are the only thing that can be lost, and
+        # the only thing worth an answer. A space whose agents are quiet still
+        # closes on the one keystroke, which is what it always did.
+        agent_guard "space: ${label:-$workspace}" "$workspace"
         herdr_cli workspace close "$workspace" >/dev/null
         return 0
     fi
 
     count=$(printf '%s\n' "$members" | grep -c .)
     printf '\nproject: %s\n' "${label:-$workspace}"
+    agent_state_block '  ' "$workspace"
     printf 'herdr closes this space and its worktree spaces together, %s of them:\n' "$count"
-    while IFS=$'\t' read -r member_label member_path; do
-        [ -n "$member_label$member_path" ] || continue
+    while IFS=$'\t' read -r member_ws member_label member_path; do
+        [ -n "$member_ws$member_label$member_path" ] || continue
         printf '  %s\n' "${member_path:-$member_label}"
+        agent_state_block '    ' "$member_ws"
+        spaces+=("$member_ws")
     done <<<"$members"
-    printf '\nnothing is deleted: every checkout, branch and uncommitted change stays.\n\n'
+    printf '\nnothing is deleted: every checkout, branch and uncommitted change stays.\n'
+    # One keystroke, one answer: the agent state is folded into the question that
+    # was already here rather than asked again behind it. A second prompt about
+    # the same close reads as a second thing happening.
+    if agents_busy_in "${spaces[@]}"; then
+        agent_interrupt_note
+    fi
+    printf '\n'
     ask 'close them? [y/N] ' || exit 0
     herdr_cli workspace close "$workspace" --group >/dev/null
 }
@@ -183,6 +329,9 @@ remove_or_exit() {
     esac
 }
 
+# Before any path asks anything, because every one of them ends in a close.
+read_agent_activity
+
 info=$(herdr_cli workspace get "$workspace" |
     jq -r '[((.result.workspace.worktree.is_linked_worktree // false) | tostring),
             (.result.workspace.worktree.checkout_path // ""),
@@ -207,6 +356,7 @@ if [ "$linked" != "true" ] || [ -z "$checkout" ]; then
         printf 'git does not list this as a worktree any more, so a removal here\n'
         printf 'failed part way and left the directory behind.\n'
         printf 'any branch it held is untouched.\n\n'
+        agent_guard 'agents in this space:' "$workspace"
         ask 'delete this directory from disk? [y/N] ' || exit 0
         remove_or_exit "$orphan" "${orphan_parent%__worktrees}"
         herdr_cli workspace close "$workspace" >/dev/null
@@ -260,6 +410,10 @@ if [ -n "$branch" ]; then
         printf '          origin still has it\n'
     fi
 fi
+agent_display=$(agent_state_block '  ' "$workspace")
+if [ -n "$agent_display" ]; then
+    printf 'agents:\n%s\n' "$agent_display"
+fi
 if [ -n "$foreign" ]; then
     printf 'root-owned: %s (%s file(s))\n' \
         "$(printf '%s\n' "$foreign" | cut -d/ -f1 | sort -u | head -5 | paste -sd' ' -)" \
@@ -273,6 +427,12 @@ printf '\n'
 # itself, and a prompt asked after that runs in a popup whose window may already
 # be gone -- which is why nothing past this block reads the tty again, except
 # the one sudo prompt that cannot be moved earlier.
+#
+# The agents go first of all. The display above has already named them, and the
+# questions below are about a checkout and a branch -- neither worth weighing
+# while the work that would be interrupted is still running.
+agent_answer_or_exit "$workspace"
+
 force=
 if [ -z "$pending" ]; then
     ask 'delete this checkout from disk? [y/N] ' || exit 0

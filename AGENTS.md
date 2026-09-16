@@ -322,6 +322,15 @@ prefer them over reinventing the shape:
   The predicate behind `layout.sh --only-when-bare` is `layout_applied` in
   `layout-common.sh`, shared with `layout-toggle.sh`; a second copy rebuilds the
   default layout over a live split one.
+- A close kills every pane in the space and nothing else -- no file, branch or
+  commit survives it any differently -- so the agents are the only thing it can
+  lose, and the only thing it asks about. `working`, `blocked` and herdr's idle
+  over live background work (`parked`, via the probe and never `spaces.sh`'s
+  sweep, which writes) take an answer; `done` does not, or every close asks. A
+  space nothing is running in still closes on the one keystroke, and the group
+  prompt folds the agent state into the answer it already had rather than asking
+  twice. Gated by running the paths against a stub herdr: a prompt that is never
+  reached greps exactly like one that is, and the plain path reached none.
 - Both popups that can delete a checkout -- ship and close-workspace -- end in
   the shared `dev-flow/checkout-remove.sh`, which owns the linked-worktree
   probe, the dirty display and the confirmation. A clean tree is removed
