@@ -1,0 +1,11 @@
+[Unit]
+Description=Notify when a personal dotfile has drifted from origin/main
+# Personal default (dotfiles.manifest: copy, create_), not image-owned. See
+# ~/.local/bin/personal-config-drift-check for why. Seeding drops this file; it
+# does not enable it -- a new replica needs one
+# `systemctl --user enable --now workstation-personal-config-drift.timer`
+# after the first chezmoi apply.
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/personal-config-drift-check

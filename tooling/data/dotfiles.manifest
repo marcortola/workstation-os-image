@@ -122,6 +122,16 @@ copy|.local/bin/workstation-dictate|private_dot_local/bin/create_executable_work
 copy|.local/bin/workstation-openai-key|private_dot_local/bin/create_executable_workstation-openai-key|-
 copy|.local/bin/workstation-cycle-keyboard-layout|private_dot_local/bin/create_executable_workstation-cycle-keyboard-layout|-
 copy|.local/bin/workstation-worktree-sync|private_dot_local/bin/create_executable_workstation-worktree-sync|-
+# Personal, not image-owned: it hardcodes ~/projects/personal/workstation-os-image,
+# a path only this fork's own replicas are guaranteed to use. create_ rather than
+# scaffold because it is not something a stranger's fork should get forced onto
+# them either. Seeding drops the files; it does not enable them -- same as the
+# Brewfile's tap-qualified formulae, a new replica needs one
+# `systemctl --user enable --now workstation-personal-config-drift.timer` after
+# the first chezmoi apply.
+copy|.local/bin/personal-config-drift-check|private_dot_local/bin/create_executable_personal-config-drift-check|-
+copy|.config/systemd/user/workstation-personal-config-drift.service|dot_config/systemd/user/create_workstation-personal-config-drift.service|-
+copy|.config/systemd/user/workstation-personal-config-drift.timer|dot_config/systemd/user/create_workstation-personal-config-drift.timer|-
 copy|.config/nvim/init.lua|dot_config/nvim/create_init.lua|-
 copy|.config/nvim/lazy-lock.json|dot_config/nvim/create_lazy-lock.json|-
 copy|.config/nvim/lazyvim.json|dot_config/nvim/create_lazyvim.json|-

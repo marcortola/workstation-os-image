@@ -1,0 +1,10 @@
+[Unit]
+Description=Timer for the personal-config drift notification
+
+[Timer]
+OnBootSec=10m
+OnUnitInactiveSec=6h
+Persistent=true
+
+[Install]
+WantedBy=timers.target
