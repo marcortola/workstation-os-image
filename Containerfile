@@ -24,7 +24,7 @@
 # .github/workflows/base-digest.yml; Dependabot's docker parser only reads
 # literal FROM lines, so it maintains the brew stage below and never sees this
 # ARG. Renovate held that job until it turned out never to have run at all.
-ARG BASE_IMAGE=ghcr.io/ublue-os/base-main:latest@sha256:dae6f8ff182d91c9765f001406515684e87ab322fad6d4557bf1cb4ac428843f
+ARG BASE_IMAGE=ghcr.io/ublue-os/base-main:latest@sha256:223d6e7911d243878664911a8ca9a7fe413798c95bd84227d31fa890d46c6aae
 
 # build_files travels in a scratch stage and is bind-mounted, never COPYd, so
 # the scripts and their data cannot end up in a layer of the shipped image.
