@@ -12,6 +12,31 @@ status=0
 tmp="$(mktemp -d)"
 trap 'rm -rf -- "$tmp"' EXIT
 
+# --ref compares against a git ref (origin/main, say) instead of this working
+# tree, so drift is reported against what is actually on the remote rather
+# than against a checkout that has not pulled it yet. Single-file kinds only
+# -- copy, scrub, template -- because a directory/tree seed is a whole tree
+# `git show` cannot hand back as one file; those are skipped, loudly, in that
+# mode rather than silently treated as matching.
+ref=""
+case "${1:-}" in
+    --ref)
+        ref=${2:?--ref requires a git ref}
+        ;;
+    "") ;;
+    *)
+        echo "Usage: tooling/audit/personal-config [--ref <git-ref>]" >&2
+        exit 2
+        ;;
+esac
+
+if [[ -n $ref ]]; then
+    git -C "$repo_root" fetch --quiet origin || {
+        echo "could not fetch origin for --ref $ref" >&2
+        exit 2
+    }
+fi
+
 report_difference() {
     local state=$1 path=$2
     printf '  %-18s %s\n' "$state" "$path"
@@ -29,12 +54,40 @@ compare_file() {
     fi
 }
 
-echo "Personal configuration drift:"
+# The local seed path in the default mode; a git-show of it at $ref,
+# materialised to a temp file, in --ref mode. A path that does not exist at
+# $ref yet (committed locally but not pushed, or genuinely never captured)
+# comes back as a path compare_file finds missing, same as today.
+resolve_seed() {
+    local source_path=$1 out
+    if [[ -z $ref ]]; then
+        printf '%s\n' "$source_root/$source_path"
+        return 0
+    fi
+    out="$tmp/ref_${source_path//\//_}"
+    if git -C "$repo_root" show \
+        "$ref:system_files/usr/share/workstation-os-image/dotfiles/$source_path" \
+        >"$out" 2>/dev/null; then
+        printf '%s\n' "$out"
+    else
+        # git show truncates $out via the redirect even on failure, so an empty
+        # file would read as a captured-but-empty seed rather than uncaptured.
+        rm -f "$out"
+        printf '%s\n' "$tmp/does-not-exist-at-ref"
+    fi
+}
+
+if [[ -n $ref ]]; then
+    echo "Personal configuration drift (vs $ref):"
+else
+    echo "Personal configuration drift:"
+fi
+skipped_tree=false
 while IFS='|' read -r kind live_path source_path pattern; do
     [[ -z $kind || $kind == \#* ]] && continue
     case "$kind" in
         copy)
-            compare_file "$HOME/$live_path" "$source_root/$source_path" "$live_path"
+            compare_file "$HOME/$live_path" "$(resolve_seed "$source_path")" "$live_path"
             ;;
         scrub)
             # Compare the FILTERED live file against the seed so stripped secret
@@ -42,13 +95,13 @@ while IFS='|' read -r kind live_path source_path pattern; do
             # divergence surfaces.
             if [[ ! -f $HOME/$live_path ]]; then
                 compare_file "$HOME/$live_path" \
-                    "$source_root/$source_path" "$live_path"
+                    "$(resolve_seed "$source_path")" "$live_path"
             else
                 scrubbed="$tmp/${source_path//\//_}"
                 "$repo_root/tooling/scrub/$pattern" \
                     < "$HOME/$live_path" > "$scrubbed"
                 compare_file "$scrubbed" \
-                    "$source_root/$source_path" "$live_path"
+                    "$(resolve_seed "$source_path")" "$live_path"
             fi
             ;;
         scaffold)
@@ -57,12 +110,16 @@ while IFS='|' read -r kind live_path source_path pattern; do
             # switch. Neither is personal drift.
             ;;
         template)
-            rendered="$tmp/${source_path//\//_}"
+            rendered="$tmp/${source_path//\//_}_rendered"
             chezmoi execute-template --config "$config_file" \
-                < "$source_root/$source_path" > "$rendered"
+                < "$(resolve_seed "$source_path")" > "$rendered"
             compare_file "$HOME/$live_path" "$rendered" "$live_path"
             ;;
         directory|tree)
+            if [[ -n $ref ]]; then
+                skipped_tree=true
+                continue
+            fi
             live_dir="$HOME/$live_path"
             seed_dir="$source_root/$source_path"
             max_depth=()
@@ -97,6 +154,9 @@ while IFS='|' read -r kind live_path source_path pattern; do
     esac
 done < "$manifest"
 
+if [[ $skipped_tree == true ]]; then
+    echo "  directory/tree seeds skipped in --ref mode (no single-file compare)"
+fi
 if (( status == 0 )); then
     echo "  all manifest-listed files match their repository seeds"
 fi

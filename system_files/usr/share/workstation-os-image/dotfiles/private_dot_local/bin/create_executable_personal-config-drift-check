@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+# Personal default (dotfiles.manifest: copy, create_), not image-owned: it
+# hardcodes ~/projects/personal/workstation-os-image, a path only this fork's
+# own replicas are guaranteed to use, so it is not something a stranger's fork
+# should have forced onto them -- create_ rather than scaffold. A no-op on any
+# machine that has not cloned that checkout.
+repo="$HOME/projects/personal/workstation-os-image"
+
+[ -d "$repo/.git" ] || exit 0
+command -v notify-send >/dev/null 2>&1 || exit 0
+
+if out=$("$repo/tooling/audit/personal-config" --ref origin/main 2>&1); then
+    exit 0
+fi
+
+notify-send \
+    --app-name workstation-os-image \
+    --icon dialog-information \
+    "Personal config drifted from origin/main" \
+    "$out"
