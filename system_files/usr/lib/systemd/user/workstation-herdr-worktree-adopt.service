@@ -1,0 +1,17 @@
+[Unit]
+Description=Adopt worktrees git created outside herdr
+Documentation=https://github.com/marcortola/workstation-os-image
+# Every user manager reaches default.target, including the one pam_systemd
+# starts for greetd's `greeter` account, whose home is read-only. Without this
+# the unit fails on every login screen. `!@system` excludes accounts below
+# SYS_UID_MAX.
+ConditionUser=!@system
+# "Not ready yet" is this, not a non-zero ExecStart: herdr is launched on
+# purpose (Mod+Shift+T, or workstation-dev --herdr) and is not expected to be
+# running at every tick of the timer. `herdr status server` writes this socket
+# only while the server is up.
+ConditionPathExists=%h/.config/herdr/herdr.sock
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/workstation-herdr-worktree-adopt
