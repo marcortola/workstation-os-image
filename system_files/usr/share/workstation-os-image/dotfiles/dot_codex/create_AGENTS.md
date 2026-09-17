@@ -60,6 +60,7 @@ Do not stop for:
 
 - Treat your knowledge of any library, framework, SDK, API, CLI, or cloud service as stale, including ones you are sure about. Fetch current docs before writing code against one: the `openaiDeveloperDocs` MCP for OpenAI APIs, web search otherwise.
 - "Use Playwright MCP" means the `playwright-cli` command. This workstation ships no Playwright MCP server on purpose: `playwright-cli` attaches to the already-running Flatpak Chrome over CDP and writes snapshots to disk instead of injecting an accessibility tree into context on every step. Read any request for Playwright, `playwright-mcp`, or MCP browser automation as a request for `playwright-cli` — start with `playwright-cli open <url>` — and never add or install a Playwright MCP server.
+- When work spans a second git repo, create its worktree through herdr (`/worktree-create`, or `herdr worktree create`), never raw `git worktree add`. Raw git makes the checkout but herdr never learns about it — no `worktree.created` event fires, so no workspace gets registered and the checkout stays invisible to the spaces picker until the herdr server next restarts.
 - Run independent tool calls in parallel.
 - Never guess a tool argument or pass a placeholder. Look it up.
 - Edit files, lint, and run tests without asking.

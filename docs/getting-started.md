@@ -76,7 +76,7 @@ login. `system_files/usr/lib/systemd/user-preset/10-workstation-os-image.preset`
 is the single list of enablement intent, and the units it names ship in
 `system_files/usr/lib/systemd/user/`. That preset also enables the session's own
 units — dms, dsearch, foot-server, the gcr SSH agent, fcitx5, udiskie — which
-[subsystems/desktop-session.md](subsystems/desktop-session.md) owns. The nine
+[subsystems/desktop-session.md](subsystems/desktop-session.md) owns. The ten
 below are the convergence half.
 
 | Unit | Pulled in by | What it does |
@@ -90,6 +90,7 @@ below are the convergence half.
 | `workstation-x11-clipsync.service` | `graphical-session.target` | Long-running: mirrors the XWayland clipboard into the Wayland one. |
 | `workstation-chezmoi-update.timer` | `timers.target` | Reapplies the dotfile seeds 5 minutes after boot and daily thereafter, skipping any target you have edited. Image-owned scaffolding is the exception: the paths in `/usr/share/workstation-os-image/scaffold-targets` are forced, because nothing but the image is supposed to write them. |
 | `workstation-invoice-bookmarks.timer` | `timers.target` | Monthly bookmark refresh; nothing to do with convergence. |
+| `workstation-herdr-worktree-adopt.timer` | `timers.target` | Re-runs dev-flow's `adopt-worktrees.sh` every 5 minutes while herdr is running, so a worktree a plain `git worktree add` created after the server started still gets a workspace. Skips silently when herdr is not up. |
 
 The ordering between the first four is load-bearing, not incidental. The
 bootstrap runs `After=workstation-chezmoi-init.service`, because it exits with

@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ExecStart for workstation-herdr-worktree-adopt.service.
+#
+# adopt-worktrees.sh only ever runs at herdr's own [[startup]], so a linked
+# worktree made by plain `git worktree add` after the server is already up --
+# raw git, an agent CLI that skipped /worktree-create, a checkout pulled in by
+# hand -- stays invisible to the spaces picker until the server next restarts.
+# This re-runs the same script on a timer instead. It is dev-flow's own script,
+# not a copy: dev-flow is `scaffold`, force-applied from this image on every
+# chezmoi run, so re-running the live one keeps this timer on whatever the
+# checkout of dev-flow the machine is actually running does, and it never grows
+# a second adoption policy to drift from the one in herdr-plugin.toml's own
+# [[startup]] entry.
+#
+# Absolute Homebrew path for the same reason workstation-herdr-server.service's
+# wrapper hardcodes it: a systemd --user unit's PATH has no Homebrew bin on it,
+# and adopt-worktrees.sh's own herdr_cli() falls back to a bare `herdr` when
+# HERDR_BIN_PATH is unset.
+herdr=/home/linuxbrew/.linuxbrew/bin/herdr
+plugin=$HOME/.config/herdr/plugins/dev-flow/adopt-worktrees.sh
+
+# Neither Homebrew nor the plugin is guaranteed to exist yet -- first boot,
+# herdr not installed, chezmoi not applied. Not ready yet is this exit 0, not a
+# failed unit; ExecCondition on the unit already covers the server not running.
+[ -x "$herdr" ] && [ -x "$plugin" ] || exit 0
+
+HERDR_BIN_PATH=$herdr exec "$plugin"
