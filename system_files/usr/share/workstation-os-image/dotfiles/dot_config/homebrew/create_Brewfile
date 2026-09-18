@@ -1,5 +1,7 @@
 # Static checker for GitHub Actions workflow files
 brew "actionlint"
+# Official Amazon Web Services command-line interface
+brew "awscli"
 # Clone of cat(1) with syntax highlighting and Git integration
 brew "bat"
 # Reference implementation for the Development Containers specification
